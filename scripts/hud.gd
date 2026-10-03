@@ -36,6 +36,10 @@ var _boss_bar: Control
 var _boss_fill: ColorRect
 var _boss_name: Label
 var _info_warning := false
+var _merge_panel: PanelContainer
+var _merge_cards: Array[Dictionary] = []
+var _merge_cost: Label
+var _merge_key := ""
 var _last_back_msec := -10000
 var _game_over: Control
 var _game_over_label: Label
@@ -156,6 +160,7 @@ func _ready() -> void:
 	root.add_child(_village)
 	root.move_child(_village, 0)
 	_shop = _village.shop
+	_build_merge_panel(root)
 	_book = RecipeBook.new()
 	_book.quick_buy.connect(func(bundle: Dictionary) -> void: quick_buy_pressed.emit(bundle))
 	root.add_child(_book)
@@ -163,6 +168,7 @@ func _ready() -> void:
 	root.add_child(_achievements)
 	_build_banner_and_boss_bar(root)
 	_build_game_over(root)
+	_book.visibility_changed.connect(_refresh)
 	Game.gold_changed.connect(func(_gold: int) -> void: _refresh())
 	Game.round_changed.connect(func(_round: int) -> void: _refresh())
 	Achievements.unlocked.connect(_on_achievement_unlocked)
@@ -228,6 +234,99 @@ func set_ability_unit(unit: Combatant) -> void:
 		_ability_button.text = text
 
 
+## Rechts neben dem Feld: die beiden Zutaten und das Ergebnis mit Bild, Werten und Fähigkeit.
+func _build_merge_panel(root: Control) -> void:
+	_merge_panel = PanelContainer.new()
+	_merge_panel.position = Vector2(474, 28)
+	_merge_panel.size = Vector2(162, 10)
+	_merge_panel.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_merge_panel.visible = false
+	var style := UiTheme.sign_style()
+	style.modulate_color = Color(1, 1, 1, 0.94)
+	style.content_margin_left = 5
+	style.content_margin_right = 5
+	style.content_margin_top = 4
+	style.content_margin_bottom = 4
+	_merge_panel.add_theme_stylebox_override("panel", style)
+	root.add_child(_merge_panel)
+	var column := VBoxContainer.new()
+	column.add_theme_constant_override("separation", 1)
+	column.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_merge_panel.add_child(column)
+	for index in 3:
+		if index > 0:
+			var sign := Label.new()
+			sign.text = "+" if index == 1 else "▼"
+			sign.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+			sign.add_theme_font_size_override("font_size", 10)
+			sign.add_theme_color_override("font_color", UiTheme.GOLD_LIGHT)
+			column.add_child(sign)
+		var head := HBoxContainer.new()
+		head.add_theme_constant_override("separation", 4)
+		var icon := TextureRect.new()
+		icon.custom_minimum_size = Vector2(32, 32)
+		icon.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+		icon.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+		icon.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+		head.add_child(icon)
+		var names := VBoxContainer.new()
+		names.add_theme_constant_override("separation", -2)
+		names.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		var title := Label.new()
+		title.clip_text = true
+		title.add_theme_font_size_override("font_size", 10)
+		title.add_theme_color_override("font_color", UiTheme.GOLD_LIGHT if index == 2 else UiTheme.CREAM)
+		var stats := Label.new()
+		stats.clip_text = true
+		stats.add_theme_font_size_override("font_size", 8)
+		names.add_child(title)
+		names.add_child(stats)
+		head.add_child(names)
+		column.add_child(head)
+		var ability := Label.new()
+		ability.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		ability.custom_minimum_size = Vector2(150, 0)
+		ability.add_theme_font_size_override("font_size", 8)
+		ability.add_theme_constant_override("line_spacing", -2)
+		ability.add_theme_color_override("font_color", Color("#d8c8a0"))
+		column.add_child(ability)
+		_merge_cards.append({"icon": icon, "title": title, "stats": stats, "ability": ability})
+	_merge_cost = Label.new()
+	_merge_cost.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_merge_cost.add_theme_font_size_override("font_size", 10)
+	column.add_child(_merge_cost)
+
+
+## Zeigt beim Ziehen, was aus `a` und `b` wird. `warning`: Verbinden gerade nicht möglich (Gold/Runde).
+func show_merge_preview(a: UnitData, b: UnitData, result: UnitData, cost_text: String, warning: bool) -> void:
+	var key := "%s|%s|%s|%s|%s" % [a.id, b.id, cost_text, warning, Loc.language]
+	if key == _merge_key and _merge_panel.visible:
+		return
+	_merge_key = key
+	var units := [a, b, result]
+	for index in 3:
+		var unit: UnitData = units[index]
+		var card: Dictionary = _merge_cards[index]
+		card["icon"].texture = unit.sprite
+		card["title"].text = unit.display_name
+		card["stats"].text = unit.stats_text()
+		var ability_text := ""
+		if unit.ability != &"":
+			ability_text = "★ %s: %s" % [Abilities.label(unit.ability), Abilities.description(unit.ability)]
+		card["ability"].text = ability_text
+		card["ability"].visible = ability_text != ""
+	_merge_cost.text = cost_text
+	_merge_cost.add_theme_color_override("font_color", Color(1.0, 0.5, 0.45) if warning else UiTheme.GOLD_LIGHT)
+	_merge_panel.size = Vector2(162, 10)
+	_merge_panel.visible = true
+
+
+func hide_merge_preview() -> void:
+	if _merge_panel.visible:
+		_merge_panel.visible = false
+		_merge_key = ""
+
+
 func show_text(text: String, warning := false) -> void:
 	_set_info(text, warning)
 
@@ -284,7 +383,7 @@ func _refresh() -> void:
 		_:
 			_phase_label.text = ""
 	var building := Game.phase == Game.Phase.BUILD
-	_start_button.disabled = not building
+	_start_button.disabled = not building or (is_instance_valid(_book) and _book.visible)
 	_start_button.visible = building
 	_ability_button.visible = Game.phase == Game.Phase.BATTLE
 	_auto_button.text = tr("Auto-Fähigk.: an") if Game.auto_abilities else tr("Auto-Fähigk.: aus")

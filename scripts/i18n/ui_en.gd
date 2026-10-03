@@ -122,6 +122,8 @@ const TEXTS := {
 	"%d Einheiten gekauft (%dg). Jetzt verbinden!": "%d units bought (%dg). Now merge them!",
 	"Diese Einheiten lassen sich nicht verbinden": "These units cannot be merged",
 	"Erst ab Runde %d": "Only from round %d",
+	"Kosten: %dg": "Cost: %dg",
+	"Kosten: %dg (du hast %dg)": "Cost: %dg (you have %dg)",
 	"%s: hier abstellen (nicht verbindbar mit %s)": "%s: drop here (cannot merge with %s)",
 	"%s: ab Runde %d": "%s: from round %d",
 	"%s: kostet %dg, du hast nur %dg": "%s: costs %dg, you only have %dg",

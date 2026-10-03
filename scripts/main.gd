@@ -237,12 +237,21 @@ func _merge_preview(unit: Combatant) -> String:
 	_preview_warning = false
 	var target := _unit_at(unit.center(), unit, MERGE_RADIUS)
 	if target == null:
+		_hud.hide_merge_preview()
 		return unit.display_name
 	var recipe := Registry.find_recipe(unit.unit_data, target.unit_data)
 	if recipe == null:
+		_hud.hide_merge_preview()
 		return tr("%s: hier abstellen (nicht verbindbar mit %s)") % [unit.display_name, target.display_name]
+	var cost_text := tr("Kosten: %dg") % recipe.merge_cost
 	if recipe.unlock_round > Game.round_number:
 		_preview_warning = true
+		cost_text = tr("Erst ab Runde %d") % recipe.unlock_round
+	elif Game.gold < recipe.merge_cost:
+		_preview_warning = true
+		cost_text = tr("Kosten: %dg (du hast %dg)") % [recipe.merge_cost, Game.gold]
+	_hud.show_merge_preview(unit.unit_data, target.unit_data, recipe.result, cost_text, _preview_warning)
+	if recipe.unlock_round > Game.round_number:
 		return tr("%s: ab Runde %d") % [recipe.result.display_name, recipe.unlock_round]
 	if Game.gold < recipe.merge_cost:
 		_preview_warning = true
@@ -263,6 +272,7 @@ func _begin_drag(point: Vector2) -> void:
 func _end_drag() -> void:
 	var unit := _dragging
 	_dragging = null
+	_hud.hide_merge_preview()
 	unit.highlighted = false
 	var target := _unit_at(unit.center(), unit, MERGE_RADIUS)
 	if target == null:

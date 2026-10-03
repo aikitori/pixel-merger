@@ -21,6 +21,13 @@ func _ready() -> void:
 		match view:
 			"bau":
 				pass
+			"merge":
+				var pick: RecipeData = null
+				for recipe in Registry.recipes:
+					if recipe.ingredient_a != recipe.ingredient_b and recipe.result.ability != &"" and recipe.ingredient_a.ability != &"":
+						pick = recipe
+						break
+				hud.show_merge_preview(pick.ingredient_a, pick.ingredient_b, pick.result, "Kosten: %dg" % pick.merge_cost, false)
 			"dorf":
 				hud._village.visible = true
 			"haus":

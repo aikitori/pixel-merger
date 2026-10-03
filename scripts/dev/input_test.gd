@@ -16,6 +16,7 @@ func _ready() -> void:
 	add_child(_arena)
 	await get_tree().process_frame
 	await _test_shop()
+	await _test_merge_preview_and_book()
 	await _test_merge_on_whole_field()
 	await _test_merge_without_gold()
 	await _test_place_next_to_other()
@@ -115,6 +116,45 @@ func _test_shop() -> void:
 	_check(_units().size() == 1 and Game.gold == gold - 5, "Kauf im Haus: Einheit erscheint in der Arena, 5 Gold abgezogen")
 	hud._shop_button.pressed.emit()
 	_check(not village.visible and not shop.visible, "Knopf 'Arena' schließt Dorf und Kaufliste")
+
+
+func _test_merge_preview_and_book() -> void:
+	var hud: Hud = _arena.get("_hud")
+	var existing := _units()
+	var gold_before := Game.gold
+	_arena.buy_unit(_peasant())
+	_arena.buy_unit(_peasant())
+	var units := _units().filter(func(u: Combatant) -> bool: return not existing.has(u))
+	units[0].position = Vector2(300, 140)
+	units[1].position = Vector2(380, 140)
+	var from: Vector2 = units[0].center()
+	var to: Vector2 = units[1].center()
+	_event_motion(from)
+	await get_tree().process_frame
+	_event_button(from, true)
+	await get_tree().process_frame
+	_check(not hud._merge_panel.visible, "Vorschau ist beim Anfassen noch zu")
+	_event_motion(to)
+	await get_tree().process_frame
+	await get_tree().process_frame
+	_check(hud._merge_panel.visible, "Beim Ziehen auf eine passende Einheit erscheint die Merge-Vorschau")
+	_check(hud._merge_cards[2]["title"].text == "Knappe", "Vorschau zeigt das Ergebnis (%s)" % hud._merge_cards[2]["title"].text)
+	_check(hud._merge_cards[0]["stats"].text != "", "Vorschau zeigt Werte der Zutat")
+	_event_button(to, false)
+	await get_tree().process_frame
+	_check(not hud._merge_panel.visible, "Vorschau verschwindet nach dem Loslassen")
+	_check(not hud._start_button.disabled, "Start-Knopf ist ohne Buch aktiv")
+	hud._book.open_book()
+	await get_tree().process_frame
+	_check(hud._start_button.disabled, "Start-Knopf ist bei offenem Rezeptbuch gesperrt")
+	hud._book.close_book()
+	await get_tree().process_frame
+	_check(not hud._start_button.disabled, "Start-Knopf ist nach dem Schließen wieder aktiv")
+	for unit in _units():
+		if not existing.has(unit):
+			unit.discard()
+	Game.gold = gold_before
+	await get_tree().process_frame
 
 
 func _test_merge_on_whole_field() -> void:
