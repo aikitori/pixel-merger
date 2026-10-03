@@ -125,6 +125,8 @@ func _test_merge_preview_and_book() -> void:
 	_arena.buy_unit(_peasant())
 	_arena.buy_unit(_peasant())
 	var units := _units().filter(func(u: Combatant) -> bool: return not existing.has(u))
+	for other in existing:  # Zufällig verteilte Startfiguren aus dem Weg, sonst gibt es eine zufällige Vorschau
+		other.position = Vector2(60, 200)
 	units[0].position = Vector2(300, 140)
 	units[1].position = Vector2(380, 140)
 	var from: Vector2 = units[0].center()
@@ -478,6 +480,9 @@ func _test_real_round_then_village() -> void:
 	_check(is_equal_approx(absf(old._flip), 1.0) and old._walk_phase == 0.0 and old._swing_left == 0.0,
 		"Nach dem Kampf sind Drehung, Laufwippen und Schwertschwung zurückgesetzt")
 	# Antippen am Kopf (oberer Sprite-Rand) trifft ebenfalls.
+	for other in _units():  # Zufällig verteilte Nachbarn könnten die Kopfstelle verdecken
+		if other != old:
+			other.position = Vector2(60, 200) if old.position.x > 320 else Vector2(580, 200)
 	var head := old.position + Vector2(0, -old.sprite.get_height() + 2)
 	_check(_arena._unit_at(head) == old, "Antippen am Kopf trifft die Figur")
 	var before := old.position
