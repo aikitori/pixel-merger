@@ -126,6 +126,8 @@ const TEXTS := {
 	"Das Gelände hat sich verändert: weniger Hindernisse!": "The terrain has changed: fewer obstacles!",
 	"Stä %s  Bew %s  Int %s": "Str %s  Spd %s  Int %s",
 	"Stufe": "Level",
+	"Vollbild": "Fullscreen",
+	"Fenster": "Window",
 	"Kosten: %dg (du hast %dg)": "Cost: %dg (you have %dg)",
 	"%s: hier abstellen (nicht verbindbar mit %s)": "%s: drop here (cannot merge with %s)",
 	"%s: ab Runde %d": "%s: from round %d",

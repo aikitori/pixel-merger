@@ -8,6 +8,7 @@ const HEROES := ["knight", "mage", "archer", "healer", "wolf", "horse", "dwarf_w
 var _achievements: AchievementsPanel
 var _achievements_button: Button
 var _sound_button: Button
+var _fullscreen_button: Button
 var _language_button: Button
 var _quit_button: Button
 
@@ -139,7 +140,18 @@ func _build_buttons() -> void:
 		get_tree().reload_current_scene())
 	_sound_button = _menu_button("Ton an", 220)
 	_sound_button.pressed.connect(func() -> void: Sound.muted = not Sound.muted)
-	_quit_button = _menu_button("Beenden", 260)
+	var next_y := 260.0
+	if Fullscreen.available():
+		_fullscreen_button = _menu_button("Vollbild", next_y)
+		_fullscreen_button.pressed.connect(func() -> void:
+			Fullscreen.toggle()
+			# Der Browser meldet den neuen Modus erst einen Moment später
+			for delay in [0.2, 0.7, 1.5]:
+				await get_tree().create_timer(delay, true, false, true).timeout
+				_refresh())
+		get_viewport().size_changed.connect(_refresh)
+		next_y += 40.0
+	_quit_button = _menu_button("Beenden", next_y)
 	_quit_button.pressed.connect(func() -> void: get_tree().quit())
 	_quit_button.visible = not OS.has_feature("web")  # im Browser gibt es nichts zu beenden
 	var version := Label.new()
@@ -165,5 +177,7 @@ func _menu_button(text: String, y: float) -> Button:
 func _refresh() -> void:
 	_achievements_button.text = tr("Erfolge  %d / %d") % [Achievements.unlocked_count(), Achievements.LIST.size()]
 	_sound_button.text = tr("Ton aus") if Sound.muted else tr("Ton an")
+	if _fullscreen_button != null:
+		_fullscreen_button.text = Fullscreen.label()
 	# Die Sprache steht immer in ihrer eigenen Sprache, damit man sie auch im Fremdtext findet.
 	_language_button.text = "Sprache: Deutsch" if Loc.language == "de" else "Language: English"

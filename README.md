@@ -2,6 +2,8 @@
 
 Pixel-2D-Handyspiel (Android/iOS) in Godot 4. Einheiten kaufen und zu stärkeren Kombinationen verbinden, inspiriert von der Warcraft-3-Map "Binders".
 
+**Im Browser spielen:** https://aikitori.github.io/pixel-merger/ (immer der aktuelle Stand von `main`)
+
 Spielidee und offene Fragen: [docs/GAME_DESIGN.md](docs/GAME_DESIGN.md)
 
 ## Entwickeln

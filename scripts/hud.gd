@@ -29,6 +29,7 @@ var _ability_button: Button
 var _auto_button: Button
 var _sound_button: Button
 var _achievements_button: Button
+var _fullscreen_button: Button
 var _achievements: AchievementsPanel
 var _banner: Label
 var _banner_tween: Tween
@@ -134,6 +135,20 @@ func _ready() -> void:
 	_start_button.pressed.connect(func() -> void: start_pressed.emit())
 	root.add_child(_start_button)
 
+	if Fullscreen.available():
+		_fullscreen_button = Button.new()
+		_fullscreen_button.text = Fullscreen.label()
+		_fullscreen_button.position = Vector2(292, 2)
+		_fullscreen_button.size = Vector2(58, 20)
+		_fullscreen_button.add_theme_font_size_override("font_size", 10)
+		_fullscreen_button.pressed.connect(func() -> void:
+			Fullscreen.toggle()
+			# Der Browser meldet den neuen Modus erst einen Moment später
+			for delay in [0.2, 0.7, 1.5]:
+				await get_tree().create_timer(delay, true, false, true).timeout
+				_refresh())
+		get_viewport().size_changed.connect(_refresh)
+		root.add_child(_fullscreen_button)
 	_achievements_button = Button.new()
 	_achievements_button.text = tr("Erfolge")
 	_achievements_button.position = Vector2(354, 2)
@@ -488,6 +503,8 @@ func _refresh() -> void:
 	_start_button.visible = building
 	_ability_button.visible = Game.phase == Game.Phase.BATTLE
 	_auto_button.text = tr("Auto-Fähigk.: an") if Game.auto_abilities else tr("Auto-Fähigk.: aus")
+	if _fullscreen_button != null:
+		_fullscreen_button.text = Fullscreen.label()
 	_book_button.disabled = not building
 	_shop_button.disabled = not building
 	# Im Kampf ersetzt der Tempo-Knopf Shop und Rezeptbuch.
