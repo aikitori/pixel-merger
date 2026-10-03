@@ -1,0 +1,28 @@
+[gd_resource type="Resource" script_class="UnitData" load_steps=4 format=3]
+
+[ext_resource type="Script" path="res://scripts/data/unit_data.gd" id="1"]
+[ext_resource type="Texture2D" path="res://assets/sprites/units/horse.png" id="2"]
+[ext_resource type="Resource" path="res://data/units/warhorse.tres" id="3"]
+
+[resource]
+script = ExtResource("1")
+sprite = ExtResource("2")
+id = &"horse"
+display_name = "Pferd"
+line_name = "Reittiere"
+category = "Klassisch"
+color = Color(0.788, 0.541, 0.294, 1)
+level = 2
+shop_order = 0
+price = 0
+unlock_round = 1
+max_health = 30.0
+attack = 2.0
+attack_range = 12.0
+attack_style = &"melee"
+ability = &"sprint"
+attack_cooldown = 1.0
+move_speed = 70.0
+intelligence = 4.0
+upgrade = ExtResource("3")
+upgrade_cost = 14

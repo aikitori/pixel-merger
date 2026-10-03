@@ -1,0 +1,25 @@
+[gd_resource type="Resource" script_class="UnitData" load_steps=3 format=3]
+
+[ext_resource type="Script" path="res://scripts/data/unit_data.gd" id="1"]
+[ext_resource type="Texture2D" path="res://assets/sprites/units/titan.png" id="2"]
+
+[resource]
+script = ExtResource("1")
+sprite = ExtResource("2")
+id = &"titan"
+display_name = "Titan"
+line_name = "Riesen"
+category = "Märchen"
+color = Color(0.961, 0.788, 0.208, 1)
+level = 5
+shop_order = 0
+price = 0
+unlock_round = 7
+max_health = 225.0
+attack = 36.0
+attack_range = 16.0
+attack_style = &"melee"
+ability = &"taunt"
+attack_cooldown = 1.6
+move_speed = 24.0
+intelligence = 14.0

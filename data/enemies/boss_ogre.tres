@@ -1,0 +1,23 @@
+[gd_resource type="Resource" script_class="EnemyData" load_steps=3 format=3]
+
+[ext_resource type="Script" path="res://scripts/data/enemy_data.gd" id="1"]
+[ext_resource type="Texture2D" path="res://assets/sprites/enemies/boss_ogre.png" id="2"]
+
+[resource]
+script = ExtResource("1")
+sprite = ExtResource("2")
+id = &"boss_ogre"
+display_name = "Ogerkönig"
+color = Color(0.561, 0.353, 0.165, 1)
+body_size = 36.0
+max_health = 220.0
+attack = 9.0
+attack_range = 18.0
+attack_style = &"melee"
+attack_cooldown = 1.6
+move_speed = 20.0
+gold_reward = 80
+min_round = 0
+weight = 0.0
+intelligence = 20.0
+is_boss = true

@@ -1,0 +1,25 @@
+[gd_resource type="Resource" script_class="UnitData" load_steps=3 format=3]
+
+[ext_resource type="Script" path="res://scripts/data/unit_data.gd" id="1"]
+[ext_resource type="Texture2D" path="res://assets/sprites/units/silver_unicorn_3.png" id="2"]
+
+[resource]
+script = ExtResource("1")
+sprite = ExtResource("2")
+id = &"silver_unicorn_3"
+display_name = "Lebenseinhorn"
+line_name = "Kombination"
+category = "Kombination"
+color = Color(1.000, 0.957, 0.690, 1)
+level = 3
+shop_order = 0
+price = 0
+unlock_round = 9
+max_health = 275.0
+attack = 50.2
+attack_range = 75.0
+attack_style = &"heal"
+ability = &"mass_heal"
+attack_cooldown = 0.9
+move_speed = 44.0
+intelligence = 78.0

@@ -1,0 +1,25 @@
+[gd_resource type="Resource" script_class="UnitData" load_steps=3 format=3]
+
+[ext_resource type="Script" path="res://scripts/data/unit_data.gd" id="1"]
+[ext_resource type="Texture2D" path="res://assets/sprites/units/witch_queen.png" id="2"]
+
+[resource]
+script = ExtResource("1")
+sprite = ExtResource("2")
+id = &"witch_queen"
+display_name = "Hexenkönigin"
+line_name = "Hexen"
+category = "Märchen"
+color = Color(0.839, 0.235, 0.204, 1)
+level = 5
+shop_order = 0
+price = 0
+unlock_round = 7
+max_health = 82.0
+attack = 36.0
+attack_range = 65.0
+attack_style = &"magic"
+ability = &"slow_aura"
+attack_cooldown = 1.5
+move_speed = 30.0
+intelligence = 192.0

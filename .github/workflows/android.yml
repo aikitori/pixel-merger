@@ -1,0 +1,137 @@
+name: Android APK
+
+on:
+  push:
+    branches: [main]
+    tags: ['v*']
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: android-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  GODOT_VERSION: '4.4.1'
+
+jobs:
+  debug-apk:
+    name: Debug-APK bauen
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: ./.github/actions/setup-godot-android
+        with:
+          godot-version: ${{ env.GODOT_VERSION }}
+
+      - name: Projekt importieren
+        run: |
+          godot --headless --import || true
+          godot --headless --import || true
+
+      - name: Spiellogik testen (Smoke-Test)
+        run: |
+          godot --headless res://scenes/dev/smoke.tscn 2>&1 | tee smoke.log
+          if grep -E "SCRIPT ERROR|^ERROR" smoke.log; then
+            echo "::error::Fehler im Smoke-Test"
+            exit 1
+          fi
+          grep -q "Rezeptbuch:" smoke.log
+
+      - name: Eingabe testen (Shop, Ziehen, Merge, Befehle, Kreuz)
+        run: |
+          godot --headless res://scenes/dev/input_test.tscn 2>&1 | tee input.log
+          test "${PIPESTATUS[0]}" -eq 0
+          if grep -E "SCRIPT ERROR|^ERROR" input.log; then
+            echo "::error::Fehler im Eingabetest"
+            exit 1
+          fi
+
+      - name: Kampfanimationen testen (Schwert, Pfeil, Feuerball)
+        run: |
+          godot --headless res://scenes/dev/anim_test.tscn 2>&1 | tee anim.log
+          test "${PIPESTATUS[0]}" -eq 0
+          if grep -E "SCRIPT ERROR|^ERROR" anim.log; then
+            echo "::error::Fehler im Animationstest"
+            exit 1
+          fi
+
+      - name: Boss-/Bonusrunden und Erfolge testen
+        run: |
+          godot --headless res://scenes/dev/events_test.tscn 2>&1 | tee events.log
+          test "${PIPESTATUS[0]}" -eq 0
+          if grep -E "SCRIPT ERROR|^ERROR" events.log; then
+            echo "::error::Fehler im Events-Test"
+            exit 1
+          fi
+
+      - name: Export prüfen (Spieldaten im exportierten Paket)
+        run: |
+          mkdir -p build
+          godot --headless --export-pack "Android" build/check.pck
+          godot --headless --verbose --main-pack build/check.pck --quit-after 120 2>&1 | tee pack.log
+          grep -E "Registry: [1-9][0-9]* Einheiten" pack.log
+          if grep -E "SCRIPT ERROR|Spieldaten fehlen" pack.log; then
+            echo "::error::Exportiertes Spiel lädt seine Daten nicht"
+            exit 1
+          fi
+
+      - name: APK bauen
+        env:
+          VERSION_CODE: ${{ github.run_number }}
+        run: tools/build_android.sh debug
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: pixel-merger-debug-apk
+          path: build/pixel-merger-debug.apk
+          if-no-files-found: error
+          retention-days: 14
+
+  release-apk:
+    name: Signierte Release-APK
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: debug-apk
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: ./.github/actions/setup-godot-android
+        with:
+          godot-version: ${{ env.GODOT_VERSION }}
+
+      - name: Keystore bereitstellen
+        env:
+          KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+        run: |
+          if [ -z "$KEYSTORE_BASE64" ]; then
+            echo "::error::Secret ANDROID_KEYSTORE_BASE64 fehlt (siehe docs/ANDROID.md)"
+            exit 1
+          fi
+          echo "$KEYSTORE_BASE64" | base64 -d > "$RUNNER_TEMP/release.keystore"
+
+      - name: Release-APK bauen
+        env:
+          ANDROID_KEYSTORE_PATH: ${{ runner.temp }}/release.keystore
+          ANDROID_KEYSTORE_USER: ${{ secrets.ANDROID_KEYSTORE_USER }}
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          VERSION_CODE: ${{ github.run_number }}
+          TAG: ${{ github.ref_name }}
+        run: |
+          VERSION_NAME="${TAG#v}" tools/build_android.sh release
+
+      - name: GitHub-Release anlegen
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ github.ref_name }}
+        run: |
+          gh release create "$TAG" build/pixel-merger-release.apk --generate-notes --verify-tag \
+            || gh release upload "$TAG" build/pixel-merger-release.apk --clobber

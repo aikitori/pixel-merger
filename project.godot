@@ -1,0 +1,46 @@
+; Engine configuration file.
+config_version=5
+
+[application]
+
+config/version="0.1.9"
+config/name="Pixel Merger"
+config/description="Pixel-Art-Handyspiel: Einheiten kaufen und zu stärkeren Kombinationen verbinden."
+config/quit_on_go_back=false
+run/main_scene="res://scenes/menu.tscn"
+config/features=PackedStringArray("4.4", "Mobile")
+config/icon="res://icon.png"
+
+[autoload]
+
+Game="*res://scripts/autoload/game.gd"
+Registry="*res://scripts/autoload/registry.gd"
+Loc="*res://scripts/autoload/loc.gd"
+Sound="*res://scripts/autoload/sound.gd"
+Achievements="*res://scripts/autoload/achievements.gd"
+
+[internationalization]
+
+locale/fallback="de"
+
+[display]
+
+window/size/viewport_width=640
+window/size/viewport_height=360
+window/size/window_width_override=1280
+window/size/window_height_override=720
+window/stretch/mode="viewport"
+window/stretch/scale_mode="integer"
+window/handheld/orientation=0
+
+[input_devices]
+
+pointing/emulate_touch_from_mouse=false
+
+[rendering]
+
+textures/canvas_textures/default_texture_filter=0
+textures/vram_compression/import_etc2_astc=true
+renderer/rendering_method="mobile"
+2d/snap/snap_2d_transforms_to_pixel=true
+2d/snap/snap_2d_vertices_to_pixel=true

@@ -1,0 +1,21 @@
+# Godot 4
+.godot/
+.import/
+*.translation
+export.cfg
+export_credentials.cfg
+.mono/
+
+# Builds und Signierschlüssel (nie einchecken)
+build/
+*.apk
+*.aab
+*.ipa
+*.keystore
+*.jks
+
+# Sonstiges
+android/
+preview.png
+.DS_Store
+tools/__pycache__/

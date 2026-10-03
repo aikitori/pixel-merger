@@ -1,0 +1,23 @@
+[gd_resource type="Resource" script_class="EnemyData" load_steps=3 format=3]
+
+[ext_resource type="Script" path="res://scripts/data/enemy_data.gd" id="1"]
+[ext_resource type="Texture2D" path="res://assets/sprites/enemies/boss_dragon.png" id="2"]
+
+[resource]
+script = ExtResource("1")
+sprite = ExtResource("2")
+id = &"boss_dragon"
+display_name = "Feuerdrache"
+color = Color(0.839, 0.235, 0.204, 1)
+body_size = 36.0
+max_health = 180.0
+attack = 11.0
+attack_range = 85.0
+attack_style = &"magic"
+attack_cooldown = 2.0
+move_speed = 18.0
+gold_reward = 90
+min_round = 1
+weight = 0.0
+intelligence = 20.0
+is_boss = true

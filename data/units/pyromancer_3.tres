@@ -1,0 +1,25 @@
+[gd_resource type="Resource" script_class="UnitData" load_steps=3 format=3]
+
+[ext_resource type="Script" path="res://scripts/data/unit_data.gd" id="1"]
+[ext_resource type="Texture2D" path="res://assets/sprites/units/pyromancer_3.png" id="2"]
+
+[resource]
+script = ExtResource("1")
+sprite = ExtResource("2")
+id = &"pyromancer_3"
+display_name = "Flammenfürst"
+line_name = "Kombination"
+category = "Kombination"
+color = Color(0.839, 0.235, 0.204, 1)
+level = 3
+shop_order = 0
+price = 0
+unlock_round = 9
+max_health = 96.0
+attack = 51.2
+attack_range = 75.0
+attack_style = &"magic"
+ability = &"meteor"
+attack_cooldown = 1.3
+move_speed = 30.0
+intelligence = 119.0

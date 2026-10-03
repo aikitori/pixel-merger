@@ -1,0 +1,28 @@
+[gd_resource type="Resource" script_class="UnitData" load_steps=4 format=3]
+
+[ext_resource type="Script" path="res://scripts/data/unit_data.gd" id="1"]
+[ext_resource type="Texture2D" path="res://assets/sprites/units/doctor.png" id="2"]
+[ext_resource type="Resource" path="res://data/units/life_giver.tres" id="3"]
+
+[resource]
+script = ExtResource("1")
+sprite = ExtResource("2")
+id = &"doctor"
+display_name = "Arzt"
+line_name = "Heiler"
+category = "Heilkunst"
+color = Color(0.184, 0.549, 1.000, 1)
+level = 4
+shop_order = 0
+price = 0
+unlock_round = 4
+max_health = 62.0
+attack = 15.6
+attack_range = 75.0
+attack_style = &"heal"
+ability = &"revive"
+attack_cooldown = 1.4
+move_speed = 32.0
+intelligence = 91.0
+upgrade = ExtResource("3")
+upgrade_cost = 70

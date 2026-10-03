@@ -1,0 +1,23 @@
+[gd_resource type="Resource" script_class="EnemyData" load_steps=3 format=3]
+
+[ext_resource type="Script" path="res://scripts/data/enemy_data.gd" id="1"]
+[ext_resource type="Texture2D" path="res://assets/sprites/enemies/boss_bones.png" id="2"]
+
+[resource]
+script = ExtResource("1")
+sprite = ExtResource("2")
+id = &"boss_bones"
+display_name = "Knochenkönig"
+color = Color(0.784, 0.800, 0.847, 1)
+body_size = 40.0
+max_health = 190.0
+attack = 7.0
+attack_range = 100.0
+attack_style = &"arrow"
+attack_cooldown = 1.0
+move_speed = 22.0
+gold_reward = 85
+min_round = 2
+weight = 0.0
+intelligence = 20.0
+is_boss = true

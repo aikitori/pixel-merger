@@ -1,0 +1,28 @@
+[gd_resource type="Resource" script_class="UnitData" load_steps=4 format=3]
+
+[ext_resource type="Script" path="res://scripts/data/unit_data.gd" id="1"]
+[ext_resource type="Texture2D" path="res://assets/sprites/units/angel.png" id="2"]
+[ext_resource type="Resource" path="res://data/units/angel_2.tres" id="3"]
+
+[resource]
+script = ExtResource("1")
+sprite = ExtResource("2")
+id = &"angel"
+display_name = "Engel"
+line_name = "Kombination"
+category = "Kombination"
+color = Color(1.000, 0.957, 0.690, 1)
+level = 1
+shop_order = 0
+price = 0
+unlock_round = 5
+max_health = 112.0
+attack = 31.2
+attack_range = 75.0
+attack_style = &"heal"
+ability = &"evasion"
+attack_cooldown = 0.6
+move_speed = 48.0
+intelligence = 104.0
+upgrade = ExtResource("3")
+upgrade_cost = 68

@@ -1,0 +1,25 @@
+[gd_resource type="Resource" script_class="UnitData" load_steps=3 format=3]
+
+[ext_resource type="Script" path="res://scripts/data/unit_data.gd" id="1"]
+[ext_resource type="Texture2D" path="res://assets/sprites/units/ice_giant_3.png" id="2"]
+
+[resource]
+script = ExtResource("1")
+sprite = ExtResource("2")
+id = &"ice_giant_3"
+display_name = "Ymir"
+line_name = "Kombination"
+category = "Kombination"
+color = Color(0.561, 0.878, 1.000, 1)
+level = 3
+shop_order = 0
+price = 0
+unlock_round = 9
+max_health = 528.0
+attack = 106.6
+attack_range = 60.0
+attack_style = &"magic"
+ability = &"evasion"
+attack_cooldown = 0.6
+move_speed = 37.0
+intelligence = 90.0

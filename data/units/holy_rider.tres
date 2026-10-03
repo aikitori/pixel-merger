@@ -1,0 +1,28 @@
+[gd_resource type="Resource" script_class="UnitData" load_steps=4 format=3]
+
+[ext_resource type="Script" path="res://scripts/data/unit_data.gd" id="1"]
+[ext_resource type="Texture2D" path="res://assets/sprites/units/holy_rider.png" id="2"]
+[ext_resource type="Resource" path="res://data/units/holy_rider_2.tres" id="3"]
+
+[resource]
+script = ExtResource("1")
+sprite = ExtResource("2")
+id = &"holy_rider"
+display_name = "Heiliger Reiter"
+line_name = "Kombination"
+category = "Kombination"
+color = Color(1.000, 0.957, 0.690, 1)
+level = 1
+shop_order = 0
+price = 0
+unlock_round = 5
+max_health = 170.0
+attack = 20.0
+attack_range = 35.0
+attack_style = &"magic"
+ability = &"revive"
+attack_cooldown = 0.8
+move_speed = 70.0
+intelligence = 55.0
+upgrade = ExtResource("3")
+upgrade_cost = 90

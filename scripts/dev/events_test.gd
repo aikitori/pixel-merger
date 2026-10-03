@@ -1,0 +1,118 @@
+extends Node
+## Entwickler-Test: Bossrunde (Runde 5), Bonusrunde (Runde 10) und Erfolge.
+## Start: godot --headless res://scenes/dev/events_test.tscn
+
+var _failed := false
+var _arena: Node2D
+
+
+func _ready() -> void:
+	Engine.time_scale = 10.0
+	get_tree().create_timer(120.0, true, false, true).timeout.connect(func() -> void:
+		print("EVENTS-TEST ZEITÜBERSCHREITUNG")
+		get_tree().quit(1))
+	Achievements.reset()
+	_arena = load("res://scenes/main.tscn").instantiate()
+	add_child(_arena)
+	await get_tree().process_frame
+
+	_check(Game.round_kind(5) == Game.RoundKind.BOSS and Game.round_kind(15) == Game.RoundKind.BOSS, "Runde 5 und 15 sind Bossrunden")
+	_check(Game.round_kind(10) == Game.RoundKind.BONUS and Game.round_kind(20) == Game.RoundKind.BONUS, "Runde 10 und 20 sind Bonusrunden")
+	_check(Game.round_kind(4) == Game.RoundKind.NORMAL and Game.round_kind(11) == Game.RoundKind.NORMAL, "Andere Runden sind normal")
+	_check(Registry.bosses.size() >= 4 and Registry.boss_for_round(5) != Registry.boss_for_round(15), "Bosse wechseln reihum")
+	_check(not Registry.enemies.any(func(e: EnemyData) -> bool: return e.is_boss), "Bosse stehen nicht im normalen Spawn")
+
+	# Schnellkauf (Rezeptbuch): alle Grundeinheiten eines Rezepts auf einmal, Verbinden bleibt manuell.
+	var knight_bundle: Dictionary = Registry.base_units(Registry.units["knight"])
+	_check(knight_bundle.size() == 1 and knight_bundle[Registry.units["peasant"]] == 4, "Ritter = 4 Bauern")
+	var paladin: UnitData = Registry.units["paladin"]
+	var bundle: Dictionary = Registry.base_units(paladin)
+	var price: int = Registry.bundle_price(bundle)
+	_check(Registry.bundle_size(bundle) == 6 and price == 4 * 5 + 2 * 8, "Paladin = 4 Bauern + 2 Lehrlinge (%dg)" % price)
+	Game.gold = price - 1
+	_check(not _arena.buy_bundle(bundle) and _arena.get_player_units().is_empty() and Game.gold == price - 1, "Schnellkauf ohne genug Gold kauft nichts")
+	Game.gold = price
+	_check(_arena.buy_bundle(bundle) and _arena.get_player_units().size() == 6 and Game.gold == 0, "Schnellkauf kauft alle Grundeinheiten")
+	var types := {}
+	for unit in _arena.get_player_units():
+		types[unit.unit_data.id] = types.get(unit.unit_data.id, 0) + 1
+	_check(types == {&"peasant": 4, &"apprentice": 2}, "Es wird nicht automatisch verbunden")
+	Game.gold = 1000
+	var big := {Registry.units["peasant"]: 7}
+	_check(not _arena.buy_bundle(big) and _arena.get_player_units().size() == 6, "Schnellkauf lehnt ab, wenn die Arena voll würde")
+	for unit in _arena.get_player_units():
+		unit.discard()
+	await get_tree().process_frame
+
+	# Version: Anzeige im Menü (project.godot) und APK-Version (export_presets.cfg) müssen übereinstimmen.
+	var presets := FileAccess.get_file_as_string("res://export_presets.cfg")
+	var match_name := RegEx.create_from_string('version/name="([^"]*)"').search(presets)
+	var shown: String = ProjectSettings.get_setting("application/config/version", "")
+	_check(match_name != null and match_name.get_string(1) == shown, "Versionsanzeige (%s) = APK-Version (%s)" % [shown, match_name.get_string(1) if match_name else "?"])
+
+	# Sprache: Namen und Texte sind ins Englische übersetzbar, Deutsch bleibt der Standard.
+	_check(Loc.language == "de" and Registry.units["knight"].display_name == "Ritter", "Tests laufen auf Deutsch")
+	Loc.set_language("en")
+	_check(Registry.units["knight"].display_name == "Knight" and Registry.units["knight"].line_name == "Melee", "Englisch: Einheit und Linie übersetzt")
+	_check(Abilities.display_name(&"shield") == "Shield Up" and tr("Neustart") == "Restart", "Englisch: Fähigkeiten und Oberfläche übersetzt")
+	var missing: Array[String] = []
+	for unit: UnitData in Registry.units.values():
+		if unit.display_name == Registry._german_names[unit][0] and not Registry._german_names[unit][0] in ["Paladin", "Anubis", "Chiron", "Gaia", "Hydra", "Ifrit", "Loki", "Medusa", "Pegasus", "Poltergeist", "Satyr", "Sleipnir", "Surtr", "Thor", "Titan", "Troll", "Veteran", "Wolf", "Ymir", "Zerberus", "Basilisk", "Banshee", "Ent", "Golem", "Kelpie", "Seraph", "Trickster", "Undine", "Faun", "Muspel", "Leviathan", "Achilles", "Asklepios", "Sprint", "Wyrmling", "Fee"]:
+			missing.append(unit.display_name)
+	_check(missing.is_empty(), "Alle Einheitennamen haben eine englische Übersetzung (unübersetzt: %s)" % [missing.slice(0, 5)])
+	Loc.set_language("de")
+	_check(Registry.units["knight"].display_name == "Ritter", "Zurück auf Deutsch")
+
+	# Starke Armee, damit der Boss fällt: Stufe-5-Einheiten.
+	for id in ["bodyguard", "bodyguard", "bodyguard", "bodyguard", "bodyguard", "bodyguard", "hawkeye", "hawkeye", "hawkeye", "world_weaver", "world_weaver", "world_weaver"]:
+		_arena._spawn_player(Registry.units[id], World.random_center_point())
+	_check(Achievements.is_unlocked(&"first_lvl5"), "Erfolg 'Meisterwerk': erste Stufe-5-Einheit")
+
+	Game.round_number = 5
+	Game.gold = 0
+	_check(_arena.start_battle(), "Bossrunde startet")
+	var bosses := get_tree().get_nodes_in_group(Combatant.GROUP_ENEMY).filter(func(e: Combatant) -> bool: return e.is_boss)
+	_check(bosses.size() == 1, "Genau ein Boss ist erschienen")
+	var boss_gold: int = bosses[0].gold_reward if not bosses.is_empty() else 0
+	await _wait_battle_end()
+	_check(Game.phase == Game.Phase.BUILD and Game.round_number == 6, "Bossrunde endet mit dem Tod des Bosses (Runde %d)" % Game.round_number)
+	_check(Game.gold >= boss_gold, "Boss gibt Gold (%d >= %d)" % [Game.gold, boss_gold])
+	_check(Achievements.is_unlocked(&"first_boss"), "Erfolg 'Bossbezwinger'")
+
+	# Bonusrunde: Prämie und dreifaches Gold
+	Game.round_number = 10
+	Game.gold = 0
+	var prize := Game.bonus_prize()
+	_check(_arena.start_battle(), "Bonusrunde startet")
+	var kinds := Game.round_gold_mult()
+	_check(is_equal_approx(kinds, 3.0), "Bonusrunde: Gegner geben dreifaches Gold")
+	await _wait_battle_end()
+	_check(Game.phase == Game.Phase.BUILD and Game.round_number == 11, "Bonusrunde endet nach der Zeit (Phase %d, Runde %d)" % [Game.phase, Game.round_number])
+	_check(Game.gold >= prize, "Bonusrunde: Prämie von %d Gold erhalten (Gold %d)" % [prize, Game.gold])
+	_check(Achievements.is_unlocked(&"first_bonus"), "Erfolg 'Goldrausch'")
+	_check(Achievements.is_unlocked(&"first_perfect") and Achievements.is_unlocked(&"round_10"), "Erfolge 'Makellos' und 'Durchhalter'")
+
+	# Fortschritt und Zähler
+	Achievements.reset()
+	Achievements.report(&"kill", 99)
+	_check(not Achievements.is_unlocked(&"kills_100") and Achievements.progress[&"kills_100"] == 99, "Zähler: 99 von 100")
+	Achievements.report(&"kill")
+	_check(Achievements.is_unlocked(&"kills_100"), "Zähler: 100 Gegner schalten den Erfolg frei")
+	Achievements.report_max(&"gold", 150)
+	Achievements.report_max(&"gold", 90)
+	_check(Achievements.progress[&"rich"] == 150 and not Achievements.is_unlocked(&"rich"), "Höchstwert-Erfolge merken sich den größten Wert")
+
+	Engine.time_scale = 1.0
+	print("EVENTS-TEST ", "FEHLGESCHLAGEN" if _failed else "OK")
+	get_tree().quit(1 if _failed else 0)
+
+
+func _wait_battle_end() -> void:
+	while Game.phase == Game.Phase.BATTLE:
+		await get_tree().physics_frame
+
+
+func _check(ok: bool, text: String) -> void:
+	print(("ok:   " if ok else "FAIL: ") + text)
+	if not ok:
+		_failed = true

@@ -1,0 +1,28 @@
+[gd_resource type="Resource" script_class="UnitData" load_steps=4 format=3]
+
+[ext_resource type="Script" path="res://scripts/data/unit_data.gd" id="1"]
+[ext_resource type="Texture2D" path="res://assets/sprites/units/dwarf_knight.png" id="2"]
+[ext_resource type="Resource" path="res://data/units/dwarf_knight_2.tres" id="3"]
+
+[resource]
+script = ExtResource("1")
+sprite = ExtResource("2")
+id = &"dwarf_knight"
+display_name = "Zwergenritter"
+line_name = "Kombination"
+category = "Kombination"
+color = Color(0.961, 0.788, 0.208, 1)
+level = 1
+shop_order = 0
+price = 0
+unlock_round = 3
+max_health = 101.0
+attack = 12.0
+attack_range = 14.0
+attack_style = &"melee"
+ability = &"shield"
+attack_cooldown = 0.8
+move_speed = 35.0
+intelligence = 25.0
+upgrade = ExtResource("3")
+upgrade_cost = 52

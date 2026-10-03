@@ -1,0 +1,32 @@
+name: Godot und Android-SDK einrichten
+description: Installiert JDK 17, Android SDK, Godot und die Android-Export-Templates (mit Cache).
+
+inputs:
+  godot-version:
+    description: Godot-Version ohne Suffix, z.B. 4.4.1
+    default: '4.4.1'
+
+runs:
+  using: composite
+  steps:
+    - uses: actions/setup-java@v4
+      with:
+        distribution: temurin
+        java-version: '17'
+
+    - uses: android-actions/setup-android@v3
+      with:
+        packages: 'platform-tools build-tools;35.0.1 platforms;android-35'
+
+    - uses: actions/cache@v4
+      with:
+        path: |
+          ~/.local/opt/godot-${{ inputs.godot-version }}
+          ~/.local/share/godot/export_templates
+        key: godot-${{ inputs.godot-version }}-android-templates-v1
+
+    - name: Godot installieren
+      shell: bash
+      run: |
+        tools/install_godot.sh "${{ inputs.godot-version }}"
+        echo "$HOME/.local/bin" >> "$GITHUB_PATH"

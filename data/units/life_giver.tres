@@ -1,0 +1,25 @@
+[gd_resource type="Resource" script_class="UnitData" load_steps=3 format=3]
+
+[ext_resource type="Script" path="res://scripts/data/unit_data.gd" id="1"]
+[ext_resource type="Texture2D" path="res://assets/sprites/units/life_giver.png" id="2"]
+
+[resource]
+script = ExtResource("1")
+sprite = ExtResource("2")
+id = &"life_giver"
+display_name = "Lebensspender"
+line_name = "Heiler"
+category = "Heilkunst"
+color = Color(0.961, 0.788, 0.208, 1)
+level = 5
+shop_order = 0
+price = 0
+unlock_round = 7
+max_health = 105.0
+attack = 27.0
+attack_range = 75.0
+attack_style = &"heal"
+ability = &"revive"
+attack_cooldown = 1.4
+move_speed = 32.0
+intelligence = 122.0

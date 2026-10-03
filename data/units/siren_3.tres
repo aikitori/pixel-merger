@@ -1,0 +1,25 @@
+[gd_resource type="Resource" script_class="UnitData" load_steps=3 format=3]
+
+[ext_resource type="Script" path="res://scripts/data/unit_data.gd" id="1"]
+[ext_resource type="Texture2D" path="res://assets/sprites/units/siren_3.png" id="2"]
+
+[resource]
+script = ExtResource("1")
+sprite = ExtResource("2")
+id = &"siren_3"
+display_name = "Sirenenkönigin"
+line_name = "Kombination"
+category = "Kombination"
+color = Color(0.247, 0.471, 0.847, 1)
+level = 3
+shop_order = 0
+price = 0
+unlock_round = 8
+max_health = 141.0
+attack = 42.9
+attack_range = 65.0
+attack_style = &"magic"
+ability = &"regen"
+attack_cooldown = 1.1
+move_speed = 33.0
+intelligence = 143.0

@@ -1,0 +1,25 @@
+[gd_resource type="Resource" script_class="UnitData" load_steps=3 format=3]
+
+[ext_resource type="Script" path="res://scripts/data/unit_data.gd" id="1"]
+[ext_resource type="Texture2D" path="res://assets/sprites/units/paladin_3.png" id="2"]
+
+[resource]
+script = ExtResource("1")
+sprite = ExtResource("2")
+id = &"paladin_3"
+display_name = "Lichtbringer"
+line_name = "Kombination"
+category = "Kombination"
+color = Color(0.941, 0.847, 0.471, 1)
+level = 3
+shop_order = 0
+price = 0
+unlock_round = 10
+max_health = 256.0
+attack = 38.4
+attack_range = 30.0
+attack_style = &"melee"
+ability = &"mass_heal"
+attack_cooldown = 0.9
+move_speed = 40.0
+intelligence = 60.0

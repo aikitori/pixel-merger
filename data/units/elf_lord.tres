@@ -1,0 +1,28 @@
+[gd_resource type="Resource" script_class="UnitData" load_steps=4 format=3]
+
+[ext_resource type="Script" path="res://scripts/data/unit_data.gd" id="1"]
+[ext_resource type="Texture2D" path="res://assets/sprites/units/elf_lord.png" id="2"]
+[ext_resource type="Resource" path="res://data/units/elf_king.tres" id="3"]
+
+[resource]
+script = ExtResource("1")
+sprite = ExtResource("2")
+id = &"elf_lord"
+display_name = "Elfenfürst"
+line_name = "Elfen"
+category = "Fantasy"
+color = Color(0.961, 0.788, 0.208, 1)
+level = 4
+shop_order = 0
+price = 0
+unlock_round = 4
+max_health = 50.0
+attack = 17.5
+attack_range = 95.0
+attack_style = &"arrow"
+ability = &"evasion"
+attack_cooldown = 0.9
+move_speed = 42.0
+intelligence = 104.0
+upgrade = ExtResource("3")
+upgrade_cost = 70

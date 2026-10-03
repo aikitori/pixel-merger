@@ -1,0 +1,23 @@
+[gd_resource type="Resource" script_class="EnemyData" load_steps=3 format=3]
+
+[ext_resource type="Script" path="res://scripts/data/enemy_data.gd" id="1"]
+[ext_resource type="Texture2D" path="res://assets/sprites/enemies/boss_golem.png" id="2"]
+
+[resource]
+script = ExtResource("1")
+sprite = ExtResource("2")
+id = &"boss_golem"
+display_name = "Steingigant"
+color = Color(0.529, 0.584, 0.678, 1)
+body_size = 40.0
+max_health = 300.0
+attack = 8.0
+attack_range = 18.0
+attack_style = &"melee"
+attack_cooldown = 2.0
+move_speed = 14.0
+gold_reward = 95
+min_round = 3
+weight = 0.0
+intelligence = 20.0
+is_boss = true

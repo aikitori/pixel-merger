@@ -1,0 +1,28 @@
+[gd_resource type="Resource" script_class="UnitData" load_steps=4 format=3]
+
+[ext_resource type="Script" path="res://scripts/data/unit_data.gd" id="1"]
+[ext_resource type="Texture2D" path="res://assets/sprites/units/broom_witch.png" id="2"]
+[ext_resource type="Resource" path="res://data/units/broom_witch_2.tres" id="3"]
+
+[resource]
+script = ExtResource("1")
+sprite = ExtResource("2")
+id = &"broom_witch"
+display_name = "Besenreiterin"
+line_name = "Kombination"
+category = "Kombination"
+color = Color(0.784, 0.800, 0.847, 1)
+level = 1
+shop_order = 0
+price = 0
+unlock_round = 2
+max_health = 44.0
+attack = 15.5
+attack_range = 65.0
+attack_style = &"magic"
+ability = &"evasion"
+attack_cooldown = 0.6
+move_speed = 48.0
+intelligence = 84.0
+upgrade = ExtResource("3")
+upgrade_cost = 45

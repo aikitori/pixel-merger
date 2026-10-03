@@ -1,0 +1,25 @@
+[gd_resource type="Resource" script_class="UnitData" load_steps=3 format=3]
+
+[ext_resource type="Script" path="res://scripts/data/unit_data.gd" id="1"]
+[ext_resource type="Texture2D" path="res://assets/sprites/units/pegasus_3.png" id="2"]
+
+[resource]
+script = ExtResource("1")
+sprite = ExtResource("2")
+id = &"pegasus_3"
+display_name = "Himmelspegasus"
+line_name = "Kombination"
+category = "Kombination"
+color = Color(1.000, 0.957, 0.690, 1)
+level = 3
+shop_order = 0
+price = 0
+unlock_round = 8
+max_health = 192.0
+attack = 29.4
+attack_range = 35.0
+attack_style = &"magic"
+ability = &"sprint"
+attack_cooldown = 0.6
+move_speed = 68.0
+intelligence = 49.0

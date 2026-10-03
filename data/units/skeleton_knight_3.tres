@@ -1,0 +1,25 @@
+[gd_resource type="Resource" script_class="UnitData" load_steps=3 format=3]
+
+[ext_resource type="Script" path="res://scripts/data/unit_data.gd" id="1"]
+[ext_resource type="Texture2D" path="res://assets/sprites/units/skeleton_knight_3.png" id="2"]
+
+[resource]
+script = ExtResource("1")
+sprite = ExtResource("2")
+id = &"skeleton_knight_3"
+display_name = "Grabritter"
+line_name = "Kombination"
+category = "Kombination"
+color = Color(0.365, 0.176, 0.533, 1)
+level = 3
+shop_order = 0
+price = 0
+unlock_round = 9
+max_health = 234.0
+attack = 31.4
+attack_range = 14.0
+attack_style = &"melee"
+ability = &"lifesteal"
+attack_cooldown = 0.8
+move_speed = 37.0
+intelligence = 26.0

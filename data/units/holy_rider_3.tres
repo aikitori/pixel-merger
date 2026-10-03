@@ -1,0 +1,25 @@
+[gd_resource type="Resource" script_class="UnitData" load_steps=3 format=3]
+
+[ext_resource type="Script" path="res://scripts/data/unit_data.gd" id="1"]
+[ext_resource type="Texture2D" path="res://assets/sprites/units/holy_rider_3.png" id="2"]
+
+[resource]
+script = ExtResource("1")
+sprite = ExtResource("2")
+id = &"holy_rider_3"
+display_name = "Himmelsreiter"
+line_name = "Kombination"
+category = "Kombination"
+color = Color(1.000, 0.957, 0.690, 1)
+level = 3
+shop_order = 0
+price = 0
+unlock_round = 11
+max_health = 544.0
+attack = 64.0
+attack_range = 35.0
+attack_style = &"magic"
+ability = &"revive"
+attack_cooldown = 0.8
+move_speed = 70.0
+intelligence = 94.0

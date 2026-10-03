@@ -1,0 +1,22 @@
+[gd_resource type="Resource" script_class="EnemyData" load_steps=3 format=3]
+
+[ext_resource type="Script" path="res://scripts/data/enemy_data.gd" id="1"]
+[ext_resource type="Texture2D" path="res://assets/sprites/enemies/bone_archer.png" id="2"]
+
+[resource]
+script = ExtResource("1")
+sprite = ExtResource("2")
+id = &"bone_archer"
+display_name = "Skelett-Bogenschütze"
+color = Color(0.847, 0.847, 0.784, 1)
+body_size = 12.0
+max_health = 14.0
+attack = 4.0
+attack_range = 80.0
+attack_style = &"arrow"
+attack_cooldown = 1.4
+move_speed = 30.0
+gold_reward = 4
+min_round = 3
+weight = 2.0
+intelligence = 30.0

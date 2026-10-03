@@ -1,0 +1,25 @@
+[gd_resource type="Resource" script_class="UnitData" load_steps=3 format=3]
+
+[ext_resource type="Script" path="res://scripts/data/unit_data.gd" id="1"]
+[ext_resource type="Texture2D" path="res://assets/sprites/units/elder_dragon.png" id="2"]
+
+[resource]
+script = ExtResource("1")
+sprite = ExtResource("2")
+id = &"elder_dragon"
+display_name = "Urdrache"
+line_name = "Drachen"
+category = "Mythologie"
+color = Color(0.961, 0.788, 0.208, 1)
+level = 5
+shop_order = 0
+price = 0
+unlock_round = 7
+max_health = 160.0
+attack = 30.0
+attack_range = 40.0
+attack_style = &"magic"
+ability = &"meteor"
+attack_cooldown = 1.2
+move_speed = 25.0
+intelligence = 105.0

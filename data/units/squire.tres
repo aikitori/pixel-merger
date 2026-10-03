@@ -1,0 +1,28 @@
+[gd_resource type="Resource" script_class="UnitData" load_steps=4 format=3]
+
+[ext_resource type="Script" path="res://scripts/data/unit_data.gd" id="1"]
+[ext_resource type="Texture2D" path="res://assets/sprites/units/squire.png" id="2"]
+[ext_resource type="Resource" path="res://data/units/knight.tres" id="3"]
+
+[resource]
+script = ExtResource("1")
+sprite = ExtResource("2")
+id = &"squire"
+display_name = "Knappe"
+line_name = "Nahkampf"
+category = "Klassisch"
+color = Color(0.784, 0.800, 0.847, 1)
+level = 2
+shop_order = 0
+price = 0
+unlock_round = 1
+max_health = 30.0
+attack = 3.5
+attack_range = 13.0
+attack_style = &"melee"
+ability = &"shield"
+attack_cooldown = 0.9
+move_speed = 40.0
+intelligence = 8.0
+upgrade = ExtResource("3")
+upgrade_cost = 14

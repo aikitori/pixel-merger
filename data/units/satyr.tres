@@ -1,0 +1,28 @@
+[gd_resource type="Resource" script_class="UnitData" load_steps=4 format=3]
+
+[ext_resource type="Script" path="res://scripts/data/unit_data.gd" id="1"]
+[ext_resource type="Texture2D" path="res://assets/sprites/units/satyr.png" id="2"]
+[ext_resource type="Resource" path="res://data/units/faun.tres" id="3"]
+
+[resource]
+script = ExtResource("1")
+sprite = ExtResource("2")
+id = &"satyr"
+display_name = "Satyr"
+line_name = "Waldwesen"
+category = "Mythologie"
+color = Color(0.369, 0.231, 0.102, 1)
+level = 1
+shop_order = 12
+price = 7
+unlock_round = 1
+max_health = 16.0
+attack = 3.0
+attack_range = 70.0
+attack_style = &"arrow"
+ability = &"war_aura"
+attack_cooldown = 1.0
+move_speed = 62.0
+intelligence = 30.0
+upgrade = ExtResource("3")
+upgrade_cost = 6

@@ -1,0 +1,28 @@
+[gd_resource type="Resource" script_class="UnitData" load_steps=4 format=3]
+
+[ext_resource type="Script" path="res://scripts/data/unit_data.gd" id="1"]
+[ext_resource type="Texture2D" path="res://assets/sprites/units/wolf.png" id="2"]
+[ext_resource type="Resource" path="res://data/units/shadow_wolf.tres" id="3"]
+
+[resource]
+script = ExtResource("1")
+sprite = ExtResource("2")
+id = &"wolf"
+display_name = "Wolf"
+line_name = "Wölfe"
+category = "Märchen"
+color = Color(0.529, 0.584, 0.678, 1)
+level = 2
+shop_order = 0
+price = 0
+unlock_round = 1
+max_health = 22.0
+attack = 5.1
+attack_range = 10.0
+attack_style = &"melee"
+ability = &"war_cry"
+attack_cooldown = 0.7
+move_speed = 60.0
+intelligence = 17.0
+upgrade = ExtResource("3")
+upgrade_cost = 14

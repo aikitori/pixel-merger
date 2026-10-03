@@ -1,0 +1,28 @@
+[gd_resource type="Resource" script_class="UnitData" load_steps=4 format=3]
+
+[ext_resource type="Script" path="res://scripts/data/unit_data.gd" id="1"]
+[ext_resource type="Texture2D" path="res://assets/sprites/units/plague_doctor.png" id="2"]
+[ext_resource type="Resource" path="res://data/units/plague_doctor_2.tres" id="3"]
+
+[resource]
+script = ExtResource("1")
+sprite = ExtResource("2")
+id = &"plague_doctor"
+display_name = "Pestdoktor"
+line_name = "Kombination"
+category = "Kombination"
+color = Color(0.365, 0.176, 0.533, 1)
+level = 1
+shop_order = 0
+price = 0
+unlock_round = 2
+max_health = 49.0
+attack = 10.3
+attack_range = 75.0
+attack_style = &"heal"
+ability = &"mass_heal"
+attack_cooldown = 1.0
+move_speed = 33.0
+intelligence = 43.0
+upgrade = ExtResource("3")
+upgrade_cost = 38
