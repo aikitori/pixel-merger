@@ -34,6 +34,9 @@ func _ready() -> void:
 				var found: Array = arena.find_children("*", "Combatant", true, false)
 				found[0].health = found[0].max_health * 0.6
 				arena._select(found[0])
+			"gelaende":
+				World.set_stage(0)
+				arena._build_obstacles()
 			"dorf":
 				hud._village.visible = true
 			"haus":

@@ -102,6 +102,29 @@ func _ready() -> void:
 	Achievements.report_max(&"gold", 90)
 	_check(Achievements.progress[&"rich"] == 150 and not Achievements.is_unlocked(&"rich"), "Höchstwert-Erfolge merken sich den größten Wert")
 
+	# Gelände: erst viele Hindernisse, nach jedem Boss weniger
+	_check(World.stage_for_round(5) == 0 and World.stage_for_round(6) == 1 and World.stage_for_round(15) == 1 \
+			and World.stage_for_round(16) == 2, "Gelände wechselt nach Bossrunde 5, 15, 25 ...")
+	World.set_stage(0)
+	_check(World.obstacles.size() == 18, "Stufe 0 startet mit 18 Hindernissen (%d)" % World.obstacles.size())
+	var full: Array[Dictionary] = World.obstacles.duplicate()
+	World.set_stage(1)
+	_check(World.obstacles.size() == 15 and World.obstacles == full.slice(0, 15), "Nach dem ersten Boss sind es 15, die übrigen bleiben stehen")
+	World.set_stage(6)
+	_check(World.obstacles.is_empty(), "Nach sechs Bossen ist das Feld frei")
+	World.set_stage(0)
+	var clear := true
+	for obstacle in World.obstacles:
+		var spot: Vector2 = obstacle["pos"]
+		clear = clear and World.clamp_point(spot) != spot
+		clear = clear and not World.CENTER_SQUARE.has_point(spot)
+		clear = clear and World.contains(World.clamp_point(spot))
+	_check(clear, "Hindernisse schieben Figuren weg und liegen nicht auf dem Platz")
+	_arena.call("_build_obstacles")
+	await get_tree().process_frame
+	_check(get_tree().get_nodes_in_group(&"obstacle").size() == 18, "Hindernisse erscheinen als Bilder im Spiel")
+	World.set_stage(0)
+
 	Engine.time_scale = 1.0
 	print("EVENTS-TEST ", "FEHLGESCHLAGEN" if _failed else "OK")
 	get_tree().quit(1 if _failed else 0)

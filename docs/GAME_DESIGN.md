@@ -48,6 +48,7 @@ Mehrere Runden, jede Runde besteht aus zwei Phasen:
   Läuft die Kampfzeit ab, wird er wütend (mehr Schaden und Tempo). **Bonusrunden** (10, 20, 30, ...):
   Gegner geben dreifaches Gold und kommen schneller, am Ende gibt es eine Prämie (`Game.bonus_prize`).
   Die Bau-Leiste kündigt die Spezialrunde schon an.
+- **Gelände:** Das Feld startet voller Hindernisse (18: Fels, Baum, Kristall, Ruinensäule). Nach jedem Boss (ab Runde 6, 16, 26, ...) verschwinden drei, nach sechs Bossen ist es frei. Die Platzierung ist fest. Figuren rutschen seitlich daran vorbei (`World.push_out_of_obstacles`); Platz in der Mitte und Armenden bleiben frei.
 - **Erfolge:** Autoload `Achievements` (Liste in `scripts/autoload/achievements.gd`, Speicherung in
   `user://achievements.cfg`), Knopf "Erfolge" oben. Beispiele: erster Boss, erste Stufe-5-Einheit,
   Runde ohne Verluste, Bonusrunde, 100 Gegner, volle Arena, Wiederbeleben. Neue Erfolge werden

@@ -40,6 +40,7 @@ func _ready() -> void:
 	y_sort_enabled = true
 	add_to_group(&"arena")
 	Game.reset()
+	World.set_stage(World.stage_for_round(Game.round_number))
 	_hud = Hud.new()
 	add_child(_hud)
 	_hud.shop_pressed.connect(buy_unit)
@@ -50,6 +51,34 @@ func _ready() -> void:
 	_hud.ability_pressed.connect(cast_selected)
 	_hud.restart_pressed.connect(func() -> void: get_tree().reload_current_scene())
 	Game.phase_changed.connect(_on_phase_changed)
+	Game.round_changed.connect(_on_round_changed)
+	_build_obstacles()
+
+
+## Nach einem Boss ändert sich das Gelände: drei Hindernisse verschwinden.
+func _on_round_changed(round_number: int) -> void:
+	var new_stage := World.stage_for_round(round_number)
+	if new_stage == World.stage:
+		return
+	World.set_stage(new_stage)
+	_build_obstacles()
+	if new_stage > 0:
+		_hud.toast(tr("Das Gelände hat sich verändert: weniger Hindernisse!"))
+
+
+func _build_obstacles() -> void:
+	for node in get_tree().get_nodes_in_group(&"obstacle"):
+		node.queue_free()
+	for obstacle in World.obstacles:
+		var sprite := Sprite2D.new()
+		var kind: String = obstacle["kind"]
+		sprite.texture = World.obstacle_texture(kind)
+		sprite.centered = false
+		sprite.offset = World.obstacle_offset(kind)
+		sprite.position = obstacle["pos"]
+		sprite.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+		sprite.add_to_group(&"obstacle")
+		add_child(sprite)
 
 
 func _on_phase_changed(_phase: int) -> void:

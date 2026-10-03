@@ -123,6 +123,7 @@ const TEXTS := {
 	"Diese Einheiten lassen sich nicht verbinden": "These units cannot be merged",
 	"Erst ab Runde %d": "Only from round %d",
 	"Kosten: %dg": "Cost: %dg",
+	"Das Gelände hat sich verändert: weniger Hindernisse!": "The terrain has changed: fewer obstacles!",
 	"Stä %s  Bew %s  Int %s": "Str %s  Spd %s  Int %s",
 	"Stufe": "Level",
 	"Kosten: %dg (du hast %dg)": "Cost: %dg (you have %dg)",

@@ -21,6 +21,174 @@ const WALK_VERTICAL := Rect2(320 - 70 + 6, 24 + 14, 2 * 70 - 12, 296 - 14)
 const CENTER_SQUARE := Rect2(320 - 70 + 6, 172 - 70 + 8, 2 * 70 - 12, 2 * 70 - 8)
 
 
+# --- Hindernisse ------------------------------------------------------------------
+# Am Anfang ist das Feld voller Hindernisse. Nach jedem Bosskampf (Runde 6, 16, 26, ...) verschwinden
+# drei davon, bis das Feld frei ist. Die Platzierung ist fest (gleicher Seed), auch nach Neustart.
+
+const OBSTACLE_KINDS := ["rock", "tree", "crystal", "ruin"]
+const OBSTACLES_REMOVED_PER_STAGE := 3
+const MAX_OBSTACLES := 18
+## Platz um die Mitte, den kein Hindernis belegt, und Abstand zu den Armenden (Gegner erscheinen dort).
+const PLAZA_CLEARANCE := 22.0
+const ARM_END_CLEARANCE := 48.0
+const OBSTACLE_SPACING := 46.0
+## Fußbreite einer Figur, die zusätzlich zum Radius Abstand hält.
+const FOOT_RADIUS := 4.0
+
+static var stage := 0
+## Einträge: {pos: Vector2 (Fußpunkt), radius: float, kind: String}
+static var obstacles: Array[Dictionary] = []
+static var _obstacle_textures: Dictionary = {}
+
+
+## Geländestufe einer Runde: 0 bis Runde 5, danach +1 nach jedem Boss (Runde 6, 16, 26, ...).
+static func stage_for_round(round_number: int) -> int:
+	return (round_number + 4) / 10
+
+
+## Anzahl Hindernisse einer Stufe: Stufe 0 voll, danach drei weniger pro Stufe.
+static func obstacle_count(for_stage: int) -> int:
+	return maxi(MAX_OBSTACLES - OBSTACLES_REMOVED_PER_STAGE * for_stage, 0)
+
+
+static func set_stage(new_stage: int) -> void:
+	stage = new_stage
+	obstacles = []
+	var rng := RandomNumberGenerator.new()
+	rng.seed = 4177
+	var tries := 0
+	var wanted := MAX_OBSTACLES
+	while obstacles.size() < wanted and tries < 2000:
+		tries += 1
+		var point := Vector2(rng.randf_range(0.0, FIELD.size.x), rng.randf_range(FIELD.position.y, FIELD.end.y))
+		if _obstacle_fits(point):
+			var kind: String = OBSTACLE_KINDS[obstacles.size() % OBSTACLE_KINDS.size()]
+			obstacles.append({"pos": point, "radius": _kind_radius(kind), "kind": kind})
+	obstacles.resize(mini(obstacles.size(), obstacle_count(new_stage)))
+
+
+static func _kind_radius(kind: String) -> float:
+	match kind:
+		"tree": return 7.0
+		"crystal": return 9.0
+		"ruin": return 9.0
+		_: return 11.0
+
+
+static func _obstacle_fits(point: Vector2) -> bool:
+	# Beide Füße der Figuren müssen noch Platz haben: mit Rand im Kreuz, weit weg von Platz und Armenden.
+	var inner_h := WALK_HORIZONTAL.grow(-18.0)
+	var inner_v := WALK_VERTICAL.grow(-18.0)
+	if not (_inside(inner_h, point) or _inside(inner_v, point)):
+		return false
+	if CENTER_SQUARE.grow(PLAZA_CLEARANCE).has_point(point):
+		return false
+	if point.x < ARM_END_CLEARANCE and _inside(inner_h, point):
+		return false
+	if point.x > FIELD.size.x - ARM_END_CLEARANCE and _inside(inner_h, point):
+		return false
+	if point.y < WALK_VERTICAL.position.y + 30.0 and _inside(inner_v, point) and not _inside(inner_h, point):
+		return false
+	if point.y > WALK_VERTICAL.end.y - 30.0 and _inside(inner_v, point) and not _inside(inner_h, point):
+		return false
+	for other in obstacles:
+		if point.distance_to(other["pos"]) < OBSTACLE_SPACING:
+			return false
+	return true
+
+
+## Schiebt einen Punkt aus Hindernissen heraus. Die Bewegung rutscht dadurch seitlich daran vorbei.
+static func push_out_of_obstacles(point: Vector2) -> Vector2:
+	for obstacle in obstacles:
+		var reach: float = obstacle["radius"] + FOOT_RADIUS
+		var offset: Vector2 = point - obstacle["pos"]
+		# Flache Ellipse, weil die Hindernisse auf dem Boden stehen und von oben flacher wirken.
+		var squashed := Vector2(offset.x, offset.y * 1.4)
+		if squashed.length_squared() < reach * reach:
+			var direction := squashed.normalized() if squashed.length_squared() > 0.0001 else Vector2.DOWN
+			point = obstacle["pos"] + Vector2(direction.x * reach, direction.y * reach / 1.4)
+	return point
+
+
+static func obstacle_texture(kind: String) -> ImageTexture:
+	if not _obstacle_textures.has(kind):
+		_obstacle_textures[kind] = ImageTexture.create_from_image(_build_obstacle(kind))
+	return _obstacle_textures[kind]
+
+
+## Fußpunkt des Bildes: unten Mitte.
+static func obstacle_offset(kind: String) -> Vector2:
+	var size := obstacle_texture(kind).get_size()
+	return Vector2(-size.x / 2.0, -size.y + 3.0)
+
+
+static func _build_obstacle(kind: String) -> Image:
+	var ink := Color("#24123a")
+	match kind:
+		"tree":
+			var img := Image.create(34, 46, false, Image.FORMAT_RGBA8)
+			img.fill_rect(Rect2i(14, 30, 6, 14), Color("#6b4122"))
+			img.fill_rect(Rect2i(14, 30, 2, 14), Color("#8a5630"))
+			img.fill_rect(Rect2i(13, 42, 8, 2), ink)
+			for blob in [[17, 14, 15, 12], [9, 21, 10, 8], [25, 21, 10, 8], [17, 24, 14, 7]]:
+				_ellipse(img, blob[0], blob[1], blob[2], blob[3], Color("#1f5a2a"))
+			for blob in [[17, 13, 13, 10], [10, 20, 8, 6], [24, 20, 8, 6], [17, 23, 12, 5]]:
+				_ellipse(img, blob[0], blob[1], blob[2], blob[3], Color("#2f8a3a"))
+			_ellipse(img, 13, 9, 6, 4, Color("#58b84a"))
+			img.set_pixel(22, 15, Color("#e8403c"))
+			img.set_pixel(12, 22, Color("#e8403c"))
+			return img
+		"crystal":
+			var img := Image.create(26, 38, false, Image.FORMAT_RGBA8)
+			for spike in [[13, 6, 5, 30, "#6fd8ff", "#c8f8ff"], [6, 16, 4, 20, "#4aa0e0", "#8ad4ff"], [20, 18, 4, 18, "#4aa0e0", "#8ad4ff"]]:
+				var cx: int = spike[0]
+				var top: int = spike[1]
+				var half: int = spike[2]
+				var height: int = spike[3]
+				for y in height:
+					var narrow := half if y > 4 else maxi(1, half * y / 5)
+					img.fill_rect(Rect2i(cx - narrow, top + y, narrow * 2, 1), Color(spike[4]))
+					img.fill_rect(Rect2i(cx - narrow, top + y, maxi(1, narrow / 2), 1), Color(spike[5]))
+			img.fill_rect(Rect2i(3, 33, 20, 4), Color("#6b6888"))
+			img.fill_rect(Rect2i(3, 33, 20, 1), Color("#a7a7bd"))
+			img.set_pixel(13, 8, Color.WHITE)
+			img.set_pixel(12, 9, Color.WHITE)
+			return img
+		"ruin":
+			var img := Image.create(28, 44, false, Image.FORMAT_RGBA8)
+			img.fill_rect(Rect2i(4, 38, 20, 5), Color("#6b6888"))
+			img.fill_rect(Rect2i(4, 38, 20, 1), Color("#a7a7bd"))
+			img.fill_rect(Rect2i(8, 10, 12, 28), Color("#9a97b0"))
+			img.fill_rect(Rect2i(8, 10, 3, 28), Color("#c8c6dc"))
+			img.fill_rect(Rect2i(17, 10, 3, 28), Color("#7a7796"))
+			img.fill_rect(Rect2i(6, 6, 16, 5), Color("#a7a7bd"))
+			img.fill_rect(Rect2i(6, 6, 16, 1), Color("#d6d6e6"))
+			img.fill_rect(Rect2i(12, 2, 4, 4), Color("#8683a0"))
+			for crack in [[11, 18], [12, 19], [13, 20], [16, 28], [15, 29]]:
+				img.set_pixel(crack[0], crack[1], Color("#4a4766"))
+			img.fill_rect(Rect2i(8, 30, 4, 3), Color("#4aa43f"))
+			img.fill_rect(Rect2i(16, 22, 3, 3), Color("#4aa43f"))
+			return img
+		_:
+			var img := Image.create(30, 24, false, Image.FORMAT_RGBA8)
+			_ellipse(img, 15, 13, 14, 10, Color("#4a4766"))
+			_ellipse(img, 15, 12, 13, 9, Color("#8683a0"))
+			_ellipse(img, 13, 9, 9, 5, Color("#a7a7bd"))
+			_ellipse(img, 11, 7, 4, 2, Color("#d6d6e6"))
+			img.fill_rect(Rect2i(19, 6, 5, 2), Color("#4aa43f"))
+			img.fill_rect(Rect2i(8, 18, 12, 1), Color("#6b6888"))
+			return img
+
+
+static func _ellipse(img: Image, cx: int, cy: int, rx: int, ry: int, color: Color) -> void:
+	for y in range(cy - ry, cy + ry + 1):
+		for x in range(cx - rx, cx + rx + 1):
+			var nx := float(x - cx) / maxf(rx, 1)
+			var ny := float(y - cy) / maxf(ry, 1)
+			if nx * nx + ny * ny <= 1.0 and x >= 0 and y >= 0 and x < img.get_width() and y < img.get_height():
+				img.set_pixel(x, y, color)
+
+
 ## Inklusive Ränder: Figuren, die von clamp_point() an den Rand gesetzt wurden, zählen als drin
 ## (Rect2.has_point schließt die rechte und untere Kante aus).
 static func contains(point: Vector2) -> bool:
@@ -29,6 +197,15 @@ static func contains(point: Vector2) -> bool:
 
 ## Nächster begehbarer Punkt. Liegt der Punkt schon im Kreuz, bleibt er unverändert.
 static func clamp_point(point: Vector2) -> Vector2:
+	var result := _clamp_to_cross(point)
+	if obstacles.is_empty():
+		return result
+	for i in 2:  # Herausschieben kann aus dem Kreuz führen, dann noch einmal zurück
+		result = _clamp_to_cross(push_out_of_obstacles(result))
+	return result
+
+
+static func _clamp_to_cross(point: Vector2) -> Vector2:
 	if contains(point):
 		return point
 	var a := _clamp_to_rect(point, WALK_HORIZONTAL)
