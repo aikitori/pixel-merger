@@ -50,6 +50,11 @@ var _card_hp_text: Label
 var _card_stats: Label
 var _card_ability: Label
 var _card_key := ""
+var _hint_panel: PanelContainer
+var _hint_title: Label
+var _hint_rows: Array[Dictionary] = []
+var _hint_more: Label
+const HINT_ROWS := 4
 var _last_back_msec := -10000
 var _game_over: Control
 var _game_over_label: Label
@@ -186,6 +191,7 @@ func _ready() -> void:
 	_shop = _village.shop
 	_build_merge_panel(root)
 	_build_unit_card(root)
+	_build_hint_panel(root)
 	_book = RecipeBook.new()
 	_book.quick_buy.connect(func(bundle: Dictionary) -> void: quick_buy_pressed.emit(bundle))
 	root.add_child(_book)
@@ -437,6 +443,100 @@ func show_unit_card(unit: Combatant) -> void:
 	_card_ability.visible = ability_text != ""
 	_card.size = Vector2(150, 10)
 	_card.visible = true
+
+
+## Mögliche Rezepte der gehaltenen Einheit, links unter der Karte.
+func _build_hint_panel(root: Control) -> void:
+	_hint_panel = PanelContainer.new()
+	_hint_panel.position = Vector2(4, 184)
+	_hint_panel.size = Vector2(150, 10)
+	_hint_panel.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_hint_panel.visible = false
+	var style := UiTheme.sign_style()
+	style.modulate_color = Color(1, 1, 1, 0.94)
+	style.content_margin_left = 5
+	style.content_margin_right = 5
+	style.content_margin_top = 3
+	style.content_margin_bottom = 3
+	_hint_panel.add_theme_stylebox_override("panel", style)
+	root.add_child(_hint_panel)
+	var column := VBoxContainer.new()
+	column.add_theme_constant_override("separation", 1)
+	column.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_hint_panel.add_child(column)
+	_hint_title = Label.new()
+	_hint_title.add_theme_font_size_override("font_size", 9)
+	_hint_title.add_theme_color_override("font_color", UiTheme.GOLD_LIGHT)
+	column.add_child(_hint_title)
+	for index in HINT_ROWS:
+		var row := HBoxContainer.new()
+		row.add_theme_constant_override("separation", 2)
+		row.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		var partner := TextureRect.new()
+		var result := TextureRect.new()
+		for icon in [partner, result]:
+			icon.custom_minimum_size = Vector2(22, 22)
+			icon.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+			icon.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+			icon.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+		var plus := Label.new()
+		plus.text = "+"
+		plus.add_theme_font_size_override("font_size", 9)
+		var equals := Label.new()
+		equals.text = "="
+		equals.add_theme_font_size_override("font_size", 9)
+		var texts := VBoxContainer.new()
+		texts.add_theme_constant_override("separation", -3)
+		texts.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		var title := Label.new()
+		title.clip_text = true
+		title.add_theme_font_size_override("font_size", 9)
+		var info := Label.new()
+		info.clip_text = true
+		info.add_theme_font_size_override("font_size", 8)
+		texts.add_child(title)
+		texts.add_child(info)
+		for node in [plus, partner, equals, result, texts]:
+			row.add_child(node)
+		column.add_child(row)
+		_hint_rows.append({"row": row, "partner": partner, "result": result, "title": title, "info": info})
+	_hint_more = Label.new()
+	_hint_more.add_theme_font_size_override("font_size", 8)
+	_hint_more.add_theme_color_override("font_color", Color("#d8c8a0"))
+	column.add_child(_hint_more)
+
+
+## `hints`: Einträge {partner: UnitData, result: UnitData, cost: int, state: &"now"/&"gold"/&"locked"/&"missing", round: int},
+## vorsortiert (sofort möglich zuerst). `total`: Anzahl aller Rezepte der Einheit. Leere Liste blendet aus.
+func show_recipe_hints(unit_name: String, hints: Array, total: int) -> void:
+	if hints.is_empty():
+		hide_recipe_hints()
+		return
+	_hint_title.text = tr("%s verbinden mit:") % unit_name
+	for index in HINT_ROWS:
+		var slot: Dictionary = _hint_rows[index]
+		slot["row"].visible = index < hints.size()
+		if index >= hints.size():
+			continue
+		var hint: Dictionary = hints[index]
+		slot["partner"].texture = hint["partner"].sprite
+		slot["result"].texture = hint["result"].sprite
+		slot["title"].text = hint["result"].display_name
+		var usable: bool = hint["state"] == &"now"
+		slot["title"].add_theme_color_override("font_color", UiTheme.GOLD_LIGHT if usable else Color("#b8a888"))
+		match hint["state"]:
+			&"now": slot["info"].text = tr("%dg, jetzt möglich") % hint["cost"]
+			&"gold": slot["info"].text = tr("%dg, zu wenig Gold") % hint["cost"]
+			&"locked": slot["info"].text = tr("ab Runde %d") % hint["round"]
+			_: slot["info"].text = tr("%dg, Partner fehlt") % hint["cost"]
+	_hint_more.visible = total > hints.size()
+	_hint_more.text = tr("+ %d weitere im Rezeptbuch") % (total - hints.size())
+	_hint_panel.size = Vector2(150, 10)
+	_hint_panel.visible = true
+
+
+func hide_recipe_hints() -> void:
+	_hint_panel.visible = false
 
 
 func merge_preview_visible() -> bool:

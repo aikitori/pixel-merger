@@ -37,6 +37,9 @@ func _ready() -> void:
 			"gelaende":
 				World.set_stage(0)
 				arena._build_obstacles()
+			"rezepte":
+				var picks: Array = arena.find_children("*", "Combatant", true, false)
+				arena._begin_drag(picks[0].position - Vector2(0, 8))
 			"dorf":
 				hud._village.visible = true
 			"haus":

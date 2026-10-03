@@ -290,11 +290,42 @@ func _merge_preview(unit: Combatant) -> String:
 	return tr("%s verbinden: %dg") % [recipe.result.display_name, recipe.merge_cost]
 
 
+## Alle Rezepte der gehaltenen Einheit: zuerst die, die mit einer Figur auf dem Feld sofort gehen.
+func _show_recipe_hints(unit: Combatant) -> void:
+	var on_field := {}
+	for other in get_player_units():
+		if other != unit:
+			on_field[other.unit_data] = int(on_field.get(other.unit_data, 0)) + 1
+	var hints: Array[Dictionary] = []
+	for recipe in Registry.recipes:
+		var partner: UnitData
+		if recipe.ingredient_a == unit.unit_data:
+			partner = recipe.ingredient_b
+		elif recipe.ingredient_b == unit.unit_data:
+			partner = recipe.ingredient_a
+		else:
+			continue
+		var state := &"missing"
+		if recipe.unlock_round > Game.round_number:
+			state = &"locked"
+		elif on_field.has(partner):
+			state = &"now" if Game.gold >= recipe.merge_cost else &"gold"
+		hints.append({"partner": partner, "result": recipe.result, "cost": recipe.merge_cost,
+				"state": state, "round": recipe.unlock_round})
+	var order := {&"now": 0, &"gold": 1, &"missing": 2, &"locked": 3}
+	hints.sort_custom(func(a: Dictionary, b: Dictionary) -> bool:
+		if a["state"] != b["state"]:
+			return order[a["state"]] < order[b["state"]]
+		return a["cost"] < b["cost"])
+	_hud.show_recipe_hints(unit.display_name, hints.slice(0, Hud.HINT_ROWS), hints.size())
+
+
 func _begin_drag(point: Vector2) -> void:
 	var unit := _unit_at(point)
 	if unit == null:
 		return
 	_dragging = unit
+	_show_recipe_hints(unit)
 	_drag_origin = unit.position
 	_grab_offset = unit.position - point
 	unit.highlighted = true
@@ -305,6 +336,7 @@ func _end_drag() -> void:
 	_dragging = null
 	_hud.hide_merge_preview()
 	_hud.show_unit_card(null)
+	_hud.hide_recipe_hints()
 	unit.highlighted = false
 	var target := _unit_at(unit.center(), unit, MERGE_RADIUS)
 	if target == null:

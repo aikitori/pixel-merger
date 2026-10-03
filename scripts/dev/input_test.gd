@@ -136,6 +136,7 @@ func _test_merge_preview_and_book() -> void:
 	_event_button(from, true)
 	await get_tree().process_frame
 	_check(not hud._merge_panel.visible, "Vorschau ist beim Anfassen noch zu")
+	_check(hud._hint_panel.visible and hud._hint_rows[0]["row"].visible, "Beim Anfassen erscheinen mögliche Rezepte")
 	_check(hud._card.visible and hud._card_title.text.begins_with("Bauer"), "Beim Anfassen zeigt die Karte Porträt und Werte (%s)" % hud._card_title.text)
 	_event_motion(to)
 	await get_tree().process_frame
@@ -147,6 +148,7 @@ func _test_merge_preview_and_book() -> void:
 	_event_button(to, false)
 	await get_tree().process_frame
 	_check(not hud._merge_panel.visible, "Vorschau verschwindet nach dem Loslassen")
+	_check(not hud._hint_panel.visible, "Rezeptliste verschwindet nach dem Loslassen")
 	_check(not hud._start_button.disabled, "Start-Knopf ist ohne Buch aktiv")
 	hud._book.open_book()
 	await get_tree().process_frame
