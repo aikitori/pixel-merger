@@ -39,7 +39,7 @@ Den Keystore selbst nie ins Repo einchecken (`*.keystore` steht in `.gitignore`)
 Release auslösen:
 
 ```bash
-git tag v0.1.12 && git push origin v0.1.12
+git tag v0.1.13 && git push origin v0.1.13
 ```
 
 ## Lokal bauen
