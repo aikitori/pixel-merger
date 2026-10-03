@@ -115,8 +115,8 @@ func _check_abilities(arena: Node2D) -> void:
 	mage.discard()
 	foe_f.discard()
 
-	var horse := _player(arena, "horse", Vector2(100, 170))
-	var foe_s := _dummy(Vector2(500, 170))
+	var horse := _player(arena, "horse", Vector2(30, 170))
+	var foe_s := _dummy(Vector2(610, 170))
 	arena.add_child(foe_s)
 	ok = await _watch(700, func() -> bool: return horse.has_effect(&"sprint"))
 	_ability_result(&"sprint", ok, horse)
