@@ -141,6 +141,7 @@ func _build_buttons() -> void:
 	_sound_button.pressed.connect(func() -> void: Sound.muted = not Sound.muted)
 	_quit_button = _menu_button("Beenden", 260)
 	_quit_button.pressed.connect(func() -> void: get_tree().quit())
+	_quit_button.visible = not OS.has_feature("web")  # im Browser gibt es nichts zu beenden
 	var version := Label.new()
 	version.text = tr("Version %s") % ProjectSettings.get_setting("application/config/version", "?")
 	version.position = Vector2(8, 340)

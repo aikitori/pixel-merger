@@ -29,13 +29,16 @@ fi
 mkdir -p "$HOME/.local/bin"
 ln -sf "$BIN_DIR/Godot_v${VERSION}-stable_linux.x86_64" "$HOME/.local/bin/godot"
 
-if [ ! -f "$TEMPLATE_DIR/android_release.apk" ]; then
+# WITH_WEB=1: zusätzlich die Web-Templates (für den Browser-Export / GitHub Pages).
+if [ ! -f "$TEMPLATE_DIR/android_release.apk" ] || { [ "${WITH_WEB:-0}" = 1 ] && [ ! -f "$TEMPLATE_DIR/web_nothreads_release.zip" ]; }; then
   curl -fsSL -o "$WORK/$TEMPLATE_ZIP" "$BASE/$TEMPLATE_ZIP"
   verify "$TEMPLATE_ZIP"
   # Nur die Android-Templates entpacken, der Rest (Windows, macOS, Web ...) wird nicht gebraucht.
-  unzip -q -o "$WORK/$TEMPLATE_ZIP" 'templates/android_*' 'templates/version.txt' -d "$WORK"
+  PATTERNS=('templates/android_*' 'templates/version.txt')
+  [ "${WITH_WEB:-0}" = 1 ] && PATTERNS+=('templates/web_*')
+  unzip -q -o "$WORK/$TEMPLATE_ZIP" "${PATTERNS[@]}" -d "$WORK"
   mkdir -p "$TEMPLATE_DIR"
-  mv "$WORK"/templates/* "$TEMPLATE_DIR/"
+  cp -f "$WORK"/templates/* "$TEMPLATE_DIR/"
 fi
 
 echo "Godot ${VERSION} installiert: $("$HOME/.local/bin/godot" --version)"

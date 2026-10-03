@@ -1,0 +1,65 @@
+name: Web-Version (GitHub Pages)
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+env:
+  GODOT_VERSION: '4.4.1'
+
+jobs:
+  deploy:
+    name: Web-Export veröffentlichen
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/cache@v4
+        with:
+          path: |
+            ~/.local/opt/godot-${{ env.GODOT_VERSION }}
+            ~/.local/share/godot/export_templates
+          key: godot-${{ env.GODOT_VERSION }}-web-templates-v1
+
+      - name: Godot und Web-Templates installieren
+        env:
+          WITH_WEB: '1'
+        run: |
+          tools/install_godot.sh "$GODOT_VERSION"
+          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+
+      - name: Projekt importieren
+        run: |
+          godot --headless --import || true
+          godot --headless --import || true
+
+      - name: Web-Export (ohne Threads, läuft auf GitHub Pages)
+        run: |
+          mkdir -p build/web
+          godot --headless --export-release Web build/web/index.html
+          test -s build/web/index.wasm
+          test -s build/web/index.pck
+          touch build/web/.nojekyll
+
+      - uses: actions/configure-pages@v5
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: build/web
+
+      - id: deployment
+        uses: actions/deploy-pages@v4
