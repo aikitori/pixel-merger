@@ -27,7 +27,7 @@ func _ready() -> void:
 	_title.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	header.add_child(_title)
 	var close := Button.new()
-	close.text = "✕"
+	close.text = "X"
 	close.custom_minimum_size = Vector2(32, 24)
 	close.pressed.connect(close_panel)
 	header.add_child(close)
@@ -86,7 +86,7 @@ func _add_row(unit: UnitData) -> void:
 	buy.pressed.connect(func() -> void: unit_chosen.emit(unit))
 	row.add_child(buy)
 	var stats := Label.new()
-	stats.text = unit.stats_text() + "\n★ " + Abilities.label(unit.ability)
+	stats.text = unit.stats_text() + "\n* " + Abilities.label(unit.ability)
 	stats.add_theme_font_size_override("font_size", SMALL_FONT)
 	stats.modulate.a = 0.8
 	row.add_child(stats)

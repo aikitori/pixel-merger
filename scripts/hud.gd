@@ -139,7 +139,7 @@ func _ready() -> void:
 		_fullscreen_button = Button.new()
 		_fullscreen_button.text = Fullscreen.label()
 		_fullscreen_button.position = Vector2(292, 2)
-		_fullscreen_button.size = Vector2(58, 20)
+		_fullscreen_button.size = Vector2(56, 20)
 		_fullscreen_button.add_theme_font_size_override("font_size", 10)
 		_fullscreen_button.pressed.connect(func() -> void:
 			Fullscreen.toggle()
@@ -226,7 +226,7 @@ func set_order_unit(unit: Combatant, picking_guard: bool) -> void:
 	var text := tr("Befehl")
 	if unit != null:
 		if picking_guard:
-			text = tr("Schützen…")
+			text = tr("Schützen...")
 		else:
 			match unit.order_mode():
 				&"free": text = tr("Frei")
@@ -238,7 +238,7 @@ func set_order_unit(unit: Combatant, picking_guard: bool) -> void:
 
 
 func _ability_suffix(ability: StringName) -> String:
-	return "  ★ %s" % Abilities.label(ability) if ability != &"" else ""
+	return "  * %s" % Abilities.label(ability) if ability != &"" else ""
 
 
 ## Beschriftung des Fähigkeitsknopfs (null = nichts gewählt).
@@ -281,7 +281,7 @@ func _build_merge_panel(root: Control) -> void:
 	for index in 3:
 		if index > 0:
 			var sign := Label.new()
-			sign.text = "+" if index == 1 else "▼"
+			sign.text = "+" if index == 1 else "="
 			sign.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 			sign.add_theme_font_size_override("font_size", 10)
 			sign.add_theme_color_override("font_color", UiTheme.GOLD_LIGHT)
@@ -337,7 +337,7 @@ func show_merge_preview(a: UnitData, b: UnitData, result: UnitData, cost_text: S
 		card["stats"].text = unit.stats_text()
 		var ability_text := ""
 		if unit.ability != &"":
-			ability_text = "★ %s: %s" % [Abilities.label(unit.ability), Abilities.description(unit.ability)]
+			ability_text = "* %s: %s" % [Abilities.label(unit.ability), Abilities.description(unit.ability)]
 		card["ability"].text = ability_text
 		card["ability"].visible = ability_text != ""
 	_merge_cost.text = cost_text
@@ -420,7 +420,7 @@ func show_unit_card(unit: Combatant) -> void:
 	var data := unit.unit_data
 	var ability_text := ""
 	if unit.ability != &"":
-		ability_text = "★ %s: %s" % [Abilities.label(unit.ability), Abilities.description(unit.ability)]
+		ability_text = "* %s: %s" % [Abilities.label(unit.ability), Abilities.description(unit.ability)]
 	var key := "%s|%d|%d|%d|%s|%s" % [data.id, unit.level, ceili(unit.health), ceili(unit.max_health), unit.order_text(), Loc.language]
 	if key == _card_key and _card.visible:
 		return

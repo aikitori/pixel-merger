@@ -89,7 +89,7 @@ const TEXTS := {
 	"Kampf starten": "Start Battle",
 	"Erfolge": "Achievements",
 	"%s (Stufe %d)%s\nLP %d/%d  Stä %s  Bew %s  Int %s": "%s (Level %d)%s\nHP %d/%d  Str %s  Spd %s  Int %s",
-	"Schützen…": "Guarding…",
+	"Schützen...": "Guarding...",
 	"Frei": "Free",
 	"Halten": "Hold",
 	"Schützt": "Guarding",
