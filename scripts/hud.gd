@@ -40,6 +40,15 @@ var _merge_panel: PanelContainer
 var _merge_cards: Array[Dictionary] = []
 var _merge_cost: Label
 var _merge_key := ""
+var _card: PanelContainer
+var _card_unit: Combatant
+var _card_icon: TextureRect
+var _card_title: Label
+var _card_hp_fill: ColorRect
+var _card_hp_text: Label
+var _card_stats: Label
+var _card_ability: Label
+var _card_key := ""
 var _last_back_msec := -10000
 var _game_over: Control
 var _game_over_label: Label
@@ -161,6 +170,7 @@ func _ready() -> void:
 	root.move_child(_village, 0)
 	_shop = _village.shop
 	_build_merge_panel(root)
+	_build_unit_card(root)
 	_book = RecipeBook.new()
 	_book.quick_buy.connect(func(bundle: Dictionary) -> void: quick_buy_pressed.emit(bundle))
 	root.add_child(_book)
@@ -325,6 +335,97 @@ func hide_merge_preview() -> void:
 	if _merge_panel.visible:
 		_merge_panel.visible = false
 		_merge_key = ""
+
+
+## Porträt mit Werten der gewählten (oder gerade gezogenen) Einheit, links neben dem Feld.
+func _build_unit_card(root: Control) -> void:
+	_card = PanelContainer.new()
+	_card.position = Vector2(4, 28)
+	_card.size = Vector2(150, 10)
+	_card.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_card.visible = false
+	var style := UiTheme.sign_style()
+	style.modulate_color = Color(1, 1, 1, 0.94)
+	style.content_margin_left = 5
+	style.content_margin_right = 5
+	style.content_margin_top = 4
+	style.content_margin_bottom = 4
+	_card.add_theme_stylebox_override("panel", style)
+	root.add_child(_card)
+	var column := VBoxContainer.new()
+	column.add_theme_constant_override("separation", 2)
+	column.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_card.add_child(column)
+	_card_icon = TextureRect.new()
+	_card_icon.custom_minimum_size = Vector2(140, 64)
+	_card_icon.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	_card_icon.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	_card_icon.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+	column.add_child(_card_icon)
+	_card_title = Label.new()
+	_card_title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_card_title.clip_text = true
+	_card_title.add_theme_font_size_override("font_size", 10)
+	_card_title.add_theme_color_override("font_color", UiTheme.GOLD_LIGHT)
+	column.add_child(_card_title)
+	var bar := ColorRect.new()
+	bar.color = Color(0.1, 0.04, 0.02, 0.9)
+	bar.custom_minimum_size = Vector2(140, 10)
+	column.add_child(bar)
+	_card_hp_fill = ColorRect.new()
+	_card_hp_fill.color = Color("#4fbf4a")
+	_card_hp_fill.position = Vector2(1, 1)
+	_card_hp_fill.size = Vector2(138, 8)
+	bar.add_child(_card_hp_fill)
+	_card_hp_text = Label.new()
+	_card_hp_text.set_anchors_preset(Control.PRESET_FULL_RECT)
+	_card_hp_text.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_card_hp_text.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	_card_hp_text.add_theme_font_size_override("font_size", 8)
+	bar.add_child(_card_hp_text)
+	_card_stats = Label.new()
+	_card_stats.add_theme_font_size_override("font_size", 9)
+	column.add_child(_card_stats)
+	_card_ability = Label.new()
+	_card_ability.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	_card_ability.custom_minimum_size = Vector2(140, 0)
+	_card_ability.add_theme_font_size_override("font_size", 8)
+	_card_ability.add_theme_constant_override("line_spacing", -2)
+	_card_ability.add_theme_color_override("font_color", Color("#d8c8a0"))
+	column.add_child(_card_ability)
+
+
+## `unit` null blendet die Karte aus. Wird jeden Frame aufgerufen, setzt daher nur Änderungen.
+func show_unit_card(unit: Combatant) -> void:
+	if unit == null or not is_instance_valid(unit) or unit.unit_data == null:
+		if _card.visible:
+			_card.visible = false
+			_card_key = ""
+		return
+	var data := unit.unit_data
+	var ability_text := ""
+	if unit.ability != &"":
+		ability_text = "★ %s: %s" % [Abilities.label(unit.ability), Abilities.description(unit.ability)]
+	var key := "%s|%d|%d|%d|%s|%s" % [data.id, unit.level, ceili(unit.health), ceili(unit.max_health), unit.order_text(), Loc.language]
+	if key == _card_key and _card.visible:
+		return
+	_card_key = key
+	_card_icon.texture = data.sprite
+	_card_title.text = "%s (%s %d)%s" % [unit.display_name, tr("Stufe"), unit.level, unit.order_text()]
+	var share := clampf(unit.health / maxf(unit.max_health, 1.0), 0.0, 1.0)
+	_card_hp_fill.size.x = 138.0 * share
+	_card_hp_fill.color = Color("#4fbf4a") if share > 0.5 else (Color("#e0b030") if share > 0.25 else Color("#d04a3a"))
+	_card_hp_text.text = "%d / %d" % [ceili(unit.health), ceili(unit.max_health)]
+	_card_stats.text = tr("Stä %s  Bew %s  Int %s") % [UnitData.format_number(unit.attack),
+			UnitData.format_number(unit.move_speed), UnitData.format_number(unit.intelligence)]
+	_card_ability.text = ability_text
+	_card_ability.visible = ability_text != ""
+	_card.size = Vector2(150, 10)
+	_card.visible = true
+
+
+func merge_preview_visible() -> bool:
+	return _merge_panel.visible
 
 
 func show_text(text: String, warning := false) -> void:

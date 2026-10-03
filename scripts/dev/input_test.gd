@@ -134,9 +134,11 @@ func _test_merge_preview_and_book() -> void:
 	_event_button(from, true)
 	await get_tree().process_frame
 	_check(not hud._merge_panel.visible, "Vorschau ist beim Anfassen noch zu")
+	_check(hud._card.visible and hud._card_title.text.begins_with("Bauer"), "Beim Anfassen zeigt die Karte Porträt und Werte (%s)" % hud._card_title.text)
 	_event_motion(to)
 	await get_tree().process_frame
 	await get_tree().process_frame
+	_check(not hud._card.visible, "Beim Merge-Vorschau ist die Einheitenkarte ausgeblendet")
 	_check(hud._merge_panel.visible, "Beim Ziehen auf eine passende Einheit erscheint die Merge-Vorschau")
 	_check(hud._merge_cards[2]["title"].text == "Knappe", "Vorschau zeigt das Ergebnis (%s)" % hud._merge_cards[2]["title"].text)
 	_check(hud._merge_cards[0]["stats"].text != "", "Vorschau zeigt Werte der Zutat")

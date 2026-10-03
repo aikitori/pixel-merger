@@ -21,7 +21,7 @@ const CONTENT_X_RIGHT := 28.0
 const CONTENT_SIZE := Vector2(240, 252)
 ## Pro Seite passen vier Rezepte oder eine Linie (Gewicht 4).
 const PAGE_CAPACITY := 4
-const ICON_SIZE := Vector2(40, 40)
+const ICON_SIZE := Vector2(32, 32)
 const SWIPE_DISTANCE := 40.0
 const CHAPTERS := ["Kombinationen", "Linien"]
 const LEATHER := Color("#5a2f16")
@@ -309,7 +309,7 @@ func _build_header() -> void:
 
 	var close := Button.new()
 	close.text = "X"
-	close.position = Vector2(COVER.end.x - 34, 1)
+	close.position = Vector2(COVER.end.x - 32, COVER.position.y + 3)
 	close.size = Vector2(28, 19)
 	close.add_theme_font_size_override("font_size", 11)
 	close.pressed.connect(close_book)

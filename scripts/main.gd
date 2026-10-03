@@ -215,6 +215,7 @@ func _process(_delta: float) -> void:
 	if _dragging != null:
 		var text := _merge_preview(_dragging)
 		_hud.show_text(text, _preview_warning)
+		_hud.show_unit_card(null if _hud.merge_preview_visible() else _dragging)
 		return
 	# Im Kampf gestorben? Ein freigegebenes Objekt gilt in Godot 4 als "== null",
 	# ist aber kein gültiges Argument mehr, daher ausdrücklich zurücksetzen.
@@ -222,6 +223,7 @@ func _process(_delta: float) -> void:
 		_selected = null
 		_picking_guard = false
 	_hud.set_order_unit(_selected, _picking_guard)
+	_hud.show_unit_card(_selected)
 	_hud.set_ability_unit(_selected)
 	var hovered := _unit_at(_pointer)
 	_hud.show_info(hovered if hovered != null else _selected)
@@ -273,6 +275,7 @@ func _end_drag() -> void:
 	var unit := _dragging
 	_dragging = null
 	_hud.hide_merge_preview()
+	_hud.show_unit_card(null)
 	unit.highlighted = false
 	var target := _unit_at(unit.center(), unit, MERGE_RADIUS)
 	if target == null:

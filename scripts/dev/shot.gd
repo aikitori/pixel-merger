@@ -28,6 +28,12 @@ func _ready() -> void:
 						pick = recipe
 						break
 				hud.show_merge_preview(pick.ingredient_a, pick.ingredient_b, pick.result, "Kosten: %dg" % pick.merge_cost, false)
+			"karte":
+				for node in get_tree().get_nodes_in_group("arena"):
+					pass
+				var found: Array = arena.find_children("*", "Combatant", true, false)
+				found[0].health = found[0].max_health * 0.6
+				arena._select(found[0])
 			"dorf":
 				hud._village.visible = true
 			"haus":
