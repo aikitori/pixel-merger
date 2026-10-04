@@ -3,7 +3,7 @@ config_version=5
 
 [application]
 
-config/version="0.1.15"
+config/version="0.1.16"
 config/name="Pixel Merger"
 config/description="Pixel-Art-Handyspiel: Einheiten kaufen und zu stärkeren Kombinationen verbinden."
 config/quit_on_go_back=false
