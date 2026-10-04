@@ -48,6 +48,12 @@ func _ready() -> void:
 				arena._box_active = true
 				arena._box_start = Vector2(230, 90)
 				arena._pointer = Vector2(420, 230)
+			"wetter":
+				Game.set_modifier(StringName(OS.get_environment("SHOT_MOD") if OS.get_environment("SHOT_MOD") != "" else "snow"))
+				Game.set_phase(Game.Phase.BATTLE)
+				arena._spawn_timer = 0.0
+				arena._battle_time_left = 99999.0
+				await _frames(90)
 			"dorf":
 				hud._village.visible = true
 			"haus":

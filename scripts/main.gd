@@ -66,6 +66,7 @@ func _ready() -> void:
 	Game.phase_changed.connect(_on_phase_changed)
 	Game.round_changed.connect(_on_round_changed)
 	_build_obstacles()
+	add_child(Weather.new())
 
 
 ## Nach einem Boss ändert sich das Gelände: drei Hindernisse verschwinden.
@@ -597,6 +598,7 @@ func start_battle() -> bool:
 	for unit in units:
 		unit.home_position = unit.position
 		unit.clear_order()
+		unit.apply_round_modifier()
 	_fallen.clear()
 	_losses = 0
 	_boss = null
@@ -678,6 +680,10 @@ func _spawn_enemy() -> void:
 func _on_died(combatant: Combatant) -> void:
 	if combatant.team == Combatant.Team.ENEMY:
 		Game.add_gold(combatant.gold_reward)
+		if Game.modifier == &"gold_rain" and Effect.can_spawn_ambient():
+			var coin := Effect.new()
+			coin.setup(&"text", combatant.position + Vector2(0, -combatant.body_size), 0.0, UiTheme.GOLD_LIGHT, "+%dg" % combatant.gold_reward)
+			add_child(coin)
 		Achievements.report(&"kill")
 		if combatant.is_boss:
 			_boss_dead = true
@@ -719,6 +725,8 @@ func _end_round() -> void:
 		message = tr("Bonusrunde geschafft! +%d Gold Prämie") % prize
 	elif kind == Game.RoundKind.BOSS:
 		message = tr("Bossrunde geschafft!")
+	if Game.modifier != &"":
+		Achievements.report(&"modifier")
 	if _losses == 0:
 		Achievements.report(&"perfect")
 		message += tr(" Makellos!")

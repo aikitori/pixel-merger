@@ -42,6 +42,8 @@ const WANDER_RADIUS := 34.0
 const WANDER_SPEED_FACTOR := 0.45
 const IDLE_HOP_SECONDS := 0.35
 const IDLE_HOP_HEIGHT := 4.0
+## Ab dieser Reichweite gilt eine Figur als Fernkämpfer (Modifikator Nebel).
+const RANGED_MIN := 30.0
 
 var team: Team = Team.PLAYER
 var unit_data: UnitData
@@ -139,6 +141,14 @@ func setup_enemy(data: EnemyData) -> void:
 	move_speed = data.move_speed
 	gold_reward = roundi(data.gold_reward * Game.gold_scale() * Game.round_gold_mult())
 	is_boss = data.is_boss
+	if not is_boss:  # Sonderregel der Runde (Bosse bleiben, wie sie sind)
+		max_health *= Modifiers.value("enemy_hp")
+		attack *= Modifiers.value("enemy_damage")
+		move_speed *= Modifiers.value("enemy_speed") * Modifiers.value("all_speed")
+		gold_reward = maxi(1, roundi(gold_reward * Modifiers.value("gold")))
+		if attack_range > RANGED_MIN:
+			attack_range *= Modifiers.value("ranged_range")
+		scale = Vector2.ONE * Modifiers.value("enemy_scale")
 	health = max_health
 	_facing_left = true
 	_flip = -1.0
@@ -218,7 +228,20 @@ func reset_after_battle() -> void:
 	_ability_cd = randf_range(2.0, 5.0)
 	modulate = Color.WHITE
 	_flip = -1.0 if _facing_left else 1.0
+	if unit_data != null:  # Sonderregel der Runde zurücknehmen
+		attack_range = unit_data.attack_range
+		move_speed = unit_data.move_speed
 	queue_redraw()
+
+
+## Kampfbeginn: Sonderregel der Runde auf die eigene Einheit anwenden (reset_after_battle nimmt sie zurück).
+func apply_round_modifier() -> void:
+	if unit_data == null:
+		return
+	attack_range = unit_data.attack_range
+	if attack_range > RANGED_MIN:
+		attack_range *= Modifiers.value("ranged_range")
+	move_speed = unit_data.move_speed * Modifiers.value("all_speed")
 
 
 ## Fläche, auf der die Figur angetippt werden kann (gezeichnetes Sprite plus Rand), in Elternkoordinaten.
@@ -563,6 +586,8 @@ func _update_effects(delta: float) -> void:
 		_forced_left -= delta
 	if ability == &"regen" and health < max_health:
 		heal(max_health * 0.012 * ability_power * delta)
+	if team == Team.PLAYER and health < max_health and Modifiers.value("regen") > 0.0:
+		heal(max_health * Modifiers.value("regen") * delta)
 	var tint := Color(1.0, 0.6, 0.55) if is_boss and Game.boss_enraged else Color.WHITE
 	if has_effect(&"slow"):
 		tint = Color(0.6, 0.8, 1.0)
@@ -619,7 +644,7 @@ func ability_cooldown_left() -> float:
 func cast_now() -> bool:
 	if not ability_ready() or not _cast_ability():
 		return false
-	_ability_cd = Abilities.cooldown(ability)
+	_ability_cd = Abilities.cooldown(ability) * (Modifiers.value("ability_cd") if team == Team.PLAYER else 1.0)
 	ability_casts += 1
 	_spawn_effect(&"text", position + Vector2(0, -body_size - 10.0), 0.0, Color("#ffe27a"), Abilities.display_name(ability))
 	return true

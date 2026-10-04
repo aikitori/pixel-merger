@@ -26,6 +26,7 @@ const LIST: Array[Dictionary] = [
 	{"id": &"kills_1000", "name": "Legende der Arena", "text": "Besiege 1000 Gegner.", "event": &"kill", "goal": 1000},
 	{"id": &"full_army", "name": "Volle Arena", "text": "Stelle 12 Einheiten gleichzeitig auf.", "event": &"army", "goal": 12, "max": true},
 	{"id": &"first_revive", "name": "Zurück ins Leben", "text": "Erwecke einen gefallenen Verbündeten wieder.", "event": &"revive", "goal": 1},
+	{"id": &"weatherproof", "name": "Wetterfest", "text": "Überstehe 10 Runden mit Sonderregel.", "event": &"modifier", "goal": 10},
 	{"id": &"tactician", "name": "Taktiker", "text": "Löse 10 Fähigkeiten selbst aus.", "event": &"manual", "goal": 10},
 ]
 

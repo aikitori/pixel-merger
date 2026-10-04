@@ -102,6 +102,38 @@ func _ready() -> void:
 	Achievements.report_max(&"gold", 90)
 	_check(Achievements.progress[&"rich"] == 150 and not Achievements.is_unlocked(&"rich"), "Höchstwert-Erfolge merken sich den größten Wert")
 
+	# Rundenmodifikatoren: nur normale Runden, nie zweimal derselbe, Werte wirken auf Gegner und Einheiten
+	var rolled := {}
+	var special_ok := true
+	for i in 300:
+		var id := Modifiers.roll(4, &"fog")
+		rolled[id] = true
+		special_ok = special_ok and Modifiers.roll(5, &"") == &"" and Modifiers.roll(10, &"") == &"" and Modifiers.roll(1, &"") == &""
+	_check(special_ok, "Boss-, Bonus- und erste Runde haben keinen Modifikator")
+	_check(not rolled.has(&"fog") and rolled.size() >= Modifiers.INFO.size(), "Modifikatoren wechseln sich ab (%d Varianten)" % rolled.size())
+	Game.set_modifier(&"giants")
+	var giant := Combatant.new()
+	giant.setup_enemy(Registry.enemies[0])
+	var normal_hp := Registry.enemies[0].max_health * Game.health_scale()
+	_check(giant.max_health > normal_hp * 3.0 and giant.scale.x > 1.3, "Riesenwuchs: Gegner mit mehr Leben und größer")
+	giant.free()
+	Game.set_modifier(&"fog")
+	var archer: Combatant = _arena._spawn_player(Registry.units["archer"], World.CENTER)
+	archer.apply_round_modifier()
+	_check(is_equal_approx(archer.attack_range, Registry.units["archer"].attack_range * 0.6), "Nebel: Fernkämpfer haben 60 %% Reichweite (%.0f)" % archer.attack_range)
+	archer.reset_after_battle()
+	_check(is_equal_approx(archer.attack_range, Registry.units["archer"].attack_range), "Nach dem Kampf ist die Reichweite wieder normal")
+	archer.discard()
+	Game.set_modifier(&"calm")
+	_check(is_equal_approx(Modifiers.value("ability_cd"), 0.5) and is_equal_approx(Modifiers.value("gold"), 1.0), "Windstille: nur die Abklingzeit ändert sich")
+	Game.set_modifier(&"")
+	_check(is_equal_approx(Modifiers.value("regen"), 0.0) and is_equal_approx(Modifiers.value("spawn"), 1.0), "Ohne Modifikator ist alles neutral")
+	var hud: Hud = _arena.get("_hud")
+	Game.set_modifier(&"blood_moon")
+	_check(hud._modifier_sign.visible and hud._modifier_title.text.contains("Blutmond"), "Schild kündigt den Modifikator an")
+	Game.set_modifier(&"")
+	_check(not hud._modifier_sign.visible, "Ohne Modifikator kein Schild")
+
 	# Gelände: erst viele Hindernisse, nach jedem Boss weniger
 	_check(World.stage_for_round(5) == 0 and World.stage_for_round(6) == 1 and World.stage_for_round(15) == 1 \
 			and World.stage_for_round(16) == 2, "Gelände wechselt nach Bossrunde 5, 15, 25 ...")

@@ -36,6 +36,9 @@ var _group_box: HBoxContainer
 var _multi_button: Button
 var _achievements: AchievementsPanel
 var _banner: Label
+var _modifier_sign: PanelContainer
+var _modifier_title: Label
+var _modifier_text: Label
 var _banner_tween: Tween
 var _boss_bar: Control
 var _boss_fill: ColorRect
@@ -624,6 +627,8 @@ func _refresh() -> void:
 	_round_label.add_theme_color_override("font_color", Color("#ff8a7a") if kind == Game.RoundKind.BOSS \
 			else (UiTheme.GOLD_LIGHT if kind == Game.RoundKind.BONUS else UiTheme.CREAM))
 	_gold_label.text = "%d" % Game.gold
+	if _modifier_sign != null:
+		_refresh_modifier_sign()
 	match Game.phase:
 		Game.Phase.BUILD:
 			_phase_label.text = tr("Bauphase") + (tr(" – Bossrunde!") if kind == Game.RoundKind.BOSS \
@@ -724,7 +729,51 @@ func _add_label(parent: Control, rect: Rect2, align: HorizontalAlignment) -> Lab
 	return label
 
 
+## Schild oben in der Mitte: Sonderregel der Runde (siehe Modifiers), in Bau- und Kampfphase.
+func _build_modifier_sign(root: Control) -> void:
+	_modifier_sign = PanelContainer.new()
+	_modifier_sign.position = Vector2(178, 27)
+	_modifier_sign.size = Vector2(284, 10)
+	_modifier_sign.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_modifier_sign.visible = false
+	var style := UiTheme.sign_style()
+	style.content_margin_top = 2
+	style.content_margin_bottom = 2
+	_modifier_sign.add_theme_stylebox_override("panel", style)
+	root.add_child(_modifier_sign)
+	var column := VBoxContainer.new()
+	column.add_theme_constant_override("separation", -3)
+	column.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_modifier_sign.add_child(column)
+	_modifier_title = Label.new()
+	_modifier_title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_modifier_title.add_theme_font_size_override("font_size", 11)
+	_modifier_title.add_theme_color_override("font_color", UiTheme.GOLD_LIGHT)
+	column.add_child(_modifier_title)
+	_modifier_text = Label.new()
+	_modifier_text.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_modifier_text.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	_modifier_text.custom_minimum_size = Vector2(270, 0)
+	_modifier_text.add_theme_font_size_override("font_size", 9)
+	column.add_child(_modifier_text)
+	Game.modifier_changed.connect(func(_id: StringName) -> void: _refresh_modifier_sign())
+	_refresh_modifier_sign()
+
+
+func _refresh_modifier_sign() -> void:
+	var id := Game.modifier
+	_modifier_sign.visible = id != &"" and Game.phase != Game.Phase.GAME_OVER
+	if not _modifier_sign.visible:
+		return
+	var prefix := tr("Nächste Runde: ") if Game.phase == Game.Phase.BUILD else ""
+	_modifier_title.text = prefix + Modifiers.display_name(id)
+	_modifier_text.text = Modifiers.description(id)
+	_modifier_sign.size = Vector2(284, 10)
+	_modifier_sign.modulate.a = 1.0 if Game.phase == Game.Phase.BUILD else 0.8
+
+
 func _build_banner_and_boss_bar(root: Control) -> void:
+	_build_modifier_sign(root)
 	# Erfolgs-Meldung oben in der Mitte
 	_banner = _add_label(root, Rect2(150, 30, 340, 22), HORIZONTAL_ALIGNMENT_CENTER)
 	_banner.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
@@ -775,6 +824,7 @@ func _on_achievement_unlocked(id: StringName) -> void:
 
 func announce_achievement(achievement_name: String) -> void:
 	_banner.text = tr("Erfolg: %s") % achievement_name
+	_banner.position.y = 62.0 if _modifier_sign.visible else 30.0
 	_banner.modulate.a = 1.0
 	if _banner_tween != null:
 		_banner_tween.kill()

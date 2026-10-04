@@ -9,6 +9,7 @@ signal phase_changed(new_phase: Phase)
 signal gold_changed(new_gold: int)
 signal round_changed(new_round: int)
 signal speed_changed(new_speed: float)
+signal modifier_changed(modifier: StringName)
 
 const START_GOLD := 50
 const MAX_UNITS := 12
@@ -37,12 +38,15 @@ var battle_speed: float = 1.0
 var auto_abilities := true
 ## Boss ist nach Ablauf der Zeit wütend geworden (nur Bossrunden).
 var boss_enraged := false
+## Sonderregel der aktuellen Runde (siehe Modifiers), &"" = keine.
+var modifier: StringName = &""
 
 
 func reset() -> void:
 	round_number = 1
 	gold = START_GOLD
 	boss_enraged = false
+	modifier = &""
 	phase = Phase.BUILD
 	round_changed.emit(round_number)
 	gold_changed.emit(gold)
@@ -69,7 +73,9 @@ func spend_gold(amount: int) -> bool:
 
 func next_round() -> void:
 	round_number += 1
+	modifier = Modifiers.roll(round_number, modifier)
 	round_changed.emit(round_number)
+	modifier_changed.emit(modifier)
 	set_phase(Phase.BUILD)
 
 
@@ -90,7 +96,14 @@ func battle_seconds() -> float:
 
 func spawn_interval() -> float:
 	var interval := maxf(BASE_SPAWN_INTERVAL - SPAWN_INTERVAL_STEP * (round_number - 1), MIN_SPAWN_INTERVAL)
+	interval *= Modifiers.value("spawn")
 	return interval * BONUS_SPAWN_FACTOR if round_kind() == RoundKind.BONUS else interval
+
+
+## Sonderregel setzen (z.B. durch ein Ereignis zwischen den Runden).
+func set_modifier(id: StringName) -> void:
+	modifier = id
+	modifier_changed.emit(modifier)
 
 
 func round_kind(number := -1) -> RoundKind:
