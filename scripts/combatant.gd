@@ -54,6 +54,8 @@ const VETERAN_XP: Array[int] = [0, 3, 7, 12, 18, 25, 33, 42, 52, 63]
 const XP_KILL := 1
 const XP_BOSS := 6
 const XP_SURVIVE := 2
+## Heiler lernen vom Heilen: Heilung im Umfang der Lebenspunkte der Patienten, die so viel Erfahrung ergibt.
+const XP_HEAL_PER_FULL := 1.0
 ## Zweite Fähigkeit der Veteranen je Kampfstil: die erste der Liste, die die Einheit noch nicht hat.
 const VETERAN_ABILITIES := {
 	&"melee": [&"war_cry", &"shield", &"taunt"],
@@ -90,6 +92,7 @@ var ability_casts := 0
 var _ability_cd := 0.0
 ## Veteranen: Erfahrung, Stufe 1-10 und ab Stufe 5 eine zweite (aktive) Fähigkeit.
 var xp := 0
+var _heal_xp_pool := 0.0
 var veteran_level := 1
 var veteran_ability: StringName = &""
 var _veteran_cd := 0.0
@@ -538,7 +541,7 @@ func _heal_allies(delta: float) -> void:
 		_cooldown_left = attack_cooldown
 		Sound.play(&"heal")
 		var spell := Projectile.new()
-		spell.setup(center(), _target, &"heal", color, attack)
+		spell.setup(center(), _target, &"heal", color, attack, self)
 		get_parent().add_child(spell)
 
 
@@ -592,9 +595,22 @@ func _follow_allies(delta: float) -> void:
 		_move_towards(nearest.position, delta)
 
 
-func heal(amount: float) -> void:
-	health = minf(max_health, health + amount)
+## Heilen. Ein eigener Heiler (`healer`) bekommt für echte Heilung Erfahrung.
+func heal(amount: float, healer: Combatant = null) -> void:
+	var healed := minf(max_health, health + amount) - health
+	health += healed
 	queue_redraw()
+	if healed > 0.0 and is_instance_valid(healer) and healer != self and team == Team.PLAYER:
+		healer.gain_heal_xp(healed / max_health)
+
+
+## Heilerfahrung sammeln: bruchstückweise, jeder volle Punkt zählt wie ein Sieg.
+func gain_heal_xp(fraction: float) -> void:
+	_heal_xp_pool += fraction * XP_HEAL_PER_FULL
+	if _heal_xp_pool >= 1.0:
+		var whole := int(_heal_xp_pool)
+		_heal_xp_pool -= whole
+		gain_xp(whole)
 
 
 ## Boss wird wütend (Zeit abgelaufen): mehr Schaden und Tempo.
@@ -819,7 +835,7 @@ func _cast_ability(id: StringName) -> bool:
 			if not hurt:
 				return false
 			for ally in allies:
-				ally.heal(attack * 1.8 * power + ally.max_health * 0.04)
+				ally.heal(attack * 1.8 * power + ally.max_health * 0.04, self)
 			_spawn_effect(&"ring", position, 90.0, Color("#6dff8a"))
 			Sound.play(&"heal")
 		&"revive":

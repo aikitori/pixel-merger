@@ -354,6 +354,18 @@ func _test_veterans() -> void:
 	var before := archer.xp
 	foe.take_damage(99999.0, archer)
 	_check(archer.xp == before + Combatant.XP_KILL, "Besiegter Gegner gibt dem Schützen Erfahrung")
+	# Heiler bekommen Erfahrung für Heilung (aber nicht für Selbstheilung)
+	var healer: Combatant = _arena._spawn_player(Registry.units["healer"], World.CENTER + Vector2(60, 0))
+	var patient: Combatant = _arena._spawn_player(Registry.units["knight"], World.CENTER + Vector2(90, 0))
+	var heal_before := healer.xp
+	for i in 6:
+		patient.health = 1.0
+		patient.heal(patient.max_health, healer)
+	_check(healer.xp > heal_before, "Heilen gibt dem Heiler Erfahrung (%d)" % (healer.xp - heal_before))
+	var self_xp := healer.xp
+	healer.health = 1.0
+	healer.heal(healer.max_health, healer)
+	_check(healer.xp == self_xp, "Selbstheilung gibt keine Erfahrung")
 	# Verbinden: das Ergebnis behält die Erfahrung
 	var a: Combatant = _arena._spawn_player(Registry.units["peasant"], World.CENTER + Vector2(0, 30))
 	var b: Combatant = _arena._spawn_player(Registry.units["peasant"], World.CENTER + Vector2(10, 30))

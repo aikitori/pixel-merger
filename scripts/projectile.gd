@@ -61,7 +61,7 @@ func _physics_process(frame_delta: float) -> void:
 func _hit() -> void:
 	if is_instance_valid(_target) and _target.is_alive():
 		if _style == &"heal":
-			_target.heal(_damage)
+			_target.heal(_damage, _source if is_instance_valid(_source) else null)
 		else:
 			_target.take_damage(_damage, _source if is_instance_valid(_source) else null)
 	if _style == &"arrow":

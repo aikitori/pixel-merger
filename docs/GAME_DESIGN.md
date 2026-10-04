@@ -92,7 +92,7 @@ Mehrere Runden, jede Runde besteht aus zwei Phasen:
 - **Format:** Querformat, 640x360.
 
 - **Veteranen:** Neben der Stufe aus dem Verbinden (1-5) hat jede eigene Einheit eine Veteranenstufe
-  1-10 aus Erfahrung: +1 pro besiegtem Gegner, +6 für einen Boss, +2 pro überlebter Runde
+  1-10 aus Erfahrung: +1 pro besiegtem Gegner, +6 für einen Boss, +2 pro überlebter Runde, Heiler zusätzlich +1 je Heilung im Umfang der Lebenspunkte ihrer Patienten (nicht für Selbstheilung)
   (Schwellen in `Combatant.VETERAN_XP`). Jede Veteranenstufe gibt +4 % Leben und Stärke. Ab Stufe 5
   kommt eine zweite, aktive Fähigkeit dazu, passend zum Kampfstil (Nahkampf: Kriegsschrei, Fernkampf:
   Pfeilregen oder Frostnova, Heiler: Massenheilung oder Wiederbeleben). Beim Verbinden behält das
