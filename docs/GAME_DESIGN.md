@@ -94,6 +94,35 @@ Mehrere Runden, jede Runde besteht aus zwei Phasen:
   sind etwas schwächer als Fernkampf in der Mitte. Feintuning per Spieltest.
 - Ende: aktuell endlos bis zur Niederlage (kein Boss/Sieg).
 
+## Ideen (noch nicht umgesetzt)
+
+### Merge-Zone statt Verbinden durch Ziehen
+
+Stand: Idee vom 4. Oktober 2026, bewusst zurückgestellt.
+
+- **Ablauf:** Verbunden wird nicht mehr, indem man eine Einheit auf eine andere zieht. Stattdessen gibt
+  es eine markierte Merge-Zone auf dem Feld (Vorschlag: im Südarm direkt unter dem Steinplatz, dort
+  dürfen dann keine Hindernisse liegen). Die Zutaten werden in die Zone gezogen, das Ergebnis
+  erscheint außerhalb der Zone.
+- **Auslöser (entschieden):** ein Knopf "Verbinden (Xg)". Die Vorschau rechts zeigt Zutaten und
+  Ergebnis, der Knopf verbindet. Kein automatisches Verbinden, weil bei Rezepten mit drei Zutaten
+  oft schon zwei davon ein eigenes Rezept ergeben (z.B. Ritter + Pferd).
+- **Zone:** höchstens 3 Einheiten. Passt der Inhalt zu keinem Rezept, sagt die Vorschau das. Stufen-
+  aufstieg (zwei gleiche Einheiten) läuft ebenfalls über die Zone.
+- **Rezepte mit drei Zutaten (entschieden: etwa 8 zum Start).** Entwurf:
+  - Templer: Ritter + Magier + Heiler
+  - Zerberus: Wolf + Ghul + Flamme
+  - Elementarfürst: Flamme + Welle + Kiesel
+  - Waldläufer: Bogenschütze + Wolf + Waldelf
+  - Streitwagen: Streitross + Ritter + Bogenschütze
+  - Kopfloser Reiter: Skelett + Pferd + Flamme
+  - Weltenbaum: Waldelf + Kiesel + Tropfen
+  - Golddrache: Drachenjunges + Funke + Zwergenkrieger
+- **Technik:** `RecipeData` braucht eine dritte Zutat (`ingredient_c`), `Registry` eine Suche nach
+  einer Menge von Zutaten. Anzupassen: Rezeptbuch (drei Symbole), Rezeptliste beim Anfassen
+  (zwei Partner), Schnellkauf (`base_units`), `tools/content.py` und die Generatoren, Test-Bot
+  und Eingabetests (die heute per Ziehen verbinden).
+
 ## Shop, Entwicklungslinien und Kombinationen (umgesetzt)
 
 - **Dorf (Shop):** Der Knopf "Dorf" unten links wechselt in eine eigene Ansicht, ein Dorf mit
