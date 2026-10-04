@@ -1,6 +1,6 @@
 # Android-APK bauen
 
-Das Spiel wird als APK exportiert (Godot 4.4.1, ohne Gradle, arm64-v8a). Die Pipeline läuft
+Das Spiel wird als APK exportiert (Godot 4.7.2, ohne Gradle, arm64-v8a). Die Pipeline läuft
 als GitHub Action, dasselbe Skript funktioniert lokal.
 
 ## Pipeline (GitHub Actions)
@@ -45,7 +45,7 @@ git tag v0.1.14 && git push origin v0.1.14
 ## Lokal bauen
 
 ```bash
-tools/install_godot.sh                 # Godot 4.4.1 + Android-Templates (Prüfsumme wird geprüft)
+tools/install_godot.sh                 # Godot 4.7.2 + Android-Templates (WITH_WEB=1 auch Web) (Prüfsumme wird geprüft)
 export ANDROID_HOME=~/Android/Sdk      # SDK mit platform-tools, build-tools;35.0.1, platforms;android-35
 export JAVA_HOME=/pfad/zu/jdk-17       # JDK (nicht nur JRE): javac muss existieren
 tools/build_android.sh debug           # -> build/pixel-merger-debug.apk

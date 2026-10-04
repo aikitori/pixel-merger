@@ -3,22 +3,22 @@ description: Installiert JDK 17, Android SDK, Godot und die Android-Export-Templ
 
 inputs:
   godot-version:
-    description: Godot-Version ohne Suffix, z.B. 4.4.1
-    default: '4.4.1'
+    description: Godot-Version ohne Suffix, z.B. 4.7.2
+    default: '4.7.2'
 
 runs:
   using: composite
   steps:
-    - uses: actions/setup-java@v4
+    - uses: actions/setup-java@v6
       with:
         distribution: temurin
         java-version: '17'
 
-    - uses: android-actions/setup-android@v3
+    - uses: android-actions/setup-android@v4
       with:
         packages: 'platform-tools build-tools;35.0.1 platforms;android-35'
 
-    - uses: actions/cache@v4
+    - uses: actions/cache@v6
       with:
         path: |
           ~/.local/opt/godot-${{ inputs.godot-version }}

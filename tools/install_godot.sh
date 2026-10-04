@@ -1,11 +1,11 @@
 #!/usr/bin/env bash
 # Installiert Godot und die Android-Export-Templates (Prüfsumme wird kontrolliert).
-# Nutzung: tools/install_godot.sh [Version]   (Standard: 4.4.1)
+# Nutzung: tools/install_godot.sh [Version]   (Standard: 4.7.2)
 # Godot landet in ~/.local/opt/godot-<Version> mit Link ~/.local/bin/godot,
 # die Templates in ~/.local/share/godot/export_templates/<Version>.stable.
 set -euo pipefail
 
-VERSION="${1:-4.4.1}"
+VERSION="${1:-4.7.2}"
 BASE="https://github.com/godotengine/godot/releases/download/${VERSION}-stable"
 BIN_DIR="$HOME/.local/opt/godot-${VERSION}"
 TEMPLATE_DIR="${XDG_DATA_HOME:-$HOME/.local/share}/godot/export_templates/${VERSION}.stable"

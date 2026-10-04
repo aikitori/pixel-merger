@@ -8,7 +8,7 @@ Spielidee und offene Fragen: [docs/GAME_DESIGN.md](docs/GAME_DESIGN.md)
 
 ## Entwickeln
 
-1. Godot 4.4 (Standard-Version, kein .NET) installieren.
+1. Godot 4.7 (Standard-Version, kein .NET) installieren.
 2. `project.godot` im Godot-Projektmanager importieren und mit F5 starten.
 
 Automatischer Test (spielt Runden durch, ohne Fenster):

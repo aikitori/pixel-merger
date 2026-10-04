@@ -1,6 +1,6 @@
 # Pixel Merger
 
-Pixel-2D-Merge- und Auto-Battle-Spiel in **Godot 4.4.1** (GDScript), 640x360. Ziele: Android (Debug-APK als Alpha-Release), Browser (GitHub Pages). Sprache im Code und in der Oberfläche: Deutsch, Englisch per Übersetzung. Lizenz: GPL v3.
+Pixel-2D-Merge- und Auto-Battle-Spiel in **Godot 4.7.2** (GDScript), 640x360. Ziele: Android (Debug-APK als Alpha-Release), Browser (GitHub Pages). Sprache im Code und in der Oberfläche: Deutsch, Englisch per Übersetzung. Lizenz: GPL v3.
 
 Spielidee und Regeln: `docs/GAME_DESIGN.md`. Android-Build und Signierung: `docs/ANDROID.md`.
 

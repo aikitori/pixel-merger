@@ -23,7 +23,8 @@ if [ -z "${JAVA_HOME:-}" ]; then
 fi
 [ -x "$JAVA_HOME/bin/javac" ] || { echo "JAVA_HOME ($JAVA_HOME) ist kein JDK: bin/javac fehlt." >&2; exit 1; }
 
-SETTINGS="${XDG_CONFIG_HOME:-$HOME/.config}/godot/editor_settings-4.4.tres"
+GODOT_MINOR="$(godot --version | cut -d. -f1,2)"  # z.B. 4.7: Name der Editor-Einstellungen hängt davon ab
+SETTINGS="${XDG_CONFIG_HOME:-$HOME/.config}/godot/editor_settings-${GODOT_MINOR}.tres"
 mkdir -p "$(dirname "$SETTINGS")"
 [ -f "$SETTINGS" ] || printf '[gd_resource type="EditorSettings" format=3]\n\n[resource]\n' > "$SETTINGS"
 
