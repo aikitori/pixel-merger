@@ -7,6 +7,7 @@ signal shop_pressed(data: UnitData)
 signal start_pressed
 signal restart_pressed
 signal select_all_pressed
+signal return_pressed
 signal event_chosen(offer: Dictionary)
 signal multi_toggled(on: bool)
 signal menu_pressed
@@ -36,6 +37,7 @@ var _achievements_button: Button
 var _fullscreen_button: Button
 var _group_box: HBoxContainer
 var _multi_button: Button
+var _return_button: Button
 var _achievements: AchievementsPanel
 var _banner: Label
 var _modifier_sign: PanelContainer
@@ -537,6 +539,22 @@ func _build_group_buttons(root: Control) -> void:
 		_multi_button.text = tr("Mehrfach: an") if on else tr("Mehrfach")
 		multi_toggled.emit(on))
 	_group_box.add_child(_multi_button)
+	# Bauphase: gewählte Einheiten zurückschicken (halber Kaufpreis).
+	_return_button = Button.new()
+	_return_button.text = tr("Zurückschicken")
+	_return_button.position = Vector2(176, 326)
+	_return_button.size = Vector2(116, 28)
+	_return_button.disabled = true
+	_return_button.add_theme_font_size_override("font_size", 10)
+	_return_button.pressed.connect(func() -> void: return_pressed.emit())
+	root.add_child(_return_button)
+
+
+func set_return_selection(count: int, refund: int) -> void:
+	_return_button.disabled = count == 0
+	var text := tr("Zurück: +%dg") % refund if count > 0 else tr("Zurückschicken")
+	if _return_button.text != text:
+		_return_button.text = text
 
 
 func _build_hint_panel(root: Control) -> void:
@@ -708,9 +726,10 @@ func _refresh() -> void:
 	_book_button.visible = building
 	_speed_button.visible = Game.phase == Game.Phase.BATTLE
 	_group_box.visible = Game.phase == Game.Phase.BATTLE
+	_return_button.visible = building
 	# Im Kampf teilen sich Gruppenknöpfe und Info die Mitte der unteren Leiste.
-	_info.position = Vector2(296, 322) if Game.phase == Game.Phase.BATTLE else Vector2(178, 322)
-	_info.size = Vector2(218, 36) if Game.phase == Game.Phase.BATTLE else Vector2(336, 36)
+	_info.position = Vector2(296, 322)
+	_info.size = Vector2(218, 36)
 	_order_button.visible = Game.phase == Game.Phase.BATTLE
 	_speed_button.text = tr("Tempo %dx") % roundi(Game.battle_speed)
 	_sound_button.text = tr("Ton aus") if Sound.muted else tr("Ton an")

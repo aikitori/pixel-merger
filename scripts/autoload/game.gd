@@ -12,7 +12,11 @@ signal speed_changed(new_speed: float)
 signal modifier_changed(modifier: StringName)
 
 const START_GOLD := 50
-const MAX_UNITS := 12
+## Im Kampf dürfen höchstens MAX_UNITS Einheiten antreten, in der Bauphase bis BUILD_MAX_UNITS stehen
+## (viele Grundeinheiten zum Verbinden). Überzählige schickt man zurück (REFUND_SHARE vom Kaufpreis).
+const MAX_UNITS := 20
+const BUILD_MAX_UNITS := 40
+const REFUND_SHARE := 0.5
 const BASE_BATTLE_SECONDS := 30.0
 const BATTLE_SECONDS_PER_ROUND := 5.0
 const MAX_BATTLE_SECONDS := 90.0
@@ -22,6 +26,8 @@ const MIN_SPAWN_INTERVAL := 0.6
 const HEALTH_SCALE_PER_ROUND := 0.15
 const DAMAGE_SCALE_PER_ROUND := 0.08
 const GOLD_SCALE_PER_ROUND := 0.10
+## Ab dieser Runde wächst das Gold pro Gegner nur noch halb so schnell (sonst staut es sich an).
+const GOLD_SCALE_SLOWDOWN_ROUND := 10
 ## Bonusrunde: Gegner geben mehr Gold und kommen schneller, am Ende gibt es eine Prämie.
 const BONUS_GOLD_MULT := 3.0
 const BONUS_SPAWN_FACTOR := 0.6
@@ -153,4 +159,6 @@ func damage_scale() -> float:
 
 
 func gold_scale() -> float:
-	return 1.0 + GOLD_SCALE_PER_ROUND * (round_number - 1)
+	var early := mini(round_number, GOLD_SCALE_SLOWDOWN_ROUND) - 1
+	var late := maxi(round_number - GOLD_SCALE_SLOWDOWN_ROUND, 0)
+	return 1.0 + GOLD_SCALE_PER_ROUND * (early + 0.5 * late)

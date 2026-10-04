@@ -65,6 +65,7 @@ func _ready() -> void:
 	_hud.order_pressed.connect(cycle_order)
 	_hud.ability_pressed.connect(cast_selected)
 	_hud.select_all_pressed.connect(select_all)
+	_hud.return_pressed.connect(return_selected)
 	_hud.event_chosen.connect(_on_event_chosen)
 	_hud.multi_toggled.connect(func(on: bool) -> void: _multi_mode = on)
 	_hud.restart_pressed.connect(func() -> void: get_tree().reload_current_scene())
@@ -136,8 +137,8 @@ func get_player_units() -> Array[Combatant]:
 func buy_unit(data: UnitData) -> bool:
 	if Game.phase != Game.Phase.BUILD:
 		return false
-	if get_player_units().size() >= Game.MAX_UNITS:
-		_hud.toast(tr("Arena voll (max. %d Einheiten)") % Game.MAX_UNITS)
+	if get_player_units().size() >= Game.BUILD_MAX_UNITS:
+		_hud.toast(tr("Arena voll (max. %d Einheiten)") % Game.BUILD_MAX_UNITS)
 		Sound.play(&"error")
 		return false
 	if not Game.spend_gold(data.price):
@@ -157,8 +158,8 @@ func buy_bundle(bundle: Dictionary) -> bool:
 		return false
 	var count := Registry.bundle_size(bundle)
 	var price := Registry.bundle_price(bundle)
-	if get_player_units().size() + count > Game.MAX_UNITS:
-		_hud.toast(tr("Arena voll: %d Einheiten passen nicht mehr (max. %d)") % [count, Game.MAX_UNITS])
+	if get_player_units().size() + count > Game.BUILD_MAX_UNITS:
+		_hud.toast(tr("Arena voll: %d Einheiten passen nicht mehr (max. %d)") % [count, Game.BUILD_MAX_UNITS])
 		Sound.play(&"error")
 		return false
 	if not Game.spend_gold(price):
@@ -293,6 +294,7 @@ func _process(_delta: float) -> void:
 	if _box_active:
 		queue_redraw()
 	_hud.set_order_unit(_selected, _picking_guard)
+	_hud.set_return_selection(_selection.size(), _selection.reduce(func(sum: int, u: Combatant) -> int: return sum + refund_for(u), 0))
 	_hud.show_unit_card(_selected, _selection.size() - 1)
 	_hud.set_ability_unit(_selected, _selection)
 	var hovered := _unit_at(_pointer)
@@ -522,6 +524,28 @@ func _apply_selection(units: Array[Combatant]) -> void:
 	_selected = _selection[0] if not _selection.is_empty() else null
 
 
+## Rückzahlung beim Zurückschicken: die Hälfte des Kaufpreises der Grundeinheiten (Verbinden kostet extra).
+func refund_for(unit: Combatant) -> int:
+	return roundi(Registry.bundle_price(Registry.base_units(unit.unit_data)) * Game.REFUND_SHARE)
+
+
+## Bauphase: gewählte Einheiten zurückschicken und das halbe Geld zurückbekommen.
+func return_selected() -> void:
+	if Game.phase != Game.Phase.BUILD or _selection.is_empty():
+		return
+	var total := 0
+	var count := 0
+	for unit in _selection:
+		if is_instance_valid(unit):
+			total += refund_for(unit)
+			count += 1
+			unit.discard()
+	_apply_selection([] as Array[Combatant])
+	Game.add_gold(total)
+	Sound.play(&"coin")
+	_hud.toast(tr("%d Einheit(en) zurückgeschickt: +%d Gold") % [count, total])
+
+
 func _toggle_selected(unit: Combatant) -> void:
 	var units: Array[Combatant] = []
 	units.append_array(_selection)
@@ -624,6 +648,10 @@ func start_battle() -> bool:
 	var units := get_player_units()
 	if units.is_empty():
 		_hud.toast(tr("Erst Einheiten im Shop kaufen"))
+		Sound.play(&"error")
+		return false
+	if units.size() > Game.MAX_UNITS:
+		_hud.toast(tr("Zu viele Einheiten: im Kampf nur %d, schicke %d zurück") % [Game.MAX_UNITS, units.size() - Game.MAX_UNITS])
 		Sound.play(&"error")
 		return false
 	for unit in units:

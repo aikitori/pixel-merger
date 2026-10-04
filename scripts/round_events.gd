@@ -51,7 +51,7 @@ static func offers(arena: Node) -> Array[Dictionary]:
 static func build(id: StringName, arena: Node) -> Dictionary:
 	var round_number := Game.round_number
 	var units: Array[Combatant] = arena.get_player_units()
-	var room: bool = units.size() < Game.MAX_UNITS
+	var room: bool = units.size() < Game.BUILD_MAX_UNITS
 	var offer := {"id": id, "cost": 0, "icon": null, "data": {}}
 	match id:
 		&"treasure":

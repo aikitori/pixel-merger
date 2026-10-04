@@ -38,8 +38,24 @@ func _ready() -> void:
 		types[unit.unit_data.id] = types.get(unit.unit_data.id, 0) + 1
 	_check(types == {&"peasant": 4, &"apprentice": 2}, "Es wird nicht automatisch verbunden")
 	Game.gold = 1000
-	var big := {Registry.units["peasant"]: 7}
+	var big := {Registry.units["peasant"]: Game.BUILD_MAX_UNITS}
 	_check(not _arena.buy_bundle(big) and _arena.get_player_units().size() == 6, "Schnellkauf lehnt ab, wenn die Arena voll würde")
+	for unit in _arena.get_player_units():
+		unit.discard()
+	await get_tree().process_frame
+	# Bauphase: mehr als das Kampflimit erlaubt, Kampfstart erst nach Zurückschicken (halber Preis).
+	Game.gold = 1000
+	var peasant: UnitData = Registry.units["peasant"]
+	for i in Game.MAX_UNITS + 2:
+		_arena.buy_unit(peasant)
+	_check(_arena.get_player_units().size() == Game.MAX_UNITS + 2, "Bauphase erlaubt mehr Einheiten als das Kampflimit")
+	_check(not _arena.start_battle() and Game.phase == Game.Phase.BUILD, "Kampf startet nicht mit zu vielen Einheiten")
+	var before := Game.gold
+	var extra: Array[Combatant] = [_arena.get_player_units()[0], _arena.get_player_units()[1]]
+	_arena.call("_apply_selection", extra)
+	_arena.return_selected()
+	await get_tree().process_frame
+	_check(_arena.get_player_units().size() == Game.MAX_UNITS and Game.gold == before + 2 * roundi(peasant.price * Game.REFUND_SHARE), "Zurückschicken erstattet 50 %% (%dg)" % (Game.gold - before))
 	for unit in _arena.get_player_units():
 		unit.discard()
 	await get_tree().process_frame

@@ -64,8 +64,12 @@ Mehrere Runden, jede Runde besteht aus zwei Phasen:
   brauchen dort einen Eintrag, sonst bleiben sie deutsch. Die Wahl wird gespeichert, die Standardsprache
   richtet sich nach dem Gerät.
 - **Niederlage:** Sind in der Kampfphase alle eigenen Einheiten tot, ist das Spiel verloren.
+- **Einheitenlimit:** Im Kampf treten höchstens 20 Einheiten an (`Game.MAX_UNITS`). In der Bauphase dürfen bis zu 40
+  stehen (`Game.BUILD_MAX_UNITS`), weil man für Rezepte viele Grundeinheiten braucht. Der Kampf startet erst, wenn
+  höchstens 20 übrig sind. Überzählige schickt man per Knopf "Zurückschicken" zurück und bekommt 50 % des
+  Kaufpreises der Grundeinheiten (`Game.REFUND_SHARE`, Verbinden wird nicht erstattet).
 - **Gold:** kommt aus besiegten Gegnern der Kampfphase. Der Betrag hängt vom Gegnertyp
-  und von der Runde ab.
+  und von der Runde ab, bis Runde 10 +10 % je Runde, danach nur noch +5 % je Runde.
 - **Merge-Kosten:** Verbinden kostet Gold. Je größer und komplexer das Ergebnis, desto teurer
   (aktuell 12g für Stufe 2 bis 150g für die Legende, pro Rezept in `merge_cost`).
 - **Werte:** Jede Einheit und Kombination hat Lebenspunkte (LP), Stärke (Schaden pro Treffer),

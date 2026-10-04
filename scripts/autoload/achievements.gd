@@ -24,7 +24,7 @@ const LIST: Array[Dictionary] = [
 	{"id": &"rich", "name": "Schatzkammer", "text": "Besitze 200 Gold gleichzeitig.", "event": &"gold", "goal": 200, "max": true},
 	{"id": &"kills_100", "name": "Gegnerschreck", "text": "Besiege 100 Gegner.", "event": &"kill", "goal": 100},
 	{"id": &"kills_1000", "name": "Legende der Arena", "text": "Besiege 1000 Gegner.", "event": &"kill", "goal": 1000},
-	{"id": &"full_army", "name": "Volle Arena", "text": "Stelle 12 Einheiten gleichzeitig auf.", "event": &"army", "goal": 12, "max": true},
+	{"id": &"full_army", "name": "Volle Arena", "text": "Stelle 20 Einheiten gleichzeitig auf.", "event": &"army", "goal": 20, "max": true},
 	{"id": &"first_revive", "name": "Zurück ins Leben", "text": "Erwecke einen gefallenen Verbündeten wieder.", "event": &"revive", "goal": 1},
 	{"id": &"weatherproof", "name": "Wetterfest", "text": "Überstehe 10 Runden mit Sonderregel.", "event": &"modifier", "goal": 10},
 	{"id": &"wanderer", "name": "Weltenbummler", "text": "Nimm 10 Angebote zwischen den Runden an.", "event": &"event", "goal": 10},
