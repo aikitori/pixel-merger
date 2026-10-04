@@ -22,6 +22,7 @@ func _ready() -> void:
 	await _test_place_next_to_other()
 	await _test_back_button()
 	await _test_battle_order()
+	await _test_multi_select()
 	await _test_manual_ability()
 	await _test_selected_unit_dies()
 	await _test_battle_speed()
@@ -327,6 +328,94 @@ func _test_back_button() -> void:
 	get_tree().root.propagate_notification(NOTIFICATION_WM_GO_BACK_REQUEST)
 	_check(not hud._village.visible, "Zurück-Taste (Android) schließt danach das Dorf statt die App")
 	_check(not hud.handle_back(), "Ist nichts offen, meldet handle_back() false (dann beendet Android die App)")
+
+
+func _test_multi_select() -> void:
+	_arena._clear_enemies()
+	Game.set_phase(Game.Phase.BUILD)
+	_arena._select(null)
+	var gold_before := Game.gold
+	while _units().size() < 5:
+		_arena.buy_unit(_peasant())
+	var units := _units()
+	var cluster: Array[Combatant] = [units[0], units[1], units[2]]
+	cluster[0].position = Vector2(280, 150)
+	cluster[1].position = Vector2(310, 150)
+	cluster[2].position = Vector2(340, 150)
+	var outsiders: Array[Combatant] = []
+	for i in range(3, units.size()):
+		units[i].position = Vector2(60 + 40 * (i - 3), 205)
+		outsiders.append(units[i])
+	_check(outsiders.size() >= 1, "Mehrfachauswahl-Test: es gibt Einheiten außerhalb des Rahmens")
+	Game.set_phase(Game.Phase.BATTLE)
+	_arena._spawn_timer = 99999.0
+	_arena._battle_time_left = 99999.0
+	await get_tree().process_frame
+	# Auswahlrahmen auf freiem Boden
+	await _drag(Vector2(250, 118), Vector2(370, 188))
+	_check(_arena._selection.size() == 3 and cluster.all(func(u: Combatant) -> bool: return u.highlighted),
+		"Auswahlrahmen wählt die drei Einheiten im Rahmen (%d)" % _arena._selection.size())
+	_check(not outsiders.any(func(u: Combatant) -> bool: return u.highlighted), "Einheiten außerhalb des Rahmens bleiben ungewählt")
+	var hud: Hud = _arena.get("_hud")
+	await get_tree().process_frame
+	_check(hud._ability_button.text.begins_with("Fähigkeiten") or hud._ability_button.disabled, "Fähigkeitsknopf zählt die Gruppe")
+	_check(hud._card_title.text.contains("+2"), "Einheitenkarte nennt die weiteren gewählten Einheiten (%s)" % hud._card_title.text)
+	# Gruppenbefehl: alle laufen los, Abstände bleiben ungefähr erhalten
+	await _tap(Vector2(480, 150))
+	_check(cluster.all(func(u: Combatant) -> bool: return u.has_order), "Tipp aufs Feld schickt die ganze Gruppe los")
+	_check(cluster[0].order_position.distance_to(cluster[2].order_position) > 20.0, "Die Gruppe behält Abstände im Ziel")
+	# Befehlsknopf wirkt auf alle
+	for unit in cluster:
+		unit.clear_order()
+	_arena.cycle_order()
+	_check(cluster.all(func(u: Combatant) -> bool: return u.order_mode() == &"hold"), "Befehlsknopf: alle gewählten halten die Position")
+	_arena.cycle_order()
+	_check(_arena._picking_guard, "Befehlsknopf: Gruppe wartet auf den Schützling")
+	await _tap(outsiders[0].center())
+	_check(cluster.all(func(u: Combatant) -> bool: return u.order_mode() == &"guard" and u.guard_target == outsiders[0]),
+		"Alle gewählten schützen dieselbe Einheit")
+	_arena.cycle_order()
+	_check(cluster.all(func(u: Combatant) -> bool: return u.order_mode() == &"free"), "Befehlsknopf: Gruppe zurück im Freikampf")
+	# Tipp auf eine Einheit der Gruppe wählt nur diese
+	await _tap(cluster[1].center())
+	_check(_arena._selection.size() == 1 and _arena._selected == cluster[1], "Tipp auf Gruppenmitglied wählt nur diese Einheit")
+	# Alle wählen
+	hud._group_box.get_child(0).pressed.emit()
+	_check(_arena._selection.size() == _units().size(), "Knopf 'Alle' wählt alle Einheiten (%d)" % _arena._selection.size())
+	# Mehrfach-Modus: Antippen fügt hinzu und nimmt heraus
+	_arena._select(null)
+	hud._multi_button.button_pressed = true
+	_check(_arena._multi_mode, "Mehrfach-Knopf schaltet den Modus ein")
+	await _tap(cluster[0].center())
+	await _tap(cluster[2].center())
+	_check(_arena._selection.size() == 2, "Mehrfach: zwei angetippte Einheiten sind gewählt (%d)" % _arena._selection.size())
+	await _tap(cluster[0].center())
+	_check(_arena._selection.size() == 1 and _arena._selected == cluster[2], "Mehrfach: erneutes Antippen nimmt die Einheit heraus")
+	hud._multi_button.button_pressed = false
+	_check(not _arena._multi_mode, "Mehrfach-Knopf schaltet den Modus aus")
+	# Umschalt-Klick (Maus) fügt hinzu
+	var press := InputEventMouseButton.new()
+	press.button_index = MOUSE_BUTTON_LEFT
+	press.shift_pressed = true
+	press.position = cluster[1].center()
+	press.global_position = press.position
+	press.pressed = true
+	get_viewport().push_input(press, true)
+	await get_tree().process_frame
+	press = press.duplicate()
+	press.pressed = false
+	get_viewport().push_input(press, true)
+	await get_tree().process_frame
+	_check(_arena._selection.size() == 2, "Umschalt-Klick fügt eine Einheit zur Auswahl hinzu (%d)" % _arena._selection.size())
+	# Gefallene Einheit verschwindet aus der Auswahl
+	var victim: Combatant = _arena._selection[1]
+	victim.take_damage(999999.0)
+	await get_tree().process_frame
+	await get_tree().process_frame
+	_check(_arena._selection.size() == 1, "Gefallene Einheit verlässt die Auswahl")
+	_arena._select(null)
+	Game.gold = gold_before  # der Kampf läuft für die folgenden Tests weiter
+	_arena._fallen.clear()
 
 
 func _test_manual_ability() -> void:

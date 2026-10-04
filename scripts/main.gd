@@ -14,7 +14,14 @@ var _hud: Hud
 var _dragging: Combatant
 var _drag_origin := Vector2.ZERO
 var _grab_offset := Vector2.ZERO
-var _selected: Combatant
+var _selected: Combatant  # Hauptauswahl: erste Einheit der Auswahl (Anzeige, Befehlsknopf)
+var _selection: Array[Combatant] = []
+## Mehrfachauswahl-Modus (Knopf): Antippen fügt Einheiten hinzu oder nimmt sie heraus.
+var _multi_mode := false
+var _box_pending := false
+var _box_active := false
+var _box_start := Vector2.ZERO
+const BOX_MIN_DRAG := 10.0
 ## Der Befehl "Schützen" wartet auf den Tipp auf den Schützling.
 var _picking_guard := false
 ## Die Verbindungs-Vorschau beim Ziehen warnt (Runde noch nicht erreicht oder zu wenig Gold).
@@ -49,6 +56,8 @@ func _ready() -> void:
 	_hud.menu_pressed.connect(func() -> void: get_tree().change_scene_to_file("res://scenes/menu.tscn"))
 	_hud.order_pressed.connect(cycle_order)
 	_hud.ability_pressed.connect(cast_selected)
+	_hud.select_all_pressed.connect(select_all)
+	_hud.multi_toggled.connect(func(on: bool) -> void: _multi_mode = on)
 	_hud.restart_pressed.connect(func() -> void: get_tree().reload_current_scene())
 	Game.phase_changed.connect(_on_phase_changed)
 	Game.round_changed.connect(_on_round_changed)
@@ -91,6 +100,10 @@ func _draw() -> void:
 		draw_rect(World.CENTER_SQUARE.grow(6.0), Color(1, 1, 1, 0.07))
 		draw_rect(World.CENTER_SQUARE.grow(6.0), Color(1, 1, 1, 0.25), false, 1.0)
 	elif Game.phase == Game.Phase.BATTLE:
+		if _box_active:
+			var box := Rect2(_box_start, _pointer - _box_start).abs()
+			draw_rect(box, Color(0.5, 0.9, 1.0, 0.15))
+			draw_rect(box, Color(0.7, 0.95, 1.0, 0.9), false, 1.0)
 		for unit in get_player_units():
 			if unit.has_order:
 				draw_line(unit.order_position - Vector2(3, 3), unit.order_position + Vector2(3, 3), Color.WHITE, 1.0)
@@ -223,13 +236,18 @@ func _unhandled_input(event: InputEvent) -> void:
 	if Game.phase == Game.Phase.BUILD:
 		_begin_drag(point)
 	elif Game.phase == Game.Phase.BATTLE:
-		_command(point)
+		# Ausgeführt wird erst beim Loslassen: Ziehen auf freiem Boden zieht einen Auswahlrahmen auf.
+		_box_pending = true
+		_box_active = false
+		_box_start = point
 
 
 # _input läuft vor den Buttons, damit ein Ziehen über die Leisten hinweg sauber endet.
 func _input(event: InputEvent) -> void:
 	if event is InputEventMouse:
 		_pointer = _local_position(event)
+	if _box_pending:
+		_handle_box_input(event)
 	if _dragging == null:
 		return
 	if event is InputEventMouseMotion:
@@ -248,12 +266,12 @@ func _process(_delta: float) -> void:
 		return
 	# Im Kampf gestorben? Ein freigegebenes Objekt gilt in Godot 4 als "== null",
 	# ist aber kein gültiges Argument mehr, daher ausdrücklich zurücksetzen.
-	if not is_instance_valid(_selected):
-		_selected = null
-		_picking_guard = false
+	_prune_selection()
+	if _box_active:
+		queue_redraw()
 	_hud.set_order_unit(_selected, _picking_guard)
-	_hud.show_unit_card(_selected)
-	_hud.set_ability_unit(_selected)
+	_hud.show_unit_card(_selected, _selection.size() - 1)
+	_hud.set_ability_unit(_selected, _selection)
 	var hovered := _unit_at(_pointer)
 	_hud.show_info(hovered if hovered != null else _selected)
 
@@ -350,26 +368,142 @@ func _end_drag() -> void:
 
 ## Kampfphase: Einheit antippen wählt sie aus, ein Tipp aufs Feld schickt sie dorthin.
 ## Erneutes Antippen der gewählten Einheit hebt den Befehl auf (wieder automatisch).
-func _command(point: Vector2) -> void:
+func _command(point: Vector2, additive := false) -> void:
 	var unit := _unit_at(point)
 	if unit != null:
-		if unit == _selected:
-			unit.clear_order()
-			_select(null)
-		elif _picking_guard and is_instance_valid(_selected):
-			_selected.guard(unit)
+		if _picking_guard and is_instance_valid(_selected):
+			var guards := 0
+			for other in _selection:
+				if other != unit:
+					other.guard(unit)
+					guards += 1
 			_picking_guard = false
-			_hud.toast(tr("%s schützt %s") % [_selected.display_name, unit.display_name])
+			if guards == 1:
+				_hud.toast(tr("%s schützt %s") % [_selected.display_name, unit.display_name])
+			elif guards > 1:
+				_hud.toast(tr("%d Einheiten schützen %s") % [guards, unit.display_name])
+		elif additive or _multi_mode:
+			_toggle_selected(unit)
+		elif unit in _selection:
+			if _selection.size() == 1:
+				unit.clear_order()
+				_select(null)
+			else:
+				_select(unit)
 		else:
 			_select(unit)
-	elif _selected != null and is_instance_valid(_selected) and World.contains(point):
-		_selected.give_order(point)
+	elif not _selection.is_empty() and World.contains(point):
+		_order_group(point)
 		_picking_guard = false
 
 
-## Fähigkeitsknopf: löst die aktive Fähigkeit der gewählten Einheit sofort aus.
+## Auswahlrahmen: Ziehen auf freiem Boden. Ohne Ziehen ist es ein normaler Tipp.
+func _handle_box_input(event: InputEvent) -> void:
+	if event is InputEventMouseMotion and event.button_mask & MOUSE_BUTTON_MASK_LEFT:
+		if not _box_active and _unit_at(_box_start) == null and _pointer.distance_to(_box_start) > BOX_MIN_DRAG:
+			_box_active = true
+	elif event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_LEFT and not event.pressed:
+		var additive: bool = event.shift_pressed or event.ctrl_pressed
+		var was_box := _box_active
+		_box_pending = false
+		_box_active = false
+		queue_redraw()
+		if Game.phase != Game.Phase.BATTLE:
+			return
+		if was_box:
+			_select_in_rect(Rect2(_box_start, _pointer - _box_start).abs(), additive or _multi_mode)
+		else:
+			_command(_box_start, additive)
+
+
+func _select_in_rect(rect: Rect2, additive: bool) -> void:
+	var picked: Array[Combatant] = []
+	if additive:
+		picked.append_array(_selection)
+	for unit in get_player_units():
+		if rect.has_point(unit.center()) and not picked.has(unit):
+			picked.append(unit)
+	_apply_selection(picked)
+	if picked.size() > 1:
+		_hud.toast(tr("%d Einheiten gewählt") % picked.size())
+
+
+## Alle eigenen Einheiten wählen (Knopf "Alle").
+func select_all() -> void:
+	if Game.phase != Game.Phase.BATTLE:
+		return
+	var all: Array[Combatant] = []
+	all.append_array(get_player_units())
+	_apply_selection(all)
+	if all.size() > 1:
+		_hud.toast(tr("%d Einheiten gewählt") % all.size())
+
+
+## Alle gewählten Einheiten laufen zum Punkt, ihre Abstände zueinander bleiben (begrenzt) erhalten.
+func _order_group(point: Vector2) -> void:
+	var center := Vector2.ZERO
+	for unit in _selection:
+		center += unit.position
+	center /= _selection.size()
+	for unit in _selection:
+		var offset := (unit.position - center).limit_length(45.0) if _selection.size() > 1 else Vector2.ZERO
+		unit.give_order(World.clamp_point(point + offset))
+
+
+func _prune_selection() -> void:
+	var alive: Array[Combatant] = []
+	for unit in _selection:
+		if is_instance_valid(unit) and unit._alive:
+			alive.append(unit)
+	if alive.size() != _selection.size():
+		_apply_selection(alive)
+	elif not is_instance_valid(_selected):
+		_selected = null
+		_picking_guard = false
+
+
+## Auswahl setzen: Hervorhebung nachziehen, erste Einheit ist die Hauptauswahl.
+func _apply_selection(units: Array[Combatant]) -> void:
+	_picking_guard = false
+	for unit in _selection:
+		if is_instance_valid(unit) and not units.has(unit):
+			unit.highlighted = false
+	_selection = units
+	for unit in _selection:
+		unit.highlighted = true
+	_selected = _selection[0] if not _selection.is_empty() else null
+
+
+func _toggle_selected(unit: Combatant) -> void:
+	var units: Array[Combatant] = []
+	units.append_array(_selection)
+	if units.has(unit):
+		units.erase(unit)
+	else:
+		units.append(unit)
+	_apply_selection(units)
+
+
+## Fähigkeitsknopf: löst die aktive Fähigkeit der gewählten Einheit(en) sofort aus.
 func cast_selected() -> bool:
-	if not is_instance_valid(_selected) or Game.phase != Game.Phase.BATTLE:
+	if Game.phase != Game.Phase.BATTLE:
+		return false
+	if _selection.size() > 1:
+		var tried := 0
+		var fired := 0
+		for unit in _selection:
+			if Abilities.is_active(unit.ability) and unit.ability_cooldown_left() <= 0.0:
+				tried += 1
+				if unit.cast_now():
+					fired += 1
+					Achievements.report(&"manual")
+		if fired == 0:
+			_hud.toast(tr("Keine Fähigkeit bereit oder einsetzbar"))
+			Sound.play(&"error")
+			return false
+		_hud.toast(tr("%d von %d Fähigkeiten ausgelöst") % [fired, tried])
+		return true
+	if not is_instance_valid(_selected):
 		return false
 	var unit := _selected
 	if not Abilities.is_active(unit.ability):
@@ -388,35 +522,40 @@ func cast_selected() -> bool:
 
 
 ## Befehlsknopf: Freikampf -> Position halten -> Schützen (wartet auf den Tipp auf den Schützling) -> Freikampf.
+## Gilt für alle gewählten Einheiten, der Modus der Hauptauswahl bestimmt den nächsten Schritt.
 func cycle_order() -> void:
 	if not is_instance_valid(_selected) or Game.phase != Game.Phase.BATTLE:
 		return
 	if _picking_guard:
 		_picking_guard = false
-		_selected.clear_order()
+		_clear_orders()
 		return
 	match _selected.order_mode():
 		&"free":
-			_selected.hold_position()
+			for unit in _selection:
+				unit.hold_position()
 		&"hold":
-			if get_player_units().size() < 2:
-				_hud.toast(tr("Zum Schützen braucht es eine zweite Einheit"))
+			if get_player_units().size() <= _selection.size():
+				_hud.toast(tr("Zum Schützen braucht es eine weitere Einheit"))
 				Sound.play(&"error")
-				_selected.clear_order()
+				_clear_orders()
 				return
 			_picking_guard = true
 			_hud.toast(tr("Tippe die Einheit, die geschützt werden soll"))
 		_:
-			_selected.clear_order()
+			_clear_orders()
+
+
+func _clear_orders() -> void:
+	for unit in _selection:
+		unit.clear_order()
 
 
 func _select(unit: Combatant) -> void:
-	_picking_guard = false
-	if is_instance_valid(_selected):
-		_selected.highlighted = false
-	_selected = unit
+	var units: Array[Combatant] = []
 	if unit != null:
-		unit.highlighted = true
+		units.append(unit)
+	_apply_selection(units)
 
 
 # --- Kampfphase ----------------------------------------------------------------

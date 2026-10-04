@@ -6,6 +6,8 @@ extends CanvasLayer
 signal shop_pressed(data: UnitData)
 signal start_pressed
 signal restart_pressed
+signal select_all_pressed
+signal multi_toggled(on: bool)
 signal menu_pressed
 signal quick_buy_pressed(bundle: Dictionary)
 signal order_pressed
@@ -30,6 +32,8 @@ var _auto_button: Button
 var _sound_button: Button
 var _achievements_button: Button
 var _fullscreen_button: Button
+var _group_box: HBoxContainer
+var _multi_button: Button
 var _achievements: AchievementsPanel
 var _banner: Label
 var _banner_tween: Tween
@@ -192,6 +196,7 @@ func _ready() -> void:
 	_build_merge_panel(root)
 	_build_unit_card(root)
 	_build_hint_panel(root)
+	_build_group_buttons(root)
 	_book = RecipeBook.new()
 	_book.quick_buy.connect(func(bundle: Dictionary) -> void: quick_buy_pressed.emit(bundle))
 	root.add_child(_book)
@@ -248,10 +253,20 @@ func _ability_suffix(ability: StringName) -> String:
 
 
 ## Beschriftung des Fähigkeitsknopfs (null = nichts gewählt).
-func set_ability_unit(unit: Combatant) -> void:
+func set_ability_unit(unit: Combatant, selection: Array[Combatant] = []) -> void:
 	var text := tr("Fähigkeit")
 	var enabled := false
-	if unit != null and unit.ability != &"":
+	if selection.size() > 1:
+		var with_active := 0
+		var ready := 0
+		for member in selection:
+			if Abilities.is_active(member.ability):
+				with_active += 1
+				if member.ability_cooldown_left() <= 0.0:
+					ready += 1
+		text = tr("Fähigkeiten %d/%d") % [ready, with_active] if with_active > 0 else tr("Fähigkeit")
+		enabled = ready > 0
+	elif unit != null and unit.ability != &"":
 		text = Abilities.display_name(unit.ability)
 		if not Abilities.is_active(unit.ability):
 			text += tr(" (passiv)")
@@ -417,7 +432,7 @@ func _build_unit_card(root: Control) -> void:
 
 
 ## `unit` null blendet die Karte aus. Wird jeden Frame aufgerufen, setzt daher nur Änderungen.
-func show_unit_card(unit: Combatant) -> void:
+func show_unit_card(unit: Combatant, extra := 0) -> void:
 	if unit == null or not is_instance_valid(unit) or unit.unit_data == null:
 		if _card.visible:
 			_card.visible = false
@@ -427,12 +442,14 @@ func show_unit_card(unit: Combatant) -> void:
 	var ability_text := ""
 	if unit.ability != &"":
 		ability_text = "* %s: %s" % [Abilities.label(unit.ability), Abilities.description(unit.ability)]
-	var key := "%s|%d|%d|%d|%s|%s" % [data.id, unit.level, ceili(unit.health), ceili(unit.max_health), unit.order_text(), Loc.language]
+	var key := "%s|%d|%d|%d|%s|%s|%d" % [data.id, unit.level, ceili(unit.health), ceili(unit.max_health), unit.order_text(), Loc.language, extra]
 	if key == _card_key and _card.visible:
 		return
 	_card_key = key
 	_card_icon.texture = data.sprite
 	_card_title.text = "%s (%s %d)%s" % [unit.display_name, tr("Stufe"), unit.level, unit.order_text()]
+	if extra > 0:
+		_card_title.text += "  +%d" % extra
 	var share := clampf(unit.health / maxf(unit.max_health, 1.0), 0.0, 1.0)
 	_card_hp_fill.size.x = 138.0 * share
 	_card_hp_fill.color = Color("#4fbf4a") if share > 0.5 else (Color("#e0b030") if share > 0.25 else Color("#d04a3a"))
@@ -446,6 +463,31 @@ func show_unit_card(unit: Combatant) -> void:
 
 
 ## Mögliche Rezepte der gehaltenen Einheit, links unter der Karte.
+## Kampfphase, untere Leiste: "Alle" wählt jede Einheit, "Mehrfach" lässt Antippen Einheiten hinzufügen oder abwählen.
+func _build_group_buttons(root: Control) -> void:
+	_group_box = HBoxContainer.new()
+	_group_box.position = Vector2(176, 326)
+	_group_box.size = Vector2(116, 28)
+	_group_box.add_theme_constant_override("separation", 4)
+	_group_box.visible = false
+	root.add_child(_group_box)
+	var all := Button.new()
+	all.text = tr("Alle")
+	all.custom_minimum_size = Vector2(40, 28)
+	all.add_theme_font_size_override("font_size", 10)
+	all.pressed.connect(func() -> void: select_all_pressed.emit())
+	_group_box.add_child(all)
+	_multi_button = Button.new()
+	_multi_button.text = tr("Mehrfach")
+	_multi_button.toggle_mode = true
+	_multi_button.custom_minimum_size = Vector2(72, 28)
+	_multi_button.add_theme_font_size_override("font_size", 10)
+	_multi_button.toggled.connect(func(on: bool) -> void:
+		_multi_button.text = tr("Mehrfach: an") if on else tr("Mehrfach")
+		multi_toggled.emit(on))
+	_group_box.add_child(_multi_button)
+
+
 func _build_hint_panel(root: Control) -> void:
 	_hint_panel = PanelContainer.new()
 	_hint_panel.position = Vector2(4, 184)
@@ -611,6 +653,10 @@ func _refresh() -> void:
 	_shop_button.visible = building
 	_book_button.visible = building
 	_speed_button.visible = Game.phase == Game.Phase.BATTLE
+	_group_box.visible = Game.phase == Game.Phase.BATTLE
+	# Im Kampf teilen sich Gruppenknöpfe und Info die Mitte der unteren Leiste.
+	_info.position = Vector2(296, 322) if Game.phase == Game.Phase.BATTLE else Vector2(178, 322)
+	_info.size = Vector2(218, 36) if Game.phase == Game.Phase.BATTLE else Vector2(336, 36)
 	_order_button.visible = Game.phase == Game.Phase.BATTLE
 	_speed_button.text = tr("Tempo %dx") % roundi(Game.battle_speed)
 	_sound_button.text = tr("Ton aus") if Sound.muted else tr("Ton an")

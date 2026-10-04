@@ -144,3 +144,5 @@ Offen:
 - Autoload `Sound`: Mindestabstand pro Effekt, damit viele Angriffe nicht zu Lärm werden; jeder
   Knopf klickt automatisch. Oben rechts schaltet "Ton an/aus" alles stumm (wird gespeichert).
   Im Hintergrund (Android/iOS) ist die App still.
+
+- **Mehrfachauswahl (Kampfphase):** Auswahlrahmen (auf freiem Boden ziehen), Umschalt-/Strg-Klick, Knopf "Mehrfach" (Antippen fügt hinzu oder nimmt heraus) und Knopf "Alle". Ziel-Tipp, Befehlsknopf (Halten, Schützen, Frei) und Fähigkeitsknopf gelten für alle gewählten Einheiten; beim Losschicken bleiben die Abstände der Gruppe erhalten. Die Karte links zeigt die Hauptauswahl und "+N".

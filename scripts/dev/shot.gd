@@ -40,6 +40,14 @@ func _ready() -> void:
 			"rezepte":
 				var picks: Array = arena.find_children("*", "Combatant", true, false)
 				arena._begin_drag(picks[0].position - Vector2(0, 8))
+			"gruppe":
+				Game.set_phase(Game.Phase.BATTLE)
+				arena._spawn_timer = 99999.0
+				arena._battle_time_left = 99999.0
+				arena._select_in_rect(Rect2(250, 100, 140, 120), false)
+				arena._box_active = true
+				arena._box_start = Vector2(230, 90)
+				arena._pointer = Vector2(420, 230)
 			"dorf":
 				hud._village.visible = true
 			"haus":
