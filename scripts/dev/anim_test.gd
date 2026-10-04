@@ -201,6 +201,7 @@ func _check_abilities(arena: Node2D) -> void:
 	ok = await _watch(180, func() -> bool: return drop.health > start_health + 0.5)
 	_ability_result(&"regen", ok, drop)
 	drop.discard()
+	await _check_new_abilities(arena)
 	Game.phase = Game.Phase.BUILD
 	spots.clear()
 
@@ -307,6 +308,176 @@ func _check_walk_and_turn(arena: Node2D) -> void:
 	_failed = _failed or not ok
 	runner.discard()
 	west.discard()
+	Game.phase = Game.Phase.BUILD
+
+
+## Einheit `id` bekommt Fähigkeit `ability` (Bedingung wird jeweils im Test hergestellt).
+func _with(arena: Node2D, id: String, ability: StringName, at: Vector2) -> Combatant:
+	var unit := _player(arena, id, at)
+	unit.ability = ability
+	unit.move_speed = 0.0
+	return unit
+
+
+func _clear(arena: Node2D) -> void:
+	for child in arena.get_children():
+		if child is Combatant:
+			(child as Combatant).discard()
+		else:
+			child.queue_free()
+	await get_tree().physics_frame
+
+
+func _check_new_abilities(arena: Node2D) -> void:
+	Game.phase = Game.Phase.BATTLE
+	var center := Vector2(300, 170)
+
+	var mage := _with(arena, "mage", &"chain_lightning", center)
+	var chain: Array[Combatant] = [_dummy(center + Vector2(40, 0)), _dummy(center + Vector2(70, 10)), _dummy(center + Vector2(100, 0))]
+	for foe in chain:
+		arena.add_child(foe)
+	var ok: bool = await _watch(700, func() -> bool: return mage.ability_casts > 0 and chain[2].health < chain[2].max_health)
+	_ability_result(&"chain_lightning", ok, mage)
+	await _clear(arena)
+
+	for id: StringName in [&"petrify", &"charm"]:
+		var caster := _with(arena, "witch", id, center)
+		var foe := _dummy(center + Vector2(40, 0))
+		arena.add_child(foe)
+		ok = await _watch(900, func() -> bool: return foe.has_effect(&"stun"))
+		_ability_result(id, ok, caster)
+		await _clear(arena)
+
+	var spinner := _with(arena, "knight", &"whirlwind", center)
+	var left := _dummy(center + Vector2(-14, 0))
+	var right := _dummy(center + Vector2(14, 0))
+	arena.add_child(left)
+	arena.add_child(right)
+	ok = await _watch(700, func() -> bool: return spinner.ability_casts > 0)
+	ok = ok and left.health < left.max_health and right.health < right.max_health
+	_ability_result(&"whirlwind", ok, spinner)
+	await _clear(arena)
+
+	var rider := _with(arena, "knight", &"charge", Vector2(150, 170))
+	rider.move_speed = 25.0
+	rider._ability_cd = 0.1  # sofort, solange das Ziel noch weit weg ist
+	var far := _dummy(Vector2(280, 170))
+	arena.add_child(far)
+	ok = await _watch(900, func() -> bool: return far.has_effect(&"stun"))
+	_ability_result(&"charge", ok, rider)
+	await _clear(arena)
+
+	var caller := _with(arena, "mage", &"summon", center)
+	var target := _dummy(center + Vector2(60, 0))
+	arena.add_child(target)
+	ok = await _watch(700, func() -> bool:
+		for child in arena.get_children():
+			if child is Combatant and (child as Combatant).summoned:
+				return true
+		return false)
+	_ability_result(&"summon", ok, caller)
+	await _clear(arena)
+
+	var shade := _with(arena, "knight", &"blink", center)
+	var distant := _dummy(center + Vector2(100, 0))
+	arena.add_child(distant)
+	ok = await _watch(700, func() -> bool: return shade.position.distance_to(distant.position) < 30.0)
+	_ability_result(&"blink", ok, shade)
+	await _clear(arena)
+
+	var plague := _with(arena, "mage", &"poison_cloud", center)
+	var sick := _dummy(center + Vector2(40, 0))
+	arena.add_child(sick)
+	ok = await _watch(700, func() -> bool: return sick.has_effect(&"poison"))
+	_ability_result(&"poison_cloud", ok, plague)
+	await _clear(arena)
+
+	var titan := _with(arena, "knight", &"earthquake", center)
+	var shaken := _dummy(center + Vector2(40, 0))
+	arena.add_child(shaken)
+	ok = await _watch(700, func() -> bool: return shaken.has_effect(&"stun"))
+	_ability_result(&"earthquake", ok, titan)
+	await _clear(arena)
+
+	var saint := _with(arena, "healer", &"holy_light", center)
+	var evil := _dummy(center + Vector2(50, 0))
+	arena.add_child(evil)
+	ok = await _watch(700, func() -> bool: return saint.ability_casts > 0 and evil.health < evil.max_health)
+	_ability_result(&"holy_light", ok, saint)
+	await _clear(arena)
+
+	var dragon := _with(arena, "mage", &"fire_breath", center)
+	var burnt := _dummy(center + Vector2(40, 0))
+	arena.add_child(burnt)
+	ok = await _watch(700, func() -> bool: return dragon.ability_casts > 0 and burnt.has_effect(&"poison"))
+	_ability_result(&"fire_breath", ok, dragon)
+	await _clear(arena)
+
+	var crone := _with(arena, "witch", &"hex", center)
+	var cursed := _dummy(center + Vector2(40, 0))
+	arena.add_child(cursed)
+	ok = await _watch(700, func() -> bool: return cursed.has_effect(&"weak") and cursed.damage_mult() < 1.0)
+	_ability_result(&"hex", ok, crone)
+	await _clear(arena)
+
+	var sea := _with(arena, "knight", &"tidal_wave", center)
+	var washed := _dummy(center + Vector2(30, 0))
+	arena.add_child(washed)
+	ok = await _watch(700, func() -> bool: return washed.position.x > center.x + 50.0)
+	_ability_result(&"tidal_wave", ok, sea)
+	await _clear(arena)
+
+	var paladin := _with(arena, "knight", &"divine_shield", center)
+	var weak_ally := _player(arena, "peasant", center + Vector2(20, 0))
+	weak_ally.health = weak_ally.max_health * 0.2
+	weak_ally.move_speed = 0.0
+	ok = await _watch(700, func() -> bool: return weak_ally.has_effect(&"shield") and weak_ally.effect_value(&"shield") == 0.0)
+	_ability_result(&"divine_shield", ok, paladin)
+	await _clear(arena)
+
+	var berserker := _with(arena, "knight", &"berserk", center)
+	berserker.health = berserker.max_health * 0.3
+	var rival := _dummy(center + Vector2(14, 0))
+	arena.add_child(rival)
+	ok = await _watch(700, func() -> bool: return berserker.has_effect(&"haste"))
+	_ability_result(&"berserk", ok, berserker)
+	await _clear(arena)
+
+	# Passive Fähigkeiten
+	var thorny := _with(arena, "knight", &"thorns", center)
+	thorny.attack = 0.0
+	var brute := _dummy(center + Vector2(12, 0))
+	brute.attack = 5.0
+	brute.attack_style = &"melee"
+	brute.attack_range = 20.0
+	arena.add_child(brute)
+	ok = await _watch(300, func() -> bool: return brute.health < brute.max_health)
+	_ability_result(&"thorns", ok, thorny)
+	await _clear(arena)
+
+	var sniper := _with(arena, "knight", &"crit", center)
+	sniper.ability_power = 10.0  # Höchstchance 40 %
+	var board := _dummy(center + Vector2(12, 0))
+	arena.add_child(board)
+	var biggest := 0.0
+	var last := board.health
+	for i in 600:
+		await get_tree().physics_frame
+		biggest = maxf(biggest, last - board.health)
+		last = board.health
+	ok = biggest >= sniper.attack * 1.9
+	_ability_result(&"crit", ok, sniper)
+	await _clear(arena)
+
+	var judge := _with(arena, "knight", &"execute", center)
+	var doomed := _dummy(center + Vector2(12, 0))
+	doomed.health = doomed.max_health * 0.1
+	var fallen := [false]
+	doomed.died.connect(func(_unit: Combatant) -> void: fallen[0] = true)
+	arena.add_child(doomed)
+	ok = await _watch(300, func() -> bool: return fallen[0])
+	_ability_result(&"execute", ok, judge)
+	await _clear(arena)
 	Game.phase = Game.Phase.BUILD
 
 

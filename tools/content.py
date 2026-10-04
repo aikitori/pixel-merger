@@ -461,10 +461,29 @@ HAND_COMBO_ABILITY = {
 COMBO_ABILITY_OVERRIDE = {
     'phoenix': 'revive', 'valkyrie': 'revive', 'anubis': 'revive', 'necromancer': 'revive',
     'unicorn': 'regen', 'pegasus': 'sprint', 'hercules': 'taunt', 'achilles': 'shield', 'thor': 'war_aura',
-    'king_arthur': 'war_aura', 'merlin': 'meteor', 'kraken': 'taunt', 'robin_hood': 'arrow_rain',
+    'king_arthur': 'war_aura', 'merlin': 'meteor', 'robin_hood': 'arrow_rain',
+    # Mythologie, Rollenspiel und Echtzeitstrategie
+    'thor': 'chain_lightning', 'lightning': 'chain_lightning', 'thunderbird': 'chain_lightning',
+    'rune_master': 'chain_lightning',
+    'medusa': 'petrify', 'basilisk': 'petrify', 'siren': 'charm', 'kelpie': 'charm',
+    'minotaur': 'whirlwind', 'skeleton_knight': 'whirlwind',
+    'nightmare': 'charge', 'sleipnir': 'charge', 'dragon_rider': 'charge',
+    'necromancer': 'summon', 'beast_master': 'summon', 'wild_hunter': 'summon',
+    'loki': 'blink', 'dark_elf': 'blink', 'ghost': 'blink',
+    'hydra': 'poison_cloud', 'zombie_giant': 'poison_cloud',
+    'stone_giant': 'earthquake', 'treant': 'earthquake',
+    'priest': 'holy_light', 'angel': 'holy_light',
+    'fire_dragon': 'fire_breath', 'chimera': 'fire_breath',
+    'baba_yaga': 'hex', 'broom_witch': 'hex',
+    'kraken': 'tidal_wave', 'hydromancer': 'tidal_wave',
+    'paladin': 'divine_shield', 'achilles': 'divine_shield',
+    'wolf_knight': 'berserk', 'fire_giant': 'berserk',
+    'dryad': 'thorns', 'dwarf_knight': 'thorns',
+    'dwarf_gunner': 'crit', 'arcane_archer': 'crit',
+    'anubis': 'execute',
 }
 # Heilende Einheiten können mit diesen Fähigkeiten nichts anfangen (kein Gegnerziel / kein Schaden).
-_NEEDS_ATTACKER = {'meteor', 'arrow_rain', 'lifesteal'}
+_NEEDS_ATTACKER = {'meteor', 'arrow_rain', 'lifesteal', 'chain_lightning', 'fire_breath', 'poison_cloud', 'crit', 'execute'}
 
 UNIT_ABILITY = {}   # Einheiten-Id -> Fähigkeit (für alle Stufen, auch Kombinationen)
 for _key, _line in LINES.items():

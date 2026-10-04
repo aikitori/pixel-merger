@@ -39,6 +39,16 @@ Mehrere Runden, jede Runde besteht aus zwei Phasen:
   Frostnova, Sprint, Massenheilung, Wiederbeleben (stellt den zuletzt Gefallenen mit halbem Leben auf),
   Spott, Kriegsruf. **Passiv:** Panzerung, Regeneration, Ausweichen, Lebensraub, Fluch-Aura
   (Gegner langsamer), Anführer-Aura (Verbündete mehr Schaden). Angezeigt im Info-Feld, Shop und Rezeptbuch.
+  **Aus Mythologie, Rollenspiel und Echtzeitstrategie** (vor allem für Kombinationen, `COMBO_ABILITY_OVERRIDE`):
+  Kettenblitz (Thor, Donnervogel, Runenmeister), Versteinern (Medusa, Basilisk), Betörender Gesang (Sirene,
+  Kelpie), Wirbelwind (Minotaurus, Skelettritter), Sturmangriff (Nachtmahr, Sleipnir, Drachenreiter: Ansturm,
+  erster Treffer doppelt und betäubt), Beschwörung (Nekromant ruft Skelette, Tierflüsterer und Tierjäger Wölfe,
+  zählen nicht als Einheiten und verschwinden nach etwa 10 s), Schattenschritt (Loki, Dunkelelf, Geist),
+  Giftwolke (Hydra, Zombieriese), Erdbeben (Steinriese, Baumhüter), Heiliges Licht (Priester, Engel),
+  Feueratem (Feuerdrache, Chimäre), Verhexen (Baba Yaga, Besenreiterin: halber Schaden), Flutwelle (Kraken,
+  Hydromant: stößt zurück), Göttlicher Schutz (Paladin, Achilles: unverwundbar), Berserkerwut (Wolfsritter,
+  Feuerriese). Passiv: Dornen (Dryade, Zwergenritter), Kritischer Treffer (Zwergenschütze, Arkanschütze),
+  Richtspruch (Anubis: fast besiegte Gegner fallen sofort). Betäubungen wirken bei Bossen nur 40 % so lang.
   **Manuell auslösen:** Einheit im Kampf antippen, dann den Fähigkeitsknopf rechts unten (zeigt
   "Name!" wenn bereit, sonst die Restzeit). Der Knopf prüft dieselbe Bedingung wie die Automatik.
   Oben schaltet "Auto-Fähigk." die Automatik aus: Dann löst nur noch der Spieler aus.

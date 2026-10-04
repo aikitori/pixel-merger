@@ -1,6 +1,6 @@
 class_name Effect
 extends Node2D
-## Kurze Kampfeffekte: Ring, Pfeilregen, Explosion und aufsteigender Fähigkeitsname.
+## Kurze Kampfeffekte: Ring, Pfeilregen, Explosion, Blitz, Feuerkegel und aufsteigender Fähigkeitsname.
 
 ## Wie viele Treffer-/Staubeffekte gleichzeitig laufen dürfen (Leistung auf dem Handy).
 const MAX_AMBIENT := 50
@@ -12,6 +12,8 @@ var _color := Color.WHITE
 var _text := ""
 var _age := 0.0
 var _life := 0.6
+## Blitz: Weg zum Ziel, Kegel: Blickrichtung (relativ zur Position).
+var direction := Vector2.ZERO
 
 
 func setup(kind: StringName, at: Vector2, radius: float, color: Color, text := "") -> void:
@@ -63,6 +65,23 @@ func _draw() -> void:
 				var spot := Vector2(cos(angle), sin(angle)) * _radius * (0.2 + 0.08 * i)
 				var drop := -34.0 * (1.0 - minf(1.0, t * 1.8 - i * 0.04))
 				draw_line(spot + Vector2(0, drop - 6.0), spot + Vector2(0, drop), fade, 1.0)
+		&"bolt":
+			# Zickzack vom Start zum Ziel, jedes Bild neu verwackelt
+			var points := PackedVector2Array([Vector2.ZERO])
+			var normal := direction.orthogonal().normalized()
+			for i in range(1, 6):
+				points.append(direction * (i / 6.0) + normal * randf_range(-5.0, 5.0))
+			points.append(direction)
+			draw_polyline(points, fade, 2.0)
+			draw_polyline(points, Color(1, 1, 1, 1.0 - t), 1.0)
+		&"cone":
+			var aim := direction.angle()
+			var reach := _radius * (0.4 + 0.6 * t)
+			var cone := PackedVector2Array([Vector2.ZERO])
+			for i in 7:
+				cone.append(Vector2.from_angle(aim - 0.6 + 0.2 * i) * reach)
+			draw_colored_polygon(cone, Color(_color.r, _color.g, _color.b, 0.5 * (1.0 - t)))
+			draw_polyline(cone.slice(1), fade, 2.0)
 		&"spark":
 			for i in 6:
 				var angle := i * TAU / 6.0 + _radius

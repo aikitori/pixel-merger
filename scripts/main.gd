@@ -130,7 +130,8 @@ func _draw() -> void:
 func get_player_units() -> Array[Combatant]:
 	var result: Array[Combatant] = []
 	for node in get_tree().get_nodes_in_group(Combatant.GROUP_PLAYER):
-		result.append(node as Combatant)
+		if not (node as Combatant).summoned:  # beschworene Helfer zählen nicht
+			result.append(node as Combatant)
 	return result
 
 
@@ -769,9 +770,13 @@ func revive_fallen(reviver: Combatant) -> bool:
 	return true
 
 
+## Gegner und beschworene Helfer vom Feld nehmen (Rundenende, Niederlage).
 func _clear_enemies() -> void:
 	for node in get_tree().get_nodes_in_group(Combatant.GROUP_ENEMY):
 		(node as Combatant).discard()
+	for node in get_tree().get_nodes_in_group(Combatant.GROUP_PLAYER):
+		if (node as Combatant).summoned:
+			(node as Combatant).discard()
 
 
 func _end_round() -> void:

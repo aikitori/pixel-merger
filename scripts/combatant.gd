@@ -62,6 +62,11 @@ const VETERAN_ABILITIES := {
 	&"ranged": [&"arrow_rain", &"frost_nova", &"meteor"],
 	&"heal": [&"mass_heal", &"revive"],
 }
+## Beschwörung: Helfer je Einheit (Id-Anfang) und wie lange sie bleiben. Bosse sind nur kürzer betäubt.
+const SUMMON_UNITS := {"necromancer": "skeleton"}
+const SUMMON_DEFAULT := "wolf_pup"
+const SUMMON_SECONDS := 10.0
+const BOSS_STUN_FACTOR := 0.4
 
 var team: Team = Team.PLAYER
 var unit_data: UnitData
@@ -96,6 +101,11 @@ var _heal_xp_pool := 0.0
 var veteran_level := 1
 var veteran_ability: StringName = &""
 var _veteran_cd := 0.0
+## Beschworener Helfer: zählt nicht als eigene Einheit und verschwindet nach Ablauf (oder Rundenende).
+var summoned := false
+var summoner: Combatant
+var _summon_left := 0.0
+var _poison_source: Combatant
 var _aura_left := 0.0
 ## Wirkungen auf diese Einheit: Name -> [Restzeit, Wert]. Namen: shield, sprint, slow, buff.
 var _effects: Dictionary = {}
@@ -188,6 +198,10 @@ func veteran_progress() -> Array[int]:
 ## Erfahrung gutschreiben (nur eigene Einheiten). Steigt die Stufe, wird die Einheit stärker und
 ## bekommt ab Stufe 5 ihre Veteranenfähigkeit.
 func gain_xp(amount: int) -> void:
+	if summoned:
+		if is_instance_valid(summoner):
+			summoner.gain_xp(amount)
+		return
 	if team != Team.PLAYER or amount <= 0:
 		return
 	set_xp(xp + amount, true)
@@ -348,20 +362,29 @@ func hit_rect(margin := 4.0) -> Rect2:
 	return Rect2(position + Vector2(-size.x / 2.0, -size.y), size).grow(margin)
 
 
-func take_damage(amount: float, source: Combatant = null) -> void:
+## `over_time`: Gift, Brand oder Dornen: kein Ausweichen, kein Funke, keine Gegenwirkung.
+func take_damage(amount: float, source: Combatant = null, over_time := false) -> void:
 	if not _alive:
 		return
-	if ability == &"evasion" and randf() < minf(0.5, 0.08 * ability_power):
+	var valid_source := source != null and is_instance_valid(source)
+	if not over_time and ability == &"evasion" and randf() < minf(0.5, 0.08 * ability_power):
 		return
 	if ability == &"armor":
 		amount *= 1.0 - minf(0.5, 0.1 * ability_power)
 	if has_effect(&"shield"):
 		amount *= effect_value(&"shield")
-	if source != null and is_instance_valid(source) and source.ability == &"lifesteal":
-		source.heal(amount * minf(0.6, 0.15 * source.ability_power))
+	if valid_source and not over_time:
+		if source.ability == &"lifesteal":
+			source.heal(amount * minf(0.6, 0.15 * source.ability_power))
+		if ability == &"thorns" and source.attack_style == &"melee" and amount > 0.0:
+			source.take_damage(amount * minf(0.5, 0.12 * ability_power), self, true)
 	health -= amount
+	if valid_source and not over_time and source.ability == &"execute" and not is_boss and health > 0.0 \
+			and health < max_health * minf(0.3, 0.1 + 0.03 * source.ability_power):
+		health = 0.0
+		_spawn_effect(&"text", position + Vector2(0, -body_size - 4.0), 0.0, Color("#ffd91f"), tr("Gerichtet!"))
 	queue_redraw()
-	if amount > 0.0 and Effect.can_spawn_ambient():
+	if amount > 0.0 and not over_time and Effect.can_spawn_ambient():
 		_spawn_effect(&"spark", center(), randf() * TAU, Color(1.0, 0.95, 0.7))
 	if health <= 0.0 and _alive:
 		if Effect.can_spawn_ambient():
@@ -415,8 +438,21 @@ func _physics_process(frame_delta: float) -> void:
 	if Game.phase != Game.Phase.BATTLE or not _alive:
 		return
 	var delta := Game.battle_delta(frame_delta)
+	if summoned:
+		_summon_left -= delta
+		if _summon_left <= 0.0:
+			_spawn_effect(&"puff", position + Vector2(0, -body_size * 0.3), randf() * TAU, Color(0.8, 0.75, 1.0))
+			discard()
+			return
 	_cooldown_left -= delta
 	_update_effects(delta)
+	if not _alive:
+		return
+	if has_effect(&"stun"):  # betäubt, versteinert oder betört: steht still
+		_walking = false
+		position = World.clamp_point(position + _separation() * delta)
+		_animate(delta)
+		return
 	_update_ability(delta)
 	if _swing_left > 0.0:
 		_swing_left -= delta
@@ -457,22 +493,30 @@ func _fight(delta: float) -> void:
 		if not has_order:
 			_move_towards(_target.position, delta)
 	elif _cooldown_left <= 0.0:
-		_cooldown_left = attack_cooldown
+		_cooldown_left = attack_cooldown / effect_value(&"haste")
 		_attack_target()
 
 
 func _attack_target() -> void:
+	var damage := attack * damage_mult()
+	if ability == &"crit" and randf() < minf(0.4, 0.08 * ability_power):
+		damage *= 2.0
+		_spawn_effect(&"text", position + Vector2(0, -body_size - 4.0), 0.0, Color("#ff8a1f"), tr("Kritisch!"))
+	if has_effect(&"charge"):  # Sturmangriff: erster Treffer doppelt und betäubt
+		_effects.erase(&"charge")
+		damage *= 2.0
+		_target.apply_effect(&"stun", 1.0, 1.0)
 	if attack_style == &"melee":
 		_swing_dir = (_target.center() - center()).normalized()
 		_swing_left = SWING_SECONDS
 		queue_redraw()
-		_target.take_damage(attack * damage_mult(), self)
+		_target.take_damage(damage, self)
 		Sound.play(&"swing")
 		Sound.play(&"hit")
 		return
 	Sound.play(&"arrow" if attack_style == &"arrow" else &"fireball")
 	var shot := Projectile.new()
-	shot.setup(center(), _target, attack_style, color, attack * damage_mult(), self)
+	shot.setup(center(), _target, attack_style, color, damage, self)
 	get_parent().add_child(shot)
 
 
@@ -507,7 +551,7 @@ func _guard(delta: float) -> void:
 		# Nicht weiter vom Schützling weglocken lassen, als die Leine reicht.
 		_move_towards(anchor if position.distance_to(anchor) > GUARD_LEASH else _target.position, delta)
 	elif _cooldown_left <= 0.0:
-		_cooldown_left = attack_cooldown
+		_cooldown_left = attack_cooldown / effect_value(&"haste")
 		_attack_target()
 
 
@@ -665,9 +709,11 @@ func effect_value(effect_name: StringName) -> float:
 ## Wirkung (re)starten. Länger gewinnt bei der Zeit, bei Verlangsamung der stärkere (kleinere) Wert,
 ## sonst der größere.
 func apply_effect(effect_name: StringName, seconds: float, value := 1.0) -> void:
+	if effect_name == &"stun" and is_boss:
+		seconds *= BOSS_STUN_FACTOR
 	if _effects.has(effect_name):
 		var old: Array = _effects[effect_name]
-		var better := minf(old[1], value) if effect_name in [&"slow", &"shield"] else maxf(old[1], value)
+		var better := minf(old[1], value) if effect_name in [&"slow", &"shield", &"weak"] else maxf(old[1], value)
 		_effects[effect_name] = [maxf(old[0], seconds), better]
 	else:
 		_effects[effect_name] = [seconds, value]
@@ -681,11 +727,17 @@ func force_target(unit: Combatant, seconds: float) -> void:
 
 
 func current_speed() -> float:
-	return move_speed * _speed_jitter * effect_value(&"sprint") * effect_value(&"slow")
+	return move_speed * _speed_jitter * effect_value(&"sprint") * effect_value(&"slow") * effect_value(&"charge")
 
 
 func damage_mult() -> float:
-	return 1.0 + (effect_value(&"buff") - 1.0 if has_effect(&"buff") else 0.0)
+	return (1.0 + (effect_value(&"buff") - 1.0 if has_effect(&"buff") else 0.0)) * effect_value(&"weak")
+
+
+## Gift oder Brand: `dps` Schaden pro Sekunde für `seconds`, Erfahrung bekommt `source`.
+func poison(dps: float, seconds: float, source: Combatant) -> void:
+	_poison_source = source
+	apply_effect(&"poison", seconds, dps)
 
 
 func _update_effects(delta: float) -> void:
@@ -697,12 +749,22 @@ func _update_effects(delta: float) -> void:
 			changed = true
 	if _forced_left > 0.0:
 		_forced_left -= delta
+	if has_effect(&"poison"):
+		take_damage(effect_value(&"poison") * delta, _poison_source if is_instance_valid(_poison_source) else null, true)
+		if not _alive:
+			return
 	if ability == &"regen" and health < max_health:
 		heal(max_health * 0.012 * ability_power * delta)
 	if team == Team.PLAYER and health < max_health and Modifiers.value("regen") > 0.0:
 		heal(max_health * Modifiers.value("regen") * delta)
 	var tint := Color(1.0, 0.6, 0.55) if is_boss and Game.boss_enraged else Color.WHITE
-	if has_effect(&"slow"):
+	if has_effect(&"stun"):
+		tint = Color(0.7, 0.7, 0.7) if effect_value(&"stun") < 2.0 else Color(1.0, 0.7, 0.95)
+	elif has_effect(&"weak"):
+		tint = Color(0.8, 0.6, 1.0)
+	elif has_effect(&"poison"):
+		tint = Color(0.7, 1.0, 0.55)
+	elif has_effect(&"slow"):
 		tint = Color(0.6, 0.8, 1.0)
 	elif has_effect(&"buff"):
 		tint = Color(1.0, 0.8, 0.7)
@@ -862,16 +924,202 @@ func _cast_ability(id: StringName) -> bool:
 			_spawn_effect(&"rain" if rain else &"burst", enemy_target.position, radius,
 					Color("#ffe27a") if rain else Color("#ff8a1f"))
 			Sound.play(&"arrow" if rain else &"explode")
+		&"chain_lightning":
+			if enemy_target == null or position.distance_to(enemy_target.position) > maxf(attack_range, 60.0):
+				return false
+			var hit: Array[Combatant] = []
+			var current := enemy_target
+			var from := center()
+			var damage := attack * 1.3 * power * damage_mult()
+			for jump in 3 + roundi(power):
+				hit.append(current)
+				_spawn_bolt(from, current.center())
+				from = current.center()
+				var next: Combatant = null
+				var best := 60.0 * 60.0
+				for foe in _opponents_near(current.position, 60.0):
+					var dist := foe.position.distance_squared_to(current.position)
+					if not hit.has(foe) and dist < best:
+						best = dist
+						next = foe
+				current.take_damage(damage, self)
+				damage *= 0.8
+				if next == null:
+					break
+				current = next
+			Sound.play(&"fireball")
+		&"petrify", &"charm":
+			var stone := id == &"petrify"
+			var foes := _opponents_near(position, 70.0)
+			if foes.is_empty():
+				return false
+			foes.sort_custom(func(a: Combatant, b: Combatant) -> bool:
+				return a.position.distance_squared_to(position) < b.position.distance_squared_to(position))
+			for foe in foes.slice(0, 2 + roundi(power) if stone else 6):
+				# Wert 1 = versteinert (grau), 2 = betört (rosa), siehe _update_effects
+				foe.apply_effect(&"stun", (1.4 if stone else 1.8) + 0.25 * power, 1.0 if stone else 2.0)
+			_spawn_effect(&"ring", position, 70.0, Color("#b8b8b0") if stone else Color("#ff8ad8"))
+			Sound.play(&"hit" if stone else &"heal")
+		&"whirlwind":
+			var foes := _opponents_near(position, 34.0)
+			if foes.size() < 2:
+				return false
+			for foe in foes:
+				foe.take_damage(attack * 1.1 * power * damage_mult(), self)
+			_swing_dir = Vector2.RIGHT
+			_swing_left = SWING_SECONDS
+			_spawn_effect(&"ring", position + Vector2(0, -body_size / 2.0), 34.0, Color("#eef3ff"))
+			Sound.play(&"swing")
+		&"charge":
+			if enemy_target == null:
+				return false
+			var dist := position.distance_to(enemy_target.position)
+			if dist < maxf(attack_range + 25.0, 45.0) or dist > 170.0:
+				return false
+			apply_effect(&"charge", 3.0, 3.0)
+			_spawn_effect(&"puff", position, randf() * TAU, Color(0.85, 0.75, 0.6))
+			Sound.play(&"swing")
+		&"summon":
+			if _opponents_near(position, 160.0).is_empty() or get_parent() == null:
+				return false
+			for i in 1 + int(power >= 2.0):
+				_summon_minion()
+			_spawn_effect(&"burst", position, 30.0, Color("#b07aff"))
+			Sound.play(&"merge", 0.0)
+		&"blink":
+			var threats := _opponents_near(position, 28.0)
+			var spot := Vector2.ZERO
+			if attack_style == &"melee":
+				if enemy_target == null or position.distance_to(enemy_target.position) < 45.0:
+					return false
+				var side := (enemy_target.position - position).normalized()
+				spot = enemy_target.position + side * 12.0
+			else:
+				if threats.is_empty():
+					return false
+				var away := (position - threats[0].position).normalized()
+				spot = position + (away if away != Vector2.ZERO else Vector2.LEFT) * 70.0
+			_spawn_effect(&"puff", position + Vector2(0, -body_size * 0.3), 0.0, Color("#4a2a6a"))
+			position = World.clamp_point(spot)
+			_velocity = Vector2.ZERO
+			_spawn_effect(&"puff", position + Vector2(0, -body_size * 0.3), 1.0, Color("#4a2a6a"))
+			Sound.play(&"swing")
+		&"poison_cloud":
+			if enemy_target == null or position.distance_to(enemy_target.position) > maxf(attack_range, 60.0):
+				return false
+			for foe in _opponents_near(enemy_target.position, 36.0):
+				foe.poison(attack * 0.35 * power, 4.0, self)
+			_spawn_effect(&"burst", enemy_target.position, 36.0, Color("#7adf3a"))
+			Sound.play(&"fireball")
+		&"earthquake":
+			var foes := _opponents_near(position, 65.0)
+			if foes.is_empty():
+				return false
+			for foe in foes:
+				foe.take_damage(attack * 0.8 * power * damage_mult(), self)
+				foe.apply_effect(&"stun", 0.8 + 0.15 * power, 1.0)
+			_spawn_effect(&"burst", position, 65.0, Color("#a8743a"))
+			Sound.play(&"explode")
+		&"holy_light":
+			var allies := _allies_near(position, 75.0)
+			var foes := _opponents_near(position, 75.0)
+			var hurt := false
+			for ally in allies:
+				hurt = hurt or ally.health < ally.max_health * 0.85
+			if not hurt and foes.is_empty():
+				return false
+			for ally in allies:
+				ally.heal(attack * 1.2 * power + ally.max_health * 0.03, self)
+			for foe in foes:
+				foe.take_damage(attack * 1.0 * power, self)
+			_spawn_effect(&"burst", position, 75.0, Color("#fff3a0"))
+			Sound.play(&"heal")
+		&"fire_breath":
+			if enemy_target == null or position.distance_to(enemy_target.position) > maxf(attack_range, 70.0):
+				return false
+			var aim := (enemy_target.position - position).normalized()
+			for foe in _opponents_near(position, 80.0):
+				var offset := foe.position - position
+				if offset.length() < 6.0 or aim.angle_to(offset) < 0.6 and aim.angle_to(offset) > -0.6:
+					foe.take_damage(attack * 1.3 * power * damage_mult(), self)
+					foe.poison(attack * 0.2 * power, 3.0, self)
+			_spawn_effect(&"cone", position + Vector2(0, -body_size / 2.0), 80.0, Color("#ff7a1f"), "", aim)
+			Sound.play(&"explode")
+		&"hex":
+			var strongest: Combatant = null
+			for foe in _opponents_near(position, maxf(attack_range, 80.0)):
+				if not foe.has_effect(&"weak") and (strongest == null or foe.attack > strongest.attack):
+					strongest = foe
+			if strongest == null:
+				return false
+			strongest.apply_effect(&"weak", 4.0 + 0.5 * power, 0.5)
+			strongest.apply_effect(&"slow", 4.0 + 0.5 * power, 0.6)
+			_spawn_effect(&"ring", strongest.position + Vector2(0, -strongest.body_size / 2.0), 16.0, Color("#b07aff"))
+			Sound.play(&"heal")
+		&"tidal_wave":
+			var foes := _opponents_near(position, 60.0)
+			if foes.is_empty():
+				return false
+			for foe in foes:
+				foe.take_damage(attack * 0.8 * power * damage_mult(), self)
+				var push := (foe.position - position).normalized()
+				foe.position = World.clamp_point(foe.position + (push if push != Vector2.ZERO else Vector2.RIGHT) * 40.0)
+			_spawn_effect(&"ring", position, 60.0, Color("#4fa8ff"))
+			_spawn_effect(&"burst", position, 45.0, Color("#4fa8ff"))
+			Sound.play(&"fireball")
+		&"divine_shield":
+			var ward: Combatant = null
+			for ally in _allies_near(position, 85.0):
+				if ally.health < ally.max_health * 0.35 and (ward == null or ally.health < ward.health):
+					ward = ally
+			if ward == null:
+				return false
+			ward.apply_effect(&"shield", 2.0 + 0.3 * power, 0.0)
+			_spawn_effect(&"ring", ward.position + Vector2(0, -ward.body_size / 2.0), ward.body_size, Color("#ffd91f"))
+			Sound.play(&"heal")
+		&"berserk":
+			if health > max_health * 0.5 or _opponents_near(position, maxf(attack_range + 20.0, 50.0)).is_empty():
+				return false
+			apply_effect(&"buff", 5.0, 1.0 + minf(0.9, 0.3 + 0.1 * power))
+			apply_effect(&"haste", 5.0, 1.6)
+			_spawn_effect(&"ring", position + Vector2(0, -body_size / 2.0), body_size, Color("#ff3a2a"))
+			Sound.play(&"swing")
 		_:
 			return false
 	return true
 
 
-func _spawn_effect(kind: StringName, at: Vector2, radius: float, tint: Color, text := "") -> void:
+## Beschworener Helfer neben der Einheit, verschwindet nach SUMMON_SECONDS.
+func _summon_minion() -> Combatant:
+	var unit_id := SUMMON_DEFAULT
+	for prefix: String in SUMMON_UNITS:
+		if unit_data != null and String(unit_data.id).begins_with(prefix):
+			unit_id = SUMMON_UNITS[prefix]
+	var minion := Combatant.new()
+	minion.setup_player(Registry.units[unit_id])
+	minion.summoned = true
+	minion.summoner = self
+	minion._summon_left = SUMMON_SECONDS + ability_power
+	minion.max_health *= 0.6 + 0.2 * ability_power
+	minion.health = minion.max_health
+	minion.attack *= 0.6 + 0.2 * ability_power
+	minion.modulate = Color(0.85, 0.75, 1.0)
+	minion.position = World.clamp_point(position + Vector2(randf_range(-16, 16), randf_range(6, 14)))
+	minion.home_position = minion.position
+	get_parent().add_child(minion)
+	return minion
+
+
+func _spawn_bolt(from: Vector2, to: Vector2) -> void:
+	_spawn_effect(&"bolt", from, 0.0, Color("#bfe6ff"), "", to - from)
+
+
+func _spawn_effect(kind: StringName, at: Vector2, radius: float, tint: Color, text := "", direction := Vector2.ZERO) -> void:
 	if get_parent() == null:
 		return
 	var effect := Effect.new()
 	effect.setup(kind, at, radius, tint, text)
+	effect.direction = direction
 	get_parent().add_child(effect)
 
 
