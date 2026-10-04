@@ -29,6 +29,8 @@ const LIST: Array[Dictionary] = [
 	{"id": &"weatherproof", "name": "Wetterfest", "text": "Überstehe 10 Runden mit Sonderregel.", "event": &"modifier", "goal": 10},
 	{"id": &"wanderer", "name": "Weltenbummler", "text": "Nimm 10 Angebote zwischen den Runden an.", "event": &"event", "goal": 10},
 	{"id": &"lucky", "name": "Glückspilz", "text": "Gewinne ein Glücksspiel.", "event": &"gamble", "goal": 1},
+	{"id": &"first_secret", "name": "Entdecker", "text": "Entdecke ein Geheimrezept.", "event": &"secret", "goal": 1},
+	{"id": &"all_secrets", "name": "Geheimniskrämer", "text": "Entdecke alle Geheimrezepte.", "event": &"secret", "goal": 5},
 	{"id": &"tactician", "name": "Taktiker", "text": "Löse 10 Fähigkeiten selbst aus.", "event": &"manual", "goal": 10},
 ]
 

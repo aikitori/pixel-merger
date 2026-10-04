@@ -384,6 +384,17 @@ COMBO_TABLE = [
     ('asclepius', 'doctor', 'spark', 'gold', 'a', ['Asklepios', 'Heilgott', 'Gott der Heilkunst']),
 ]
 
+# Geheimrezepte: stehen erst im Rezeptbuch, wenn sie einmal durch Ausprobieren entdeckt wurden.
+SECRET_TABLE = [
+    ('king_arthur', 'knight', 'unicorn', 'gold', 'a', ['König Artus', 'Hochkönig Artus', 'Ewiger König']),
+    ('merlin', 'archmage', 'wood_elf', 'light', 'a', ['Merlin', 'Merlin der Weise', 'Merlin der Ewige']),
+    ('baba_yaga', 'witch', 'ghoul', 'dark', 'a', ['Baba Jaga', 'Knochenhexe', 'Hexe der Hühnerhütte']),
+    ('kraken', 'hydra', 'wave', 'water', 'a', ['Krake', 'Riesenkrake', 'Kraken']),
+    ('robin_hood', 'archer', 'wood_elf', 'nature', 'a', ['Robin Hood', 'König der Diebe', 'Held von Sherwood']),
+]
+SECRET_COMBOS = {row[0] for row in SECRET_TABLE}
+COMBO_TABLE += SECRET_TABLE
+
 
 def _register_table_combos():
     info = {}
@@ -450,6 +461,7 @@ HAND_COMBO_ABILITY = {
 COMBO_ABILITY_OVERRIDE = {
     'phoenix': 'revive', 'valkyrie': 'revive', 'anubis': 'revive', 'necromancer': 'revive',
     'unicorn': 'regen', 'pegasus': 'sprint', 'hercules': 'taunt', 'achilles': 'shield', 'thor': 'war_aura',
+    'king_arthur': 'war_aura', 'merlin': 'meteor', 'kraken': 'taunt', 'robin_hood': 'arrow_rain',
 }
 # Heilende Einheiten können mit diesen Fähigkeiten nichts anfangen (kein Gegnerziel / kein Schaden).
 _NEEDS_ATTACKER = {'meteor', 'arrow_rain', 'lifesteal'}

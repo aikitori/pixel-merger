@@ -46,6 +46,8 @@ var _chapter_buttons: Array[Button] = []
 var _quick_buttons: Array[Dictionary] = []  # {button, price}
 var _swipe_from := -1.0
 var _flip_tween: Tween
+## Anzahl entdeckter Geheimrezepte beim letzten Aufbau der Rezepte (neu entdeckte erscheinen beim Öffnen).
+var _secrets_shown := -1
 
 
 func _ready() -> void:
@@ -97,6 +99,8 @@ func _exit_tree() -> void:
 
 
 func open_book() -> void:
+	if Progress.discovered.size() != _secrets_shown:
+		_build_recipe_entries()
 	_refresh_locks()
 	_refresh_quick_buttons()
 	_spread = 0
@@ -402,18 +406,57 @@ func _refresh_quick_buttons() -> void:
 # --- Einträge ---------------------------------------------------------------------
 
 func _build_entries() -> void:
+	_build_recipe_entries()
+	for start in Registry.shop_units():
+		_entries[1].append(_line_entry(start))
+
+
+## Kapitel "Kombinationen". Unentdeckte Geheimrezepte stehen als "???" am Ende.
+func _build_recipe_entries() -> void:
+	for entry: Dictionary in _entries[0]:
+		var node: Control = entry.node
+		if node.get_parent() != null:
+			node.get_parent().remove_child(node)
+		node.queue_free()
+	_entries[0].clear()
+	_quick_buttons.assign(_quick_buttons.filter(func(item: Dictionary) -> bool:
+		return is_instance_valid(item.button) and not (item.button as Node).is_queued_for_deletion()))
 	var recipes: Array[RecipeData] = []
 	for recipe in Registry.recipes:
 		if recipe.ingredient_a != recipe.ingredient_b:
 			recipes.append(recipe)
 	recipes.sort_custom(func(a: RecipeData, b: RecipeData) -> bool:
+		if Progress.is_hidden(a) != Progress.is_hidden(b):
+			return Progress.is_hidden(b)
 		if a.unlock_round != b.unlock_round:
 			return a.unlock_round < b.unlock_round
 		return a.result.display_name < b.result.display_name)
 	for recipe in recipes:
-		_entries[0].append(_recipe_entry(recipe))
-	for start in Registry.shop_units():
-		_entries[1].append(_line_entry(start))
+		_entries[0].append(_secret_entry(recipe) if Progress.is_hidden(recipe) else _recipe_entry(recipe))
+	_secrets_shown = Progress.discovered.size()
+	if is_instance_valid(_left_box):
+		_refresh_quick_buttons()
+
+
+func _secret_entry(recipe: RecipeData) -> Dictionary:
+	var column := VBoxContainer.new()
+	column.add_theme_constant_override("separation", 0)
+	var row := HBoxContainer.new()
+	row.add_theme_constant_override("separation", 3)
+	for part in ["?", "+", "?", "="]:
+		row.add_child(_label(part, 16 if part == "?" else 12, false))
+	var icon := _icon(recipe.result)
+	icon.texture = UiTheme.silhouette(recipe.result.sprite)
+	icon.tooltip_text = tr("Ein Geheimrezept!")
+	row.add_child(icon)
+	var title := _label(tr("Geheimrezept"), 11, false)
+	title.add_theme_color_override("font_color", TITLE_COLOR)
+	title.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	title.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	row.add_child(title)
+	column.add_child(row)
+	column.add_child(_label(tr("Noch nicht entdeckt. Probiere ungewöhnliche Paare aus!"), 9))
+	return {"node": column, "weight": 1, "marks": [], "text": (tr("Geheimrezept") + " ???").to_lower()}
 
 
 func _recipe_entry(recipe: RecipeData) -> Dictionary:

@@ -44,6 +44,8 @@ var _spawn_timer := 0.0
 var _arm_bag: Array[World.Arm] = []
 ## Runden seit dem letzten Ereignis (siehe RoundEvents).
 var _rounds_without_event := 0
+## Tests, die nur Eingaben prüfen, schalten die Ereignisse ab.
+var events_enabled := true
 
 
 signal enemy_spawned(enemy: Combatant, arm: World.Arm)
@@ -193,9 +195,10 @@ func try_merge(a: Combatant, b: Combatant) -> bool:
 		Sound.play(&"error")
 		return false
 	if not Game.spend_gold(recipe.merge_cost):
-		_hud.toast(tr("Zu wenig Gold: %s kostet %dg") % [recipe.result.display_name, recipe.merge_cost])
+		_hud.toast(tr("Zu wenig Gold: %s kostet %dg") % [_result_name(recipe), recipe.merge_cost])
 		Sound.play(&"error")
 		return false
+	var discovered := Progress.discover(recipe)
 	var pos := b.position
 	a.discard()
 	b.discard()
@@ -205,7 +208,18 @@ func try_merge(a: Combatant, b: Combatant) -> bool:
 		Achievements.report(&"combo")
 	_hud.toast("%s!" % recipe.result.display_name)
 	Sound.play(&"merge", 0.0)
+	if discovered:
+		Achievements.report(&"secret")
+		_hud.announce(tr("Geheimrezept entdeckt: %s!") % recipe.result.display_name)
+		var burst := Effect.new()
+		burst.setup(&"burst", pos + Vector2(0, -10), 40.0, UiTheme.GOLD_LIGHT)
+		add_child(burst)
 	return true
+
+
+## Name des Ergebnisses, bei unentdeckten Geheimrezepten "???".
+func _result_name(recipe: RecipeData) -> String:
+	return "???" if Progress.is_hidden(recipe) else recipe.result.display_name
 
 
 func _spawn_player(data: UnitData, pos: Vector2) -> Combatant:
@@ -307,13 +321,14 @@ func _merge_preview(unit: Combatant) -> String:
 	elif Game.gold < recipe.merge_cost:
 		_preview_warning = true
 		cost_text = tr("Kosten: %dg (du hast %dg)") % [recipe.merge_cost, Game.gold]
-	_hud.show_merge_preview(unit.unit_data, target.unit_data, recipe.result, cost_text, _preview_warning)
+	_hud.show_merge_preview(unit.unit_data, target.unit_data, recipe.result, cost_text, _preview_warning, Progress.is_hidden(recipe))
+	var result_name := _result_name(recipe)
 	if recipe.unlock_round > Game.round_number:
-		return tr("%s: ab Runde %d") % [recipe.result.display_name, recipe.unlock_round]
+		return tr("%s: ab Runde %d") % [result_name, recipe.unlock_round]
 	if Game.gold < recipe.merge_cost:
 		_preview_warning = true
-		return tr("%s: kostet %dg, du hast nur %dg") % [recipe.result.display_name, recipe.merge_cost, Game.gold]
-	return tr("%s verbinden: %dg") % [recipe.result.display_name, recipe.merge_cost]
+		return tr("%s: kostet %dg, du hast nur %dg") % [result_name, recipe.merge_cost, Game.gold]
+	return tr("%s verbinden: %dg") % [result_name, recipe.merge_cost]
 
 
 ## Alle Rezepte der gehaltenen Einheit: zuerst die, die mit einer Figur auf dem Feld sofort gehen.
@@ -324,6 +339,8 @@ func _show_recipe_hints(unit: Combatant) -> void:
 			on_field[other.unit_data] = int(on_field.get(other.unit_data, 0)) + 1
 	var hints: Array[Dictionary] = []
 	for recipe in Registry.recipes:
+		if Progress.is_hidden(recipe):
+			continue  # Geheimrezepte muss man selbst finden
 		var partner: UnitData
 		if recipe.ingredient_a == unit.unit_data:
 			partner = recipe.ingredient_b
@@ -748,6 +765,8 @@ func _end_round() -> void:
 
 
 func _maybe_offer_event() -> void:
+	if not events_enabled:
+		return
 	if not RoundEvents.should_offer(Game.round_number, _rounds_without_event):
 		_rounds_without_event += 1
 		return

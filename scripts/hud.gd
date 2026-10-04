@@ -355,8 +355,9 @@ func _build_merge_panel(root: Control) -> void:
 
 
 ## Zeigt beim Ziehen, was aus `a` und `b` wird. `warning`: Verbinden gerade nicht möglich (Gold/Runde).
-func show_merge_preview(a: UnitData, b: UnitData, result: UnitData, cost_text: String, warning: bool) -> void:
-	var key := "%s|%s|%s|%s|%s" % [a.id, b.id, cost_text, warning, Loc.language]
+## `hidden`: unentdecktes Geheimrezept, das Ergebnis bleibt ein Schatten mit "???".
+func show_merge_preview(a: UnitData, b: UnitData, result: UnitData, cost_text: String, warning: bool, hidden := false) -> void:
+	var key := "%s|%s|%s|%s|%s|%s" % [a.id, b.id, cost_text, warning, Loc.language, hidden]
 	if key == _merge_key and _merge_panel.visible:
 		return
 	_merge_key = key
@@ -372,6 +373,11 @@ func show_merge_preview(a: UnitData, b: UnitData, result: UnitData, cost_text: S
 			ability_text = "* %s: %s" % [Abilities.label(unit.ability), Abilities.description(unit.ability)]
 		card["ability"].text = ability_text
 		card["ability"].visible = ability_text != ""
+		if hidden and index == 2:
+			card["icon"].texture = UiTheme.silhouette(unit.sprite)
+			card["title"].text = "???"
+			card["stats"].text = tr("Ein Geheimrezept!")
+			card["ability"].visible = false
 	_merge_cost.text = cost_text
 	_merge_cost.add_theme_color_override("font_color", Color(1.0, 0.5, 0.45) if warning else UiTheme.GOLD_LIGHT)
 	_merge_panel.size = Vector2(162, 10)
@@ -846,7 +852,12 @@ func _on_achievement_unlocked(id: StringName) -> void:
 
 
 func announce_achievement(achievement_name: String) -> void:
-	_banner.text = tr("Erfolg: %s") % achievement_name
+	announce(tr("Erfolg: %s") % achievement_name)
+
+
+## Goldene Meldung oben in der Mitte (Erfolge, entdeckte Geheimrezepte).
+func announce(text: String) -> void:
+	_banner.text = text
 	_banner.position.y = 62.0 if _modifier_sign.visible else 30.0
 	_banner.modulate.a = 1.0
 	if _banner_tween != null:

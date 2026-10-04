@@ -658,6 +658,8 @@ def build():
             level_kits = kits.combo_level_kits(ingredient_kit, theme)[level]
             if cape and not any(k.startswith('cape') for k in level_kits):
                 level_kits = [cape] + level_kits
+            if base in content.SECRET_COMBOS and not any(k.startswith('sparkle') for k in level_kits):
+                level_kits = level_kits + ['sparkle:gold']  # Geheimrezepte funkeln von Anfang an
             decorated = kits.decorate(level_grid, combo_anchor, level_kits)
             sprites[uid] = scale(decorated, factor) if factor > 1 else decorated
 

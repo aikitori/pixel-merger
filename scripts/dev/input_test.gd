@@ -13,6 +13,7 @@ func _ready() -> void:
 		print("INPUT-TEST ZEITÜBERSCHREITUNG")
 		get_tree().quit(1))
 	_arena = load("res://scenes/main.tscn").instantiate()
+	_arena.events_enabled = false  # Ereignisfenster würden die Eingaben abfangen
 	add_child(_arena)
 	await get_tree().process_frame
 	await _test_shop()

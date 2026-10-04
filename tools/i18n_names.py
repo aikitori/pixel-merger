@@ -156,4 +156,10 @@ EN = {
     # Gegner und Bosse
     'Goblin': 'Goblin', 'Oger': 'Ogre', 'Ork': 'Orc', 'Schleim': 'Slime', 'Skelett-Bogenschütze': 'Skeleton Archer',
     'Ogerkönig': 'Ogre King', 'Knochenkönig': 'Bone King', 'Steingigant': 'Stone Giant',
+    # Geheimrezepte
+    'König Artus': 'King Arthur', 'Hochkönig Artus': 'High King Arthur', 'Ewiger König': 'Eternal King',
+    'Merlin': 'Merlin the Mage', 'Merlin der Weise': 'Merlin the Wise', 'Merlin der Ewige': 'Merlin the Eternal',
+    'Baba Jaga': 'Baba Yaga', 'Knochenhexe': 'Bone Witch', 'Hexe der Hühnerhütte': 'Witch of the Chicken Hut',
+    'Krake': 'Octopus', 'Riesenkrake': 'Giant Octopus', 'Kraken': 'The Kraken',
+    'Robin Hood': 'Robin of Locksley', 'König der Diebe': 'Prince of Thieves', 'Held von Sherwood': 'Hero of Sherwood',
 }

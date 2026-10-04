@@ -21,7 +21,7 @@ def color(hex_value):
 
 # Kampfanimation: Nahkampf (Schwert) bis Reichweite 30, darüber Pfeil oder Feuerball.
 ARROW_LINES = {'ranged', 'elf', 'centaur'}
-ARROW_COMBOS = {'mounted_archer', 'storm_archer', 'dwarf_gunner', 'mercenary', 'wild_hunter',
+ARROW_COMBOS = {'robin_hood', 'mounted_archer', 'storm_archer', 'dwarf_gunner', 'mercenary', 'wild_hunter',
                 'beast_master', 'dark_elf', 'red_hood', 'arcane_archer'}
 
 
@@ -58,7 +58,7 @@ def write_unit(uid, name, line_name, level, hex_color, stats, intel, shop_order=
     (ROOT / 'data/units' / f'{uid}.tres').write_text('\n'.join(lines) + '\n')
 
 
-def write_recipe(a, b, result, cost, unlock):
+def write_recipe(a, b, result, cost, unlock, secret=False):
     lines = ['[gd_resource type="Resource" script_class="RecipeData" load_steps=5 format=3]', '',
              '[ext_resource type="Script" path="res://scripts/data/recipe_data.gd" id="1"]']
     lines += [f'[ext_resource type="Resource" path="res://data/units/{u}.tres" id="{i}"]'
@@ -66,6 +66,8 @@ def write_recipe(a, b, result, cost, unlock):
     lines += ['', '[resource]', 'script = ExtResource("1")',
               'ingredient_a = ExtResource("2")', 'ingredient_b = ExtResource("3")',
               'result = ExtResource("4")', f'unlock_round = {unlock}', f'merge_cost = {cost}']
+    if secret:
+        lines.append('secret = true')
     (ROOT / 'data/recipes' / f'{a}_{b}.tres').write_text('\n'.join(lines) + '\n')
 
 
@@ -154,7 +156,7 @@ def main():
                 unlock_round=combo['unlock'] + content.COMBO_UNLOCK_STEP * level,
                 upgrade=None if last else ids[level + 1],
                 upgrade_cost=0 if last else round(combo['cost'] * content.COMBO_UPGRADE_MULT[level]))
-        write_recipe(combo['a'], combo['b'], base, combo['cost'], combo['unlock'])
+        write_recipe(combo['a'], combo['b'], base, combo['cost'], combo['unlock'], base in content.SECRET_COMBOS)
 
     write_bosses()
     write_english_names()

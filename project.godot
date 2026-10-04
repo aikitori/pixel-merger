@@ -18,6 +18,7 @@ Registry="*res://scripts/autoload/registry.gd"
 Loc="*res://scripts/autoload/loc.gd"
 Sound="*res://scripts/autoload/sound.gd"
 Achievements="*res://scripts/autoload/achievements.gd"
+Progress="*res://scripts/autoload/progress.gd"
 
 [internationalization]
 

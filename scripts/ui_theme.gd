@@ -144,6 +144,25 @@ static func coin() -> ImageTexture:
 	return tex
 
 
+## Schattenriss eines Sprites (unentdeckte Geheimrezepte): alle sichtbaren Pixel dunkel.
+static func silhouette(texture: Texture2D) -> Texture2D:
+	if texture == null:
+		return null
+	var key := "silhouette_%s" % texture.resource_path
+	if _cache.has(key):
+		return _cache[key]
+	var img := texture.get_image()
+	img.decompress()
+	img.convert(Image.FORMAT_RGBA8)
+	for y in img.get_height():
+		for x in img.get_width():
+			if img.get_pixel(x, y).a > 0.1:
+				img.set_pixel(x, y, Color(0.14, 0.07, 0.23, 0.9))
+	var tex := ImageTexture.create_from_image(img)
+	_cache[key] = tex
+	return tex
+
+
 # --- Bausteine ------------------------------------------------------------------
 
 ## 9-Patch-Rahmen: Umriss, Zierkante, Füllung mit Farbverlauf und hellerer Oberkante.

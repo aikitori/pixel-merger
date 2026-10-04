@@ -136,6 +136,8 @@ func _ready() -> void:
 
 	# Ereignisse zwischen den Runden
 	await _test_round_events()
+	# Geheimrezepte
+	await _test_secret_recipes()
 
 	# Gelände: erst viele Hindernisse, nach jedem Boss weniger
 	_check(World.stage_for_round(5) == 0 and World.stage_for_round(6) == 1 and World.stage_for_round(15) == 1 \
@@ -240,6 +242,67 @@ func _test_round_events() -> void:
 	_check(not hud._start_button.disabled, "Nach der Wahl ist der Start-Knopf wieder frei")
 	Game.blessings = {}
 	Game.set_modifier(&"")
+	Game.round_number = 1
+	for unit: Combatant in _arena.get_player_units():
+		unit.discard()
+	await get_tree().process_frame
+
+
+func _test_secret_recipes() -> void:
+	Progress.reset()
+	var secrets := Registry.recipes.filter(func(r: RecipeData) -> bool: return r.secret)
+	_check(secrets.size() == 5 and Progress.secret_count() == 5, "Es gibt 5 Geheimrezepte (%d)" % secrets.size())
+	var arthur: RecipeData = Registry.find_recipe(Registry.units["knight"], Registry.units["unicorn"])
+	_check(arthur != null and arthur.secret and Progress.is_hidden(arthur), "Ritter + Einhorn ist ein verborgenes Geheimrezept")
+	var hud: Hud = _arena.get("_hud")
+	var book: RecipeBook = hud._book
+	book.open_book()
+	book.set_query("artus")
+	_check(book.match_count(0) == 0, "Im Buch verrät die Suche den Namen nicht")
+	book.set_query("geheim")
+	_check(book.match_count(0) == 5, "Das Buch zeigt 5 verborgene Geheimrezepte (%d)" % book.match_count(0))
+	book.set_query("")
+	book.close_book()
+	# Hinweise beim Anfassen nennen das Geheimrezept nicht
+	Game.set_phase(Game.Phase.BUILD)
+	Game.round_number = 10
+	Game.gold = 500
+	var knight: Combatant = _arena._spawn_player(Registry.units["knight"], World.CENTER)
+	var unicorn: Combatant = _arena._spawn_player(Registry.units["unicorn"], World.CENTER + Vector2(30, 0))
+	_arena._show_recipe_hints(knight)
+	var hinted := false
+	for row: Dictionary in hud._hint_rows:
+		hinted = hinted or (row["row"].visible and row["title"].text == arthur.result.display_name)
+	_check(not hinted, "Rezeptliste beim Anfassen verrät das Geheimrezept nicht")
+	hud.hide_recipe_hints()
+	# Vorschau beim Ziehen: Ergebnis bleibt "???"
+	knight.position = unicorn.position + Vector2(4, 0)
+	_arena._dragging = knight
+	var text: String = _arena._merge_preview(knight)
+	_arena._dragging = null
+	_check(text.begins_with("???") and hud._merge_cards[2]["title"].text == "???", "Vorschau zeigt nur ??? (%s)" % text)
+	hud.hide_merge_preview()
+	# Verbinden entdeckt das Rezept
+	Achievements.reset()
+	_check(_arena.try_merge(knight, unicorn), "Ritter + Einhorn lassen sich verbinden")
+	_check(not Progress.is_hidden(arthur) and Achievements.is_unlocked(&"first_secret"), "Rezept ist entdeckt, Erfolg 'Entdecker'")
+	_check(hud._banner.text.contains(arthur.result.display_name), "Meldung nennt das entdeckte Rezept")
+	book.open_book()
+	book.set_query("artus")
+	_check(book.match_count(0) == 1, "Nach dem Entdecken steht König Artus im Buch")
+	book.set_query("geheim")
+	_check(book.match_count(0) == 4, "Noch 4 verborgene Geheimrezepte")
+	book.set_query("")
+	book.close_book()
+	# Händler bietet nie Geheimrezepte an
+	var secret_offered := false
+	for i in 200:
+		var offer := RoundEvents.build(&"merchant", _arena)
+		if not offer.is_empty():
+			secret_offered = secret_offered or Registry.recipes.any(func(r: RecipeData) -> bool: return r.secret and r.result == offer["data"]["unit"])
+	_check(not secret_offered, "Wanderhändler bietet keine Geheimrezepte an")
+	Progress.reset()
+	Achievements.reset()
 	Game.round_number = 1
 	for unit: Combatant in _arena.get_player_units():
 		unit.discard()
