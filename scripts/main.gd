@@ -22,6 +22,10 @@ var _box_pending := false
 var _box_active := false
 var _box_start := Vector2.ZERO
 const BOX_MIN_DRAG := 10.0
+## Zweiter Tipp auf dieselbe Einheit innerhalb dieser Zeit wählt alle gleichen Einheiten.
+const DOUBLE_TAP_MSEC := 400
+var _last_tap_unit: Combatant
+var _last_tap_msec := -10000
 ## Der Befehl "Schützen" wartet auf den Tipp auf den Schützling.
 var _picking_guard := false
 ## Die Verbindungs-Vorschau beim Ziehen warnt (Runde noch nicht erreicht oder zu wenig Gold).
@@ -370,6 +374,13 @@ func _end_drag() -> void:
 ## Erneutes Antippen der gewählten Einheit hebt den Befehl auf (wieder automatisch).
 func _command(point: Vector2, additive := false) -> void:
 	var unit := _unit_at(point)
+	var now := Time.get_ticks_msec()
+	if unit != null and unit == _last_tap_unit and now - _last_tap_msec <= DOUBLE_TAP_MSEC and not _picking_guard:
+		_last_tap_unit = null
+		_select_same_kind(unit, additive or _multi_mode)
+		return
+	_last_tap_unit = unit
+	_last_tap_msec = now
 	if unit != null:
 		if _picking_guard and is_instance_valid(_selected):
 			var guards := 0
@@ -426,6 +437,21 @@ func _select_in_rect(rect: Rect2, additive: bool) -> void:
 	_apply_selection(picked)
 	if picked.size() > 1:
 		_hud.toast(tr("%d Einheiten gewählt") % picked.size())
+
+
+## Doppeltipp: alle eigenen Einheiten derselben Sorte (gleiche Stufe) wählen.
+func _select_same_kind(unit: Combatant, additive: bool) -> void:
+	var picked: Array[Combatant] = []
+	if additive:
+		picked.append_array(_selection)
+	for other in get_player_units():
+		if other.unit_data == unit.unit_data and not picked.has(other):
+			picked.append(other)
+	# Die angetippte Einheit steht vorn: Karte und Befehlsknopf beziehen sich auf sie.
+	picked.erase(unit)
+	picked.push_front(unit)
+	_apply_selection(picked)
+	_hud.toast(tr("Alle %s gewählt (%d)") % [unit.display_name, picked.size()])
 
 
 ## Alle eigenen Einheiten wählen (Knopf "Alle").

@@ -128,6 +128,7 @@ const TEXTS := {
 	"Stufe": "Level",
 	"Vollbild": "Fullscreen",
 	"Alle": "All",
+	"Alle %s gewählt (%d)": "All %s selected (%d)",
 	"Mehrfach": "Multi",
 	"Mehrfach: an": "Multi: on",
 	"%d Einheiten gewählt": "%d units selected",

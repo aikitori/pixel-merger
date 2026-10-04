@@ -393,6 +393,19 @@ func _test_multi_select() -> void:
 	_check(_arena._selection.size() == 1 and _arena._selected == cluster[2], "Mehrfach: erneutes Antippen nimmt die Einheit heraus")
 	hud._multi_button.button_pressed = false
 	_check(not _arena._multi_mode, "Mehrfach-Knopf schaltet den Modus aus")
+	# Doppeltipp wählt alle gleichen Einheiten
+	_arena._select(null)
+	_arena._spawn_player(cluster[0].unit_data, Vector2(560, 205))
+	var same := _units().filter(func(u: Combatant) -> bool: return u.unit_data == cluster[0].unit_data)
+	var other_kind := _units().filter(func(u: Combatant) -> bool: return u.unit_data != cluster[0].unit_data)
+	_arena._last_tap_unit = null
+	await _tap(cluster[0].center())
+	_check(_arena._selection.size() == 1, "Einzeltipp wählt nur eine Einheit")
+	await _tap(cluster[0].center())  # zweiter Tipp kurz danach
+	_check(_arena._selection.size() == same.size() and _arena._selected == cluster[0], "Doppeltipp wählt alle %d gleichen Einheiten (%d)" % [same.size(), _arena._selection.size()])
+	_check(not other_kind.any(func(u: Combatant) -> bool: return _arena._selection.has(u)), "Doppeltipp lässt andere Sorten aus")
+	_arena._select(cluster[2])
+	_arena._last_tap_unit = null
 	# Umschalt-Klick (Maus) fügt hinzu
 	var press := InputEventMouseButton.new()
 	press.button_index = MOUSE_BUTTON_LEFT
