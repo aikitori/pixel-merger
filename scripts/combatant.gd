@@ -44,6 +44,22 @@ const IDLE_HOP_SECONDS := 0.35
 const IDLE_HOP_HEIGHT := 4.0
 ## Ab dieser Reichweite gilt eine Figur als Fernkämpfer (Modifikator Nebel).
 const RANGED_MIN := 30.0
+## Veteranen: Erfahrung aus Kämpfen hebt die Veteranenstufe (1 bis 10, getrennt von der Stufe durchs
+## Verbinden). Jede Stufe über 1 gibt mehr Leben und Stärke, ab VETERAN_ABILITY_LEVEL eine zweite Fähigkeit.
+const VETERAN_MAX := 10
+const VETERAN_ABILITY_LEVEL := 5
+const VETERAN_BONUS := 0.04
+## Benötigte Gesamterfahrung je Veteranenstufe (Index = Stufe - 1).
+const VETERAN_XP: Array[int] = [0, 3, 7, 12, 18, 25, 33, 42, 52, 63]
+const XP_KILL := 1
+const XP_BOSS := 6
+const XP_SURVIVE := 2
+## Zweite Fähigkeit der Veteranen je Kampfstil: die erste der Liste, die die Einheit noch nicht hat.
+const VETERAN_ABILITIES := {
+	&"melee": [&"war_cry", &"shield", &"taunt"],
+	&"ranged": [&"arrow_rain", &"frost_nova", &"meteor"],
+	&"heal": [&"mass_heal", &"revive"],
+}
 
 var team: Team = Team.PLAYER
 var unit_data: UnitData
@@ -72,6 +88,11 @@ var ability: StringName = &""
 var ability_power := 1.0
 var ability_casts := 0
 var _ability_cd := 0.0
+## Veteranen: Erfahrung, Stufe 1-10 und ab Stufe 5 eine zweite (aktive) Fähigkeit.
+var xp := 0
+var veteran_level := 1
+var veteran_ability: StringName = &""
+var _veteran_cd := 0.0
 var _aura_left := 0.0
 ## Wirkungen auf diese Einheit: Name -> [Restzeit, Wert]. Namen: shield, sprint, slow, buff.
 var _effects: Dictionary = {}
@@ -122,8 +143,8 @@ func setup_player(data: UnitData) -> void:
 	ability = data.ability
 	ability_power = Abilities.power(data.level, data.category == "Kombination")
 	_ability_cd = randf_range(2.0, 5.0)
-	max_health *= Game.blessing(style_group(), "hp")
-	attack *= Game.blessing(style_group(), "atk")
+	max_health *= Game.blessing(style_group(), "hp") * veteran_factor()
+	attack *= Game.blessing(style_group(), "atk") * veteran_factor()
 	health = max_health
 	add_to_group(GROUP_PLAYER)
 
@@ -141,10 +162,62 @@ func refresh_blessings() -> void:
 	if unit_data == null:
 		return
 	var share := health / maxf(max_health, 0.001)
-	max_health = unit_data.max_health * Game.blessing(style_group(), "hp")
-	attack = unit_data.attack * Game.blessing(style_group(), "atk")
+	max_health = unit_data.max_health * Game.blessing(style_group(), "hp") * veteran_factor()
+	attack = unit_data.attack * Game.blessing(style_group(), "atk") * veteran_factor()
 	health = max_health * share
 	queue_redraw()
+
+
+# --- Veteranen -------------------------------------------------------------------
+
+func veteran_factor() -> float:
+	return 1.0 + VETERAN_BONUS * (veteran_level - 1)
+
+
+## Erfahrung bis zur nächsten Veteranenstufe: [bisher in dieser Stufe, nötig]. Auf Stufe 10: [0, 0].
+func veteran_progress() -> Array[int]:
+	if veteran_level >= VETERAN_MAX:
+		return [0, 0]
+	var floor_xp := VETERAN_XP[veteran_level - 1]
+	return [xp - floor_xp, VETERAN_XP[veteran_level] - floor_xp]
+
+
+## Erfahrung gutschreiben (nur eigene Einheiten). Steigt die Stufe, wird die Einheit stärker und
+## bekommt ab Stufe 5 ihre Veteranenfähigkeit.
+func gain_xp(amount: int) -> void:
+	if team != Team.PLAYER or amount <= 0:
+		return
+	set_xp(xp + amount, true)
+
+
+## Erfahrung setzen (z.B. beim Verbinden: das Ergebnis behält die Erfahrung der erfahreneren Zutat).
+func set_xp(value: int, announce := false) -> void:
+	xp = mini(value, VETERAN_XP[VETERAN_MAX - 1])
+	var new_level := 1
+	for index in VETERAN_XP.size():
+		if xp >= VETERAN_XP[index]:
+			new_level = index + 1
+	if new_level == veteran_level:
+		return
+	var gained := new_level > veteran_level
+	veteran_level = new_level
+	veteran_ability = _pick_veteran_ability() if veteran_level >= VETERAN_ABILITY_LEVEL else &""
+	refresh_blessings()
+	if gained and announce:
+		heal(max_health * 0.25)
+		var text := tr("Veteran %d!") % veteran_level
+		if veteran_level == VETERAN_ABILITY_LEVEL:
+			text = tr("Neue Fähigkeit: %s") % Abilities.display_name(veteran_ability)
+		_spawn_effect(&"text", position + Vector2(0, -body_size - 18.0), 0.0, Color("#c8f0ff"), text)
+		_spawn_effect(&"ring", position + Vector2(0, -body_size / 2.0), body_size, Color("#c8f0ff"))
+		Achievements.report_max(&"veteran", veteran_level)
+
+
+func _pick_veteran_ability() -> StringName:
+	for id: StringName in VETERAN_ABILITIES[style_group()]:
+		if id != ability:
+			return id
+	return &""
 
 
 func setup_enemy(data: EnemyData) -> void:
@@ -247,6 +320,7 @@ func reset_after_battle() -> void:
 	_effects.clear()
 	_forced_target = null
 	_ability_cd = randf_range(2.0, 5.0)
+	_veteran_cd = randf_range(3.0, 6.0)
 	modulate = Color.WHITE
 	_flip = -1.0 if _facing_left else 1.0
 	if unit_data != null:  # Sonderregel der Runde zurücknehmen
@@ -292,6 +366,8 @@ func take_damage(amount: float, source: Combatant = null) -> void:
 		Sound.play(&"death")
 		_alive = false
 		_leave_group()
+		if team == Team.ENEMY and source != null and is_instance_valid(source):
+			source.gain_xp(XP_BOSS if is_boss else XP_KILL)
 		died.emit(self)
 		queue_free()
 
@@ -638,6 +714,10 @@ func _units_near(group: StringName, point: Vector2, radius: float) -> Array[Comb
 
 
 func _update_ability(delta: float) -> void:
+	if veteran_ability != &"":
+		_veteran_cd -= delta
+		if _veteran_cd <= 0.0 and Game.auto_abilities:
+			cast_veteran()
 	if ability == &"":
 		return
 	if not Abilities.is_active(ability):
@@ -663,11 +743,29 @@ func ability_cooldown_left() -> float:
 ## Aktive Fähigkeit jetzt auslösen (Automatik oder Knopf). false, wenn sie lädt oder ihre Bedingung
 ## (z.B. ein Gegner in der Nähe) nicht erfüllt ist.
 func cast_now() -> bool:
-	if not ability_ready() or not _cast_ability():
+	if not ability_ready() or not _cast_ability(ability):
 		return false
 	_ability_cd = Abilities.cooldown(ability) * (Modifiers.value("ability_cd") if team == Team.PLAYER else 1.0)
 	ability_casts += 1
 	_spawn_effect(&"text", position + Vector2(0, -body_size - 10.0), 0.0, Color("#ffe27a"), Abilities.display_name(ability))
+	return true
+
+
+func veteran_ready() -> bool:
+	return veteran_ability != &"" and _veteran_cd <= 0.0
+
+
+func veteran_cooldown_left() -> float:
+	return maxf(_veteran_cd, 0.0)
+
+
+## Veteranenfähigkeit auslösen (Automatik oder Knopf), wie cast_now().
+func cast_veteran() -> bool:
+	if not veteran_ready() or not _cast_ability(veteran_ability):
+		return false
+	_veteran_cd = Abilities.cooldown(veteran_ability) * 1.5 * Modifiers.value("ability_cd")
+	ability_casts += 1
+	_spawn_effect(&"text", position + Vector2(0, -body_size - 10.0), 0.0, Color("#c8f0ff"), Abilities.display_name(veteran_ability))
 	return true
 
 
@@ -682,11 +780,11 @@ func _apply_aura() -> void:
 					ally.apply_effect(&"buff", AURA_INTERVAL + 0.3, 1.0 + minf(0.6, 0.1 * ability_power))
 
 
-## Aktive Fähigkeit auslösen, wenn ihre Bedingung erfüllt ist. Gibt zurück, ob sie ausgelöst wurde.
-func _cast_ability() -> bool:
+## Aktive Fähigkeit `id` auslösen, wenn ihre Bedingung erfüllt ist. Gibt zurück, ob sie ausgelöst wurde.
+func _cast_ability(id: StringName) -> bool:
 	var power := ability_power
 	var enemy_target := _target if is_instance_valid(_target) and _target._alive and _target.team != team else null
-	match ability:
+	match id:
 		&"shield":
 			if _opponents_near(position, 45.0).is_empty():
 				return false
@@ -741,7 +839,7 @@ func _cast_ability() -> bool:
 		&"arrow_rain", &"meteor":
 			if enemy_target == null or position.distance_to(enemy_target.position) > maxf(attack_range, 60.0):
 				return false
-			var rain := ability == &"arrow_rain"
+			var rain := id == &"arrow_rain"
 			var radius := 30.0 if rain else 34.0
 			for foe in _opponents_near(enemy_target.position, radius):
 				foe.take_damage(attack * (1.4 if rain else 2.2) * power * damage_mult(), self)
@@ -836,11 +934,25 @@ func _draw() -> void:
 	if team == Team.PLAYER:
 		for i in level:
 			draw_rect(Rect2(-half + i * 3, -body_size - 4, 2, 2), Color.GOLD)
+		if veteran_level > 1:
+			_draw_veteran_badge(Vector2(half - 1, -body_size - 1))
 	if health < max_health:
 		var width := maxf(body_size, 12.0)
 		var top := -body_size - 8.0
 		draw_rect(Rect2(-width / 2.0, top, width, 2), Color(0.2, 0.0, 0.0))
 		draw_rect(Rect2(-width / 2.0, top, width * health / max_health, 2), Color(0.2, 0.9, 0.2))
+
+
+## Abzeichen der Veteranenstufe: Bronze (2-4), Silber (5-9), Gold (10), mit Zahl.
+func _draw_veteran_badge(at: Vector2) -> void:
+	var tint := Color("#c98a4b") if veteran_level < VETERAN_ABILITY_LEVEL else \
+			(Color("#dfe6f2") if veteran_level < VETERAN_MAX else Color("#ffd91f"))
+	var box := Rect2(at - Vector2(4, 5), Vector2(9, 8))
+	draw_rect(box.grow(1.0), Color("#24123a"))
+	draw_rect(box, tint)
+	var font := ThemeDB.fallback_font
+	draw_string(font, at + Vector2(-3.5 if veteran_level < 10 else -4.5, 2), str(veteran_level),
+			HORIZONTAL_ALIGNMENT_LEFT, -1, 7, Color("#24123a"))
 
 
 ## Schwert schwingt in einem Bogen vor der Einheit durch die Richtung zum Ziel.

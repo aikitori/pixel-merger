@@ -397,10 +397,10 @@ func _quick_button(bundle: Dictionary) -> Button:
 
 
 func _refresh_quick_buttons() -> void:
+	# Beim Neuaufbau der Rezepte werden alte Knöpfe freigegeben: diese hier aussortieren.
+	_quick_buttons.assign(_quick_buttons.filter(func(item: Dictionary) -> bool: return is_instance_valid(item["button"])))
 	for entry in _quick_buttons:
-		var button: Button = entry["button"]
-		if is_instance_valid(button):
-			button.disabled = Game.phase != Game.Phase.BUILD or Game.gold < entry["price"]
+		(entry["button"] as Button).disabled = Game.phase != Game.Phase.BUILD or Game.gold < entry["price"]
 
 
 # --- Einträge ---------------------------------------------------------------------
@@ -417,10 +417,9 @@ func _build_recipe_entries() -> void:
 		var node: Control = entry.node
 		if node.get_parent() != null:
 			node.get_parent().remove_child(node)
-		node.queue_free()
+		node.free()  # sofort, damit keine alten Schnellkauf-Knöpfe in der Liste bleiben
 	_entries[0].clear()
-	_quick_buttons.assign(_quick_buttons.filter(func(item: Dictionary) -> bool:
-		return is_instance_valid(item.button) and not (item.button as Node).is_queued_for_deletion()))
+	_quick_buttons.assign(_quick_buttons.filter(func(item: Dictionary) -> bool: return is_instance_valid(item["button"])))
 	var recipes: Array[RecipeData] = []
 	for recipe in Registry.recipes:
 		if recipe.ingredient_a != recipe.ingredient_b:

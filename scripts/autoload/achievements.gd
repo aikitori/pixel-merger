@@ -31,6 +31,8 @@ const LIST: Array[Dictionary] = [
 	{"id": &"lucky", "name": "Glückspilz", "text": "Gewinne ein Glücksspiel.", "event": &"gamble", "goal": 1},
 	{"id": &"first_secret", "name": "Entdecker", "text": "Entdecke ein Geheimrezept.", "event": &"secret", "goal": 1},
 	{"id": &"all_secrets", "name": "Geheimniskrämer", "text": "Entdecke alle Geheimrezepte.", "event": &"secret", "goal": 5},
+	{"id": &"veteran_5", "name": "Kampferprobt", "text": "Bringe eine Einheit auf Veteranenstufe 5.", "event": &"veteran", "goal": 5, "max": true},
+	{"id": &"veteran_10", "name": "Kriegsveteran", "text": "Bringe eine Einheit auf Veteranenstufe 10.", "event": &"veteran", "goal": 10, "max": true},
 	{"id": &"tactician", "name": "Taktiker", "text": "Löse 10 Fähigkeiten selbst aus.", "event": &"manual", "goal": 10},
 ]
 

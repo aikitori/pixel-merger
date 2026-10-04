@@ -87,6 +87,19 @@ Mehrere Runden, jede Runde besteht aus zwei Phasen:
   stehen. Zurückspringen gibt es nur, wenn ein Rezept existiert, aber gesperrt ist oder Gold fehlt.
 - **Format:** Querformat, 640x360.
 
+- **Veteranen:** Neben der Stufe aus dem Verbinden (1-5) hat jede eigene Einheit eine Veteranenstufe
+  1-10 aus Erfahrung: +1 pro besiegtem Gegner, +6 für einen Boss, +2 pro überlebter Runde
+  (Schwellen in `Combatant.VETERAN_XP`). Jede Veteranenstufe gibt +4 % Leben und Stärke. Ab Stufe 5
+  kommt eine zweite, aktive Fähigkeit dazu, passend zum Kampfstil (Nahkampf: Kriegsschrei, Fernkampf:
+  Pfeilregen oder Frostnova, Heiler: Massenheilung oder Wiederbeleben). Beim Verbinden behält das
+  Ergebnis die Erfahrung der erfahreneren Zutat. Abzeichen an der Figur: Bronze, Silber ab 5, Gold bei 10.
+- **Rundenmodifikatoren:** Ab Runde 2 haben etwa 70 % der normalen Runden eine Sonderregel (`scripts/modifiers.gd`),
+  angekündigt in der Bauphase und als Wetter sichtbar.
+- **Ereignisse zwischen den Runden:** Ab Runde 3 manchmal drei Angebote zur Wahl (`scripts/round_events.gd`),
+  spätestens nach drei Runden ohne Ereignis. Segen von Schmied, Rüstmeister und Hexe gelten für den ganzen Lauf.
+- **Geheimrezepte:** Fünf Kombinationen (`SECRET_TABLE` in `tools/content.py`) stehen erst nach dem
+  Entdecken im Rezeptbuch, gespeichert in `user://progress.cfg` (Autoload `Progress`).
+
 ## Offene Fragen
 
 - Balancing: Stand nach Audit (Oktober 2026): Ein Test-Bot, der sich wie ein Mensch auf drei

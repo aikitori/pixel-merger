@@ -200,9 +200,10 @@ func try_merge(a: Combatant, b: Combatant) -> bool:
 		return false
 	var discovered := Progress.discover(recipe)
 	var pos := b.position
+	var experience := maxi(a.xp, b.xp)  # das Ergebnis behält die Erfahrung der erfahreneren Zutat
 	a.discard()
 	b.discard()
-	_spawn_player(recipe.result, pos)
+	_spawn_player(recipe.result, pos).set_xp(experience)
 	Achievements.report(&"merge")
 	if recipe.ingredient_a != recipe.ingredient_b:
 		Achievements.report(&"combo")
@@ -544,6 +545,11 @@ func cast_selected() -> bool:
 				if unit.cast_now():
 					fired += 1
 					Achievements.report(&"manual")
+			if unit.veteran_ready():
+				tried += 1
+				if unit.cast_veteran():
+					fired += 1
+					Achievements.report(&"manual")
 		if fired == 0:
 			_hud.toast(tr("Keine Fähigkeit bereit oder einsetzbar"))
 			Sound.play(&"error")
@@ -553,6 +559,11 @@ func cast_selected() -> bool:
 	if not is_instance_valid(_selected):
 		return false
 	var unit := _selected
+	# Veteranen: ist die eigene Fähigkeit nicht bereit, springt die Veteranenfähigkeit ein.
+	if unit.veteran_ready() and not (Abilities.is_active(unit.ability) and unit.ability_cooldown_left() <= 0.0):
+		if unit.cast_veteran():
+			Achievements.report(&"manual")
+			return true
 	if not Abilities.is_active(unit.ability):
 		_hud.toast("%s: %s" % [unit.display_name, tr("passive Fähigkeit wirkt immer") if unit.ability != &"" else tr("keine Fähigkeit")])
 		return false
@@ -755,6 +766,7 @@ func _end_round() -> void:
 	_boss = null
 	_hud.set_boss(null)
 	for unit in get_player_units():
+		unit.gain_xp(Combatant.XP_SURVIVE)  # Überleben bringt Erfahrung
 		unit.reset_after_battle()
 		unit.position = unit.home_position
 	Game.next_round()

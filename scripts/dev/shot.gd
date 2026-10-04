@@ -32,7 +32,10 @@ func _ready() -> void:
 				for node in get_tree().get_nodes_in_group("arena"):
 					pass
 				var found: Array = arena.find_children("*", "Combatant", true, false)
+				found[0].set_xp(29)
 				found[0].health = found[0].max_health * 0.6
+				for i in range(1, found.size()):
+					found[i].set_xp([3, 8, 14, 20, 63][i % 5])
 				arena._select(found[0])
 			"gelaende":
 				World.set_stage(0)

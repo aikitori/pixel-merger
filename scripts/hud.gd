@@ -56,6 +56,8 @@ var _card_icon: TextureRect
 var _card_title: Label
 var _card_hp_fill: ColorRect
 var _card_hp_text: Label
+var _card_xp_fill: ColorRect
+var _card_xp_text: Label
 var _card_stats: Label
 var _card_ability: Label
 var _card_key := ""
@@ -275,8 +277,15 @@ func set_ability_unit(unit: Combatant, selection: Array[Combatant] = []) -> void
 				with_active += 1
 				if member.ability_cooldown_left() <= 0.0:
 					ready += 1
+			if member.veteran_ability != &"":
+				with_active += 1
+				if member.veteran_ready():
+					ready += 1
 		text = tr("Fähigkeiten %d/%d") % [ready, with_active] if with_active > 0 else tr("Fähigkeit")
 		enabled = ready > 0
+	elif unit != null and unit.veteran_ready() and not (Abilities.is_active(unit.ability) and unit.ability_cooldown_left() <= 0.0):
+		text = Abilities.display_name(unit.veteran_ability) + "!"
+		enabled = true
 	elif unit != null and unit.ability != &"":
 		text = Abilities.display_name(unit.ability)
 		if not Abilities.is_active(unit.ability):
@@ -436,6 +445,22 @@ func _build_unit_card(root: Control) -> void:
 	_card_hp_text.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	_card_hp_text.add_theme_font_size_override("font_size", 8)
 	bar.add_child(_card_hp_text)
+	# Erfahrungsleiste der Veteranenstufe
+	var xp_bar := ColorRect.new()
+	xp_bar.color = Color(0.1, 0.04, 0.02, 0.9)
+	xp_bar.custom_minimum_size = Vector2(140, 8)
+	column.add_child(xp_bar)
+	_card_xp_fill = ColorRect.new()
+	_card_xp_fill.color = Color("#5fb8ff")
+	_card_xp_fill.position = Vector2(1, 1)
+	_card_xp_fill.size = Vector2(0, 6)
+	xp_bar.add_child(_card_xp_fill)
+	_card_xp_text = Label.new()
+	_card_xp_text.set_anchors_preset(Control.PRESET_FULL_RECT)
+	_card_xp_text.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_card_xp_text.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	_card_xp_text.add_theme_font_size_override("font_size", 7)
+	xp_bar.add_child(_card_xp_text)
 	_card_stats = Label.new()
 	_card_stats.add_theme_font_size_override("font_size", 9)
 	column.add_child(_card_stats)
@@ -459,7 +484,9 @@ func show_unit_card(unit: Combatant, extra := 0) -> void:
 	var ability_text := ""
 	if unit.ability != &"":
 		ability_text = "* %s: %s" % [Abilities.label(unit.ability), Abilities.description(unit.ability)]
-	var key := "%s|%d|%d|%d|%s|%s|%d" % [data.id, unit.level, ceili(unit.health), ceili(unit.max_health), unit.order_text(), Loc.language, extra]
+	if unit.veteran_ability != &"":
+		ability_text += "\n" + tr("* Veteran: %s: %s") % [Abilities.display_name(unit.veteran_ability), Abilities.description(unit.veteran_ability)]
+	var key := "%s|%d|%d|%d|%s|%s|%d|%d" % [data.id, unit.level, ceili(unit.health), ceili(unit.max_health), unit.order_text(), Loc.language, extra, unit.xp]
 	if key == _card_key and _card.visible:
 		return
 	_card_key = key
@@ -471,6 +498,13 @@ func show_unit_card(unit: Combatant, extra := 0) -> void:
 	_card_hp_fill.size.x = 138.0 * share
 	_card_hp_fill.color = Color("#4fbf4a") if share > 0.5 else (Color("#e0b030") if share > 0.25 else Color("#d04a3a"))
 	_card_hp_text.text = "%d / %d" % [ceili(unit.health), ceili(unit.max_health)]
+	var progress := unit.veteran_progress()
+	if progress[1] == 0:
+		_card_xp_fill.size.x = 138.0
+		_card_xp_text.text = tr("Veteran %d (höchste Stufe)") % unit.veteran_level
+	else:
+		_card_xp_fill.size.x = 138.0 * progress[0] / progress[1]
+		_card_xp_text.text = tr("Veteran %d  ·  %d/%d EP") % [unit.veteran_level, progress[0], progress[1]]
 	_card_stats.text = tr("Stä %s  Bew %s  Int %s") % [UnitData.format_number(unit.attack),
 			UnitData.format_number(unit.move_speed), UnitData.format_number(unit.intelligence)]
 	_card_ability.text = ability_text

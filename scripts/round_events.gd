@@ -178,8 +178,9 @@ static func apply(offer: Dictionary, arena: Node) -> String:
 				return ""
 			var result: UnitData = unit.unit_data.upgrade
 			var pos := unit.position
+			var experience := unit.xp
 			unit.discard()
-			arena.call("_spawn_player", result, pos)
+			(arena.call("_spawn_player", result, pos) as Combatant).set_xp(experience)
 			return tr_("%s ist jetzt %s!") % [unit.display_name, result.display_name]
 		&"witch":
 			var victim: Combatant = data["unit"]

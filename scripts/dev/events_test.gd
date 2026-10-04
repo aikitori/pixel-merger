@@ -138,6 +138,8 @@ func _ready() -> void:
 	await _test_round_events()
 	# Geheimrezepte
 	await _test_secret_recipes()
+	# Veteranen
+	await _test_veterans()
 
 	# Gelände: erst viele Hindernisse, nach jedem Boss weniger
 	_check(World.stage_for_round(5) == 0 and World.stage_for_round(6) == 1 and World.stage_for_round(15) == 1 \
@@ -302,6 +304,75 @@ func _test_secret_recipes() -> void:
 			secret_offered = secret_offered or Registry.recipes.any(func(r: RecipeData) -> bool: return r.secret and r.result == offer["data"]["unit"])
 	_check(not secret_offered, "Wanderhändler bietet keine Geheimrezepte an")
 	Progress.reset()
+	Achievements.reset()
+	Game.round_number = 1
+	for unit: Combatant in _arena.get_player_units():
+		unit.discard()
+	await get_tree().process_frame
+
+
+func _test_veterans() -> void:
+	Game.set_phase(Game.Phase.BUILD)
+	Game.blessings = {}
+	Game.round_number = 10
+	Game.gold = 500
+	Achievements.reset()
+	var knight: Combatant = _arena._spawn_player(Registry.units["knight"], World.CENTER)
+	var base_hp := knight.max_health
+	_check(knight.veteran_level == 1 and knight.veteran_ability == &"", "Neue Einheiten sind Veteranenstufe 1 ohne Zusatzfähigkeit")
+	knight.gain_xp(3)
+	_check(knight.veteran_level == 2 and knight.max_health > base_hp, "3 Erfahrung: Stufe 2, mehr Leben")
+	knight.gain_xp(15)
+	_check(knight.veteran_level == 5 and knight.veteran_ability == &"war_cry", "Stufe 5: Veteranenfähigkeit (%s)" % knight.veteran_ability)
+	_check(Achievements.is_unlocked(&"veteran_5"), "Erfolg 'Kampferprobt'")
+	knight.gain_xp(1000)
+	_check(knight.veteran_level == Combatant.VETERAN_MAX and knight.veteran_progress() == [0, 0], "Höchstens Stufe 10")
+	_check(is_equal_approx(knight.max_health, base_hp * (1.0 + Combatant.VETERAN_BONUS * 9)), "Stufe 10: +36 %% Leben")
+	var archer: Combatant = _arena._spawn_player(Registry.units["archer"], World.CENTER + Vector2(30, 0))
+	archer.set_xp(18)
+	_check(archer.veteran_ability == &"frost_nova", "Fernkämpfer mit Pfeilregen bekommen Frostnova (%s)" % archer.veteran_ability)
+	# Erfahrung durch Besiegen
+	var foe := Combatant.new()
+	foe.setup_enemy(Registry.enemies[0])
+	_arena.add_child(foe)
+	var before := archer.xp
+	foe.take_damage(99999.0, archer)
+	_check(archer.xp == before + Combatant.XP_KILL, "Besiegter Gegner gibt dem Schützen Erfahrung")
+	# Verbinden: das Ergebnis behält die Erfahrung
+	var a: Combatant = _arena._spawn_player(Registry.units["peasant"], World.CENTER + Vector2(0, 30))
+	var b: Combatant = _arena._spawn_player(Registry.units["peasant"], World.CENTER + Vector2(10, 30))
+	a.set_xp(12)
+	b.set_xp(4)
+	_arena.try_merge(a, b)
+	await get_tree().process_frame
+	var squires: Array = _arena.get_player_units().filter(func(u: Combatant) -> bool: return u.unit_data.id == &"squire")
+	_check(squires.size() == 1 and squires[0].xp == 12 and squires[0].veteran_level == 4, "Verbundene Einheit behält die höhere Erfahrung")
+	# Veteranenfähigkeit im Kampf
+	Game.set_phase(Game.Phase.BATTLE)
+	_arena._spawn_timer = 99999.0
+	var dummy := Combatant.new()
+	dummy.setup_enemy(Registry.enemies[0])
+	dummy.position = knight.position + Vector2(20, 0)
+	dummy.move_speed = 0.0
+	dummy.attack = 0.0
+	dummy.max_health = 99999.0
+	dummy.health = 99999.0
+	_arena.add_child(dummy)
+	knight._veteran_cd = 0.0
+	var casts := knight.ability_casts
+	_check(knight.cast_veteran() and knight.ability_casts == casts + 1 and knight.has_effect(&"buff"), "Kriegsschrei als Veteranenfähigkeit wirkt")
+	_check(not knight.veteran_ready(), "Danach lädt die Veteranenfähigkeit")
+	var hud: Hud = _arena.get("_hud")
+	hud.show_unit_card(knight)
+	_check(hud._card_xp_text.text.contains("10") and hud._card_ability.text.contains("Veteran"), "Karte zeigt Veteranenstufe und Fähigkeit")
+	_arena._clear_enemies()
+	Game.set_phase(Game.Phase.BUILD)
+	# Überleben einer Runde bringt Erfahrung
+	var survivor: Combatant = _arena._spawn_player(Registry.units["mage"], World.CENTER)
+	Game.set_phase(Game.Phase.BATTLE)
+	_arena._end_round()
+	_check(survivor.xp == Combatant.XP_SURVIVE, "Überlebte Runde: +%d Erfahrung" % Combatant.XP_SURVIVE)
+	hud._events.close_panel()
 	Achievements.reset()
 	Game.round_number = 1
 	for unit: Combatant in _arena.get_player_units():
