@@ -10,6 +10,8 @@ extends Resource
 @export var unlock_round: int = 1
 ## Goldkosten des Verbindens. Größere/komplexere Ergebnisse kosten mehr.
 @export var merge_cost: int = 0
+## Geheimrezept: steht erst im Rezeptbuch, wenn es einmal entdeckt (verbunden) wurde.
+@export var secret := false
 
 
 func matches(a: UnitData, b: UnitData) -> bool:

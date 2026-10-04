@@ -134,6 +134,9 @@ func _ready() -> void:
 	Game.set_modifier(&"")
 	_check(not hud._modifier_sign.visible, "Ohne Modifikator kein Schild")
 
+	# Ereignisse zwischen den Runden
+	await _test_round_events()
+
 	# Gelände: erst viele Hindernisse, nach jedem Boss weniger
 	_check(World.stage_for_round(5) == 0 and World.stage_for_round(6) == 1 and World.stage_for_round(15) == 1 \
 			and World.stage_for_round(16) == 2, "Gelände wechselt nach Bossrunde 5, 15, 25 ...")
@@ -160,6 +163,87 @@ func _ready() -> void:
 	Engine.time_scale = 1.0
 	print("EVENTS-TEST ", "FEHLGESCHLAGEN" if _failed else "OK")
 	get_tree().quit(1 if _failed else 0)
+
+
+func _test_round_events() -> void:
+	for unit: Combatant in _arena.get_player_units():
+		unit.discard()
+	await get_tree().process_frame
+	Game.set_phase(Game.Phase.BUILD)
+	Game.round_number = 6
+	Game.set_modifier(&"")
+	Game.blessings = {}
+	_check(not RoundEvents.should_offer(2, 99), "Vor Runde 3 gibt es keine Ereignisse")
+	_check(RoundEvents.should_offer(6, RoundEvents.PITY), "Nach %d Runden ohne Ereignis kommt sicher eins" % RoundEvents.PITY)
+	var knight: Combatant = _arena._spawn_player(Registry.units["knight"], World.CENTER)
+	var archer: Combatant = _arena._spawn_player(Registry.units["archer"], World.CENTER + Vector2(20, 0))
+	var peasant: Combatant = _arena._spawn_player(Registry.units["peasant"], World.CENTER + Vector2(-20, 0))
+	Game.gold = 500
+	var all_ok := true
+	for id: StringName in RoundEvents.WEIGHTS:
+		var offer := RoundEvents.build(id, _arena)
+		all_ok = all_ok and not offer.is_empty() and offer["title"] != "" and offer["text"] != ""
+	_check(all_ok, "Alle %d Ereignisse lassen sich bauen" % RoundEvents.WEIGHTS.size())
+	var offers := RoundEvents.offers(_arena)
+	var ids := offers.map(func(o: Dictionary) -> StringName: return o["id"])
+	_check(offers.size() == 3 and ids[0] != ids[1] and ids[1] != ids[2] and ids[0] != ids[2], "Drei verschiedene Angebote")
+
+	var gold := Game.gold
+	_check(RoundEvents.apply(RoundEvents.build(&"treasure", _arena), _arena) != "" and Game.gold == gold + 8 + 2 * 6, "Schatztruhe gibt Gold")
+	var smith := RoundEvents.build(&"smith", _arena)
+	smith["data"]["group"] = &"melee"
+	var attack_before := knight.attack
+	gold = Game.gold
+	RoundEvents.apply(smith, _arena)
+	_check(is_equal_approx(knight.attack, attack_before * 1.2) and Game.gold == gold - smith["cost"], "Schmied: Nahkämpfer +20 %% Stärke, kostet Gold")
+	_check(is_equal_approx(archer.attack, Registry.units["archer"].attack), "Schmied wirkt nicht auf Fernkämpfer")
+	var fresh: Combatant = _arena._spawn_player(Registry.units["knight"], World.CENTER + Vector2(0, 20))
+	_check(is_equal_approx(fresh.attack, Registry.units["knight"].attack * 1.2), "Segen gilt auch für später gekaufte Einheiten")
+	fresh.discard()
+	var count: int = _arena.get_player_units().size()
+	var witch := RoundEvents.build(&"witch", _arena)
+	var victim: Combatant = witch["data"]["unit"]
+	var lowest := INF
+	for unit: Combatant in _arena.get_player_units():
+		lowest = minf(lowest, unit.max_health)
+	_check(is_equal_approx(victim.max_health, lowest), "Hexe wählt die Einheit mit den wenigsten Lebenspunkten")
+	var hp_before := knight.max_health
+	RoundEvents.apply(witch, _arena)
+	await get_tree().process_frame
+	_check(_arena.get_player_units().size() == count - 1 and not is_instance_valid(victim), "Hexe nimmt ihr Opfer")
+	_check(is_equal_approx(knight.max_health, hp_before * 1.1), "Hexe: alle anderen +10 %% Leben")
+	var trainer := RoundEvents.build(&"trainer", _arena)
+	var trainee: Combatant = trainer["data"]["unit"]
+	var target: UnitData = trainee.unit_data.upgrade
+	RoundEvents.apply(trainer, _arena)
+	await get_tree().process_frame
+	_check(_arena.get_player_units().any(func(u: Combatant) -> bool: return u.unit_data == target), "Ausbilder: Einheit steigt eine Stufe auf")
+	count = _arena.get_player_units().size()
+	RoundEvents.apply(RoundEvents.build(&"recruit", _arena), _arena)
+	_check(_arena.get_player_units().size() == count + 1, "Rekrut kommt dazu")
+	RoundEvents.apply(RoundEvents.build(&"shrine", _arena), _arena)
+	_check(Game.modifier == &"holy_ground", "Schrein: nächste Runde Heilige Erde")
+	gold = Game.gold
+	RoundEvents.apply(RoundEvents.build(&"pact", _arena), _arena)
+	_check(Game.modifier == &"giants" and Game.gold > gold, "Dunkler Pakt: Gold, aber Riesenwuchs")
+	Game.gold = 0
+	var gamble := RoundEvents.build(&"gamble", _arena)
+	_check(not gamble["enabled"] and RoundEvents.apply(gamble, _arena) == "", "Ohne Gold kein Glücksspiel")
+	# Fenster: Start-Knopf ist gesperrt, solange es offen ist
+	var hud: Hud = _arena.get("_hud")
+	Game.gold = 500
+	hud.show_event(RoundEvents.offers(_arena))
+	_check(hud.event_open() and hud._start_button.disabled, "Ereignisfenster offen: Kampf starten gesperrt")
+	hud._events.chosen.emit(RoundEvents.build(&"treasure", _arena))
+	hud._events.close_panel()
+	hud._refresh()
+	_check(not hud._start_button.disabled, "Nach der Wahl ist der Start-Knopf wieder frei")
+	Game.blessings = {}
+	Game.set_modifier(&"")
+	Game.round_number = 1
+	for unit: Combatant in _arena.get_player_units():
+		unit.discard()
+	await get_tree().process_frame
 
 
 func _wait_battle_end() -> void:

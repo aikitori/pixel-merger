@@ -7,6 +7,7 @@ signal shop_pressed(data: UnitData)
 signal start_pressed
 signal restart_pressed
 signal select_all_pressed
+signal event_chosen(offer: Dictionary)
 signal multi_toggled(on: bool)
 signal menu_pressed
 signal quick_buy_pressed(bundle: Dictionary)
@@ -22,6 +23,7 @@ var _toast_tween: Tween
 var _start_button: Button
 var _book_button: Button
 var _book: RecipeBook
+var _events: EventPanel
 var _shop_button: Button
 var _village: Village
 var _shop: Shop
@@ -203,6 +205,12 @@ func _ready() -> void:
 	_book = RecipeBook.new()
 	_book.quick_buy.connect(func(bundle: Dictionary) -> void: quick_buy_pressed.emit(bundle))
 	root.add_child(_book)
+	_events = EventPanel.new()
+	_events.chosen.connect(func(offer: Dictionary) -> void:
+		_refresh()
+		event_chosen.emit(offer))
+	_events.skipped.connect(_refresh)
+	root.add_child(_events)
 	_achievements = AchievementsPanel.new()
 	root.add_child(_achievements)
 	_build_banner_and_boss_bar(root)
@@ -646,7 +654,8 @@ func _refresh() -> void:
 		_:
 			_phase_label.text = ""
 	var building := Game.phase == Game.Phase.BUILD
-	_start_button.disabled = not building or (is_instance_valid(_book) and _book.visible)
+	_start_button.disabled = not building or (is_instance_valid(_book) and _book.visible) \
+			or (is_instance_valid(_events) and _events.visible)
 	_start_button.visible = building
 	_ability_button.visible = Game.phase == Game.Phase.BATTLE
 	_auto_button.text = tr("Auto-Fähigk.: an") if Game.auto_abilities else tr("Auto-Fähigk.: aus")
@@ -694,7 +703,21 @@ func _unhandled_input(event: InputEvent) -> void:
 
 
 ## Schließt das oberste offene Fenster. Gibt false zurück, wenn keins offen war.
+## Ereignis zwischen den Runden anbieten (siehe RoundEvents).
+func show_event(offers: Array[Dictionary]) -> void:
+	_events.open_panel(offers)
+	_refresh()
+
+
+func event_open() -> bool:
+	return _events.visible
+
+
 func handle_back() -> bool:
+	if _events.visible:
+		_events.close_panel()
+		_refresh()
+		return true
 	if _achievements.visible:
 		_achievements.close_panel()
 		return true

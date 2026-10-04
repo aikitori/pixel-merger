@@ -54,6 +54,13 @@ func _ready() -> void:
 				arena._spawn_timer = 0.0
 				arena._battle_time_left = 99999.0
 				await _frames(90)
+			"ereignis":
+				Game.round_number = 6
+				Game.gold = 60
+				var picks: Array[Dictionary] = []
+				for id: StringName in [&"merchant", &"smith", &"gamble"]:
+					picks.append(RoundEvents.build(id, arena))
+				hud.show_event(picks)
 			"dorf":
 				hud._village.visible = true
 			"haus":

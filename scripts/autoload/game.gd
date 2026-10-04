@@ -40,6 +40,10 @@ var auto_abilities := true
 var boss_enraged := false
 ## Sonderregel der aktuellen Runde (siehe Modifiers), &"" = keine.
 var modifier: StringName = &""
+## Dauerhafte Segen aus Ereignissen (siehe RoundEvents): Gruppe -> {"hp": Faktor, "atk": Faktor}.
+## Gruppen: &"melee", &"ranged", &"heal" (Kampfstil) und &"all" (alle eigenen Einheiten).
+var blessings: Dictionary = {}
+signal blessings_changed
 
 
 func reset() -> void:
@@ -47,6 +51,7 @@ func reset() -> void:
 	gold = START_GOLD
 	boss_enraged = false
 	modifier = &""
+	blessings = {}
 	phase = Phase.BUILD
 	round_changed.emit(round_number)
 	gold_changed.emit(gold)
@@ -98,6 +103,23 @@ func spawn_interval() -> float:
 	var interval := maxf(BASE_SPAWN_INTERVAL - SPAWN_INTERVAL_STEP * (round_number - 1), MIN_SPAWN_INTERVAL)
 	interval *= Modifiers.value("spawn")
 	return interval * BONUS_SPAWN_FACTOR if round_kind() == RoundKind.BONUS else interval
+
+
+## Segen dauerhaft verstärken: `stat` ist "hp" oder "atk", `factor` z.B. 1.2 für +20 %.
+func add_blessing(group: StringName, stat: String, factor: float) -> void:
+	var entry: Dictionary = blessings.get(group, {"hp": 1.0, "atk": 1.0})
+	entry[stat] = float(entry[stat]) * factor
+	blessings[group] = entry
+	blessings_changed.emit()
+
+
+## Gesamtfaktor eines Werts für eine Einheit mit Kampfstil-Gruppe `group`.
+func blessing(group: StringName, stat: String) -> float:
+	var total := 1.0
+	for key in [group, &"all"]:
+		if blessings.has(key):
+			total *= float(blessings[key][stat])
+	return total
 
 
 ## Sonderregel setzen (z.B. durch ein Ereignis zwischen den Runden).

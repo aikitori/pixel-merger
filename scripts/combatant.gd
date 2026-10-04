@@ -122,8 +122,29 @@ func setup_player(data: UnitData) -> void:
 	ability = data.ability
 	ability_power = Abilities.power(data.level, data.category == "Kombination")
 	_ability_cd = randf_range(2.0, 5.0)
+	max_health *= Game.blessing(style_group(), "hp")
+	attack *= Game.blessing(style_group(), "atk")
 	health = max_health
 	add_to_group(GROUP_PLAYER)
+
+
+## Gruppe für Segen: Nahkämpfer, Fernkämpfer (Pfeil oder Magie) oder Heiler.
+func style_group() -> StringName:
+	match attack_style:
+		&"melee": return &"melee"
+		&"heal": return &"heal"
+	return &"ranged"
+
+
+## Segen neu anwenden (nach einem Ereignis), der Lebensanteil bleibt erhalten.
+func refresh_blessings() -> void:
+	if unit_data == null:
+		return
+	var share := health / maxf(max_health, 0.001)
+	max_health = unit_data.max_health * Game.blessing(style_group(), "hp")
+	attack = unit_data.attack * Game.blessing(style_group(), "atk")
+	health = max_health * share
+	queue_redraw()
 
 
 func setup_enemy(data: EnemyData) -> void:

@@ -42,6 +42,8 @@ var _battle_time_left := 0.0
 var _spawn_timer := 0.0
 ## Gemischter Vorrat der Arme: Jede Runde von vier Spawns kommt aus allen vier Richtungen.
 var _arm_bag: Array[World.Arm] = []
+## Runden seit dem letzten Ereignis (siehe RoundEvents).
+var _rounds_without_event := 0
 
 
 signal enemy_spawned(enemy: Combatant, arm: World.Arm)
@@ -61,6 +63,7 @@ func _ready() -> void:
 	_hud.order_pressed.connect(cycle_order)
 	_hud.ability_pressed.connect(cast_selected)
 	_hud.select_all_pressed.connect(select_all)
+	_hud.event_chosen.connect(_on_event_chosen)
 	_hud.multi_toggled.connect(func(on: bool) -> void: _multi_mode = on)
 	_hud.restart_pressed.connect(func() -> void: get_tree().reload_current_scene())
 	Game.phase_changed.connect(_on_phase_changed)
@@ -741,6 +744,29 @@ func _end_round() -> void:
 	Achievements.report_max(&"round", Game.round_number)
 	_hud.toast(message)
 	Sound.play(&"round_win", 0.0)
+	_maybe_offer_event()
+
+
+func _maybe_offer_event() -> void:
+	if not RoundEvents.should_offer(Game.round_number, _rounds_without_event):
+		_rounds_without_event += 1
+		return
+	var offers := RoundEvents.offers(self)
+	if offers.is_empty():
+		return
+	_rounds_without_event = 0
+	_hud.show_event(offers)
+
+
+func _on_event_chosen(offer: Dictionary) -> void:
+	var message := RoundEvents.apply(offer, self)
+	if message == "":
+		_hud.toast(tr("Das geht gerade nicht"))
+		Sound.play(&"error")
+		return
+	Achievements.report(&"event")
+	_hud.toast(message)
+	Sound.play(&"merge", 0.0)
 
 
 func _game_over() -> void:
