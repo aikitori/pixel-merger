@@ -110,13 +110,13 @@ HORSE = [
     "............kmhhhhhhhk",
     "....kkkkkkkkkmhhhhHHk.",
     "..kkhhhhhhhhhhhhkkkk..",
-    ".kmkhhhhhhhhhhhhk.....",
-    "kmmkhhhhhhhhhhhHk.....",
-    "km.kHhhhhhhhhhHHk.....",
-    "k...kHHHHHHHHHHk......",
-    "....kHk.kHk.kHk.kHk...",
-    "...kHk..kHk..kHk.kHk..",
-    "...kkk..kkk..kkk.kkk..",
+    ".kmkhhhhhhhhhhhhhk....",
+    "kmmkhhhhhhhhhhhhhk....",
+    "km.kHhhhhhhhhhhhHk....",
+    "k...kHHHHHHHHHHHk.....",
+    "....kHkHk...kHkHk.....",
+    "....kHkHk...kHkHk.....",
+    "....kmkmk...kmkmk.....",
 ]
 
 WOLF = [
@@ -449,6 +449,8 @@ FIGURES = {'clonk': {'KNIGHT': KNIGHT, 'ARCHER': ARCHER, 'MAGE': MAGE, 'HEALER':
                      'EGG': EGG, 'SLIME': SLIME}}
 BOSS_FIGURES = {'clonk': BOSSES}
 DECOR = {'clonk': HEAL_DECOR}
+# Der Rücken des Clonk-Pferds liegt tiefer: Reiter 5 Pixel tiefer setzen, damit er aufsitzt
+RIDER_Y = {'clonk': 5}
 
 
 for _set in list(FIGURES.values()) + list(BOSS_FIGURES.values()):

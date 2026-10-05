@@ -411,10 +411,22 @@ def paste(canvas, grid, x, y, rows=None):
                 canvas[y + j][x + i] = c
 
 
-def mounted(rider, horse, rider_rows=11):
+RIDER_Y = 0  # Höhe des Reiters über dem Pferd (je nach Grundfiguren, siehe use_figures)
+
+
+# Sitzendes Bein über der Flanke (Seitenansicht), ab Zeile 11 des Reiters; P = Hosenfarbe des Reiters.
+SEATED_LEG = ["....kPPPk", ".....kPPk", ".....kPk.", ".....kPk.", "....kBBk."]
+
+
+def mounted(rider, horse, rider_rows=11, seated=True):
     canvas = blank(24, 24)
     paste(canvas, horse, 1, 10)
-    paste(canvas, rider, 4, 0, rider_rows)
+    paste(canvas, rider, 4, RIDER_Y, rider_rows)
+    if RIDER_Y and seated:  # Clonk-Figuren: Oberkörper sitzt auf, das Bein hängt sichtbar über die Flanke
+        legs = [c for row in rider[13:15] for c in row if c not in '.k']
+        pants = max(set(legs), key=legs.count) if legs else 'B'
+        leg = [[{'P': pants}.get(c, c) for c in row] for row in SEATED_LEG]
+        paste(canvas, leg, 4, RIDER_Y + rider_rows)
     return canvas
 
 
@@ -618,7 +630,7 @@ def build():
 
     knight, archer, mage = parse(KNIGHT), parse(ARCHER), parse(MAGE)
     horse = parse(HORSE)
-    centaur = mounted(swap(archer, SKIN), horse)
+    centaur = mounted(swap(archer, SKIN), horse, seated=False)  # Zentaur: Oberkörper geht ins Pferd über
     for key, levels in FREE_LINE_SPRITES.items():
         for uid, (name, mapping, factor) in zip(content.LINES[key]['ids'], levels):
             grid = centaur if name == 'CENTAUR' else parse(GRIDS[name])
@@ -721,6 +733,10 @@ def use_figures(name):
     for var, grid in sprite_clonk.FIGURES[name].items():
         globals()[var][:] = grid
     BOSS_GRIDS.update(sprite_clonk.BOSS_FIGURES.get(name, {}))
+    if name in sprite_clonk.RIDER_Y:
+        global RIDER_Y
+        RIDER_Y = sprite_clonk.RIDER_Y[name]
+        kits.MOUNTED_OFFSET = (kits.MOUNTED_OFFSET[0], RIDER_Y)
     if name in sprite_clonk.DECOR:
         HEAL_DECOR.clear()
         HEAL_DECOR.update(sprite_clonk.DECOR[name])
