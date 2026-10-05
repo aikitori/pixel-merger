@@ -48,7 +48,7 @@ const STYLES := {
 		"btn_top": Color("#6b6b6b"), "btn_bottom": Color("#4a4a4a"), "edge": Color("#9a9a9a"),
 		"outline": Color("#1a1a1a"), "panel_top": Color("#4f4f4f"), "panel_bottom": Color("#3a3a3a"),
 		"btn_hover_top": Color("#7d7d7d"), "btn_pressed_top": Color("#3a3a3a"), "btn_pressed_bottom": Color("#2c2c2c"),
-		"text": Color("#d81e1e"), "text_shadow": Color(0, 0, 0, 1),
+		"text": Color("#f0e4c4"), "text_shadow": Color(0, 0, 0, 1),
 		"label_text": Color("#e8c060"), "label_shadow": Color("#1a0a04"),
 		"plank_a": Color("#555555"), "plank_b": Color("#4c4c4c"), "plank_seam": Color("#262626"),
 	}},

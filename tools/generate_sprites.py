@@ -692,6 +692,9 @@ def build():
     bosses = {}
     crown = ["y.y.y", "yyyyy", "YYYYY"]
     for uid, (grid, tint) in boss_tints.items():
+        if uid in BOSS_GRIDS:
+            bosses[uid] = scale(parse(BOSS_GRIDS[uid]), 2)
+            continue
         art = [['.'] * len(grid[0]) for _ in range(len(crown))] + swap(grid, tint)
         top = next(y for y, row in enumerate(art) if y >= len(crown) and any(c != '.' for c in row))
         xs = [x for x, c in enumerate(art[top]) if c != '.']
@@ -709,11 +712,18 @@ def build():
     return sprites, enemies
 
 
+BOSS_GRIDS = {}  # eigene Boss-Zeichnungen der gewählten Figuren (sonst Gegner mit Krone, 3-fach)
+
+
 def use_figures(name):
     """Tauscht die Grundfiguren aus (siehe sprite_clonk). Die Listen werden an Ort und Stelle ersetzt,
     damit LINE_SPRITES und GRIDS, die auf dieselben Listen zeigen, die neuen Figuren sehen."""
     for var, grid in sprite_clonk.FIGURES[name].items():
         globals()[var][:] = grid
+    BOSS_GRIDS.update(sprite_clonk.BOSS_FIGURES.get(name, {}))
+    if name in sprite_clonk.DECOR:
+        HEAL_DECOR.clear()
+        HEAL_DECOR.update(sprite_clonk.DECOR[name])
 
 
 # Stil des Spiels: Clonk-artige Figuren im Höllenshooter-Look (passend zu ArtStyle.DEFAULT).
