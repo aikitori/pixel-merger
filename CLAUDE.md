@@ -13,6 +13,9 @@ Einheiten, Sprites, Sounds und Namen kommen aus Python-Skripten (nur Standardbib
 | `tools/content.py` | Linien, Kombinationen, Fähigkeiten (die inhaltliche Wahrheit) |
 | `tools/generate_data.py` | `data/*.tres`, `scripts/i18n/names_en.gd` |
 | `tools/generate_sprites.py`, `tools/sprite_kits.py` | PNG-Sprites (ASCII-Raster plus Ausrüstungsteile je Stufe) |
+| `tools/sprite_clonk.py`, `tools/sprite_styles.py` | Grundfiguren im Clonk-Stil und Höllenshooter-Look, die `generate_sprites.py` standardmäßig nutzt (`--classic` für die früheren Sprites) |
+| `tools/generate_logo.py` | Titel-Logo `assets/logo/logo_doom.png` |
+| `tools/generate_icon.py` | App-Icons (mit denselben Grundfiguren) |
 | `tools/generate_audio.py` | Sound-Effekte |
 | `tools/i18n_names.py` | Deutsch-Englisch-Wörterbuch aller Namen (jeder Name muss drinstehen, sonst bricht der Generator ab) |
 
@@ -23,7 +26,8 @@ Nach Änderungen: `python3 tools/generate_data.py` und/oder `python3 tools/gener
 - Autoloads (Reihenfolge): `Game`, `Registry`, `Loc`, `Sound`, `Achievements` (`scripts/autoload/`).
 - Hauptszene ist das Menü (`scenes/menu.tscn`), das Spiel `scenes/main.tscn` (`scripts/main.gd`, y-sortiert).
 - Kampf: `scripts/combatant.gd`. Fähigkeiten: `scripts/abilities.gd` (Daten) plus `_cast_ability` im Combatant.
-- Oberfläche: `scripts/hud.gd`, `recipe_book.gd`, `shop.gd`, `village.gd`, `ui_theme.gd` (Holz-/Gold-Stil im Code gezeichnet).
+- Oberfläche: `scripts/hud.gd`, `recipe_book.gd`, `shop.gd`, `village.gd`, `ui_theme.gd` (im Code gezeichnet, Farben aus `art_style.gd`).
+- Bildstil: `scripts/art_style.gd` (Oberflächenfarben, Logo, Auswahl) plus `shaders/art_style.gdshader` (Nachbearbeitung über das ganze Bild, von `Game` eingehängt). Standard ist `ArtStyle.DEFAULT`, er muss zu den erzeugten Sprites passen.
 - Spielfeld: `scripts/world.gd` (Kreuz aus zwei Armen, Hindernisse, Kollision).
 - Texte: deutsche Strings stehen im Code in `tr()` (statisch: `TranslationServer.translate`). Die englische Übersetzung steht in `scripts/i18n/ui_en.gd`. **Jeder neue deutsche Text braucht dort einen Eintrag**, der Schlüssel muss exakt dem deutschen Text entsprechen.
 

@@ -5,6 +5,9 @@ Die Sprites sind als ASCII-Raster definiert, jedes Zeichen ist ein Palettenwert
 ('.' = transparent). Kombinierte Einheiten werden aus den Basis-Sprites zusammengesetzt
 oder per Paletten-Tausch eingefärbt, damit alle Stufen zusammenpassen.
 
+Standard sind Clonk-artige Grundfiguren (sprite_clonk) im Höllenshooter-Look (sprite_styles).
+--classic erzeugt die früheren Sprites, --figures <name> und --style <name> wählen einzeln.
+
 Aufruf (aus dem Projektordner):  python3 tools/generate_sprites.py
 Nur Standardbibliothek, kein Pillow nötig. Mit --preview entsteht zusätzlich eine
 vergrößerte Übersicht (preview.png, nicht im Repo).
@@ -16,6 +19,8 @@ from pathlib import Path
 
 import content
 import sprite_kits as kits
+import sprite_clonk
+import sprite_styles
 
 ROOT = Path(__file__).resolve().parent.parent
 
@@ -421,13 +426,27 @@ def scale(grid, factor):
     return out
 
 
-def write_png(path, grid):
-    h, w = len(grid), len(grid[0])
+def to_rgba(grid):
+    return [[(0, 0, 0, 0) if c == '.' else hex_rgba(PALETTE[c]) for c in row] for row in grid]
+
+
+def write_png(path, grid, style=None, factor=1):
+    """Schreibt das Zeichen-Raster; mit style (siehe sprite_styles) vorher umgewandelt."""
+    if style:
+        grid = sprite_styles.SHAPES[style](grid)
+    rgba = to_rgba(grid)
+    if style:
+        rgba = sprite_styles.STYLES[style](rgba)
+    if style:
+        factor = sprite_styles.SCALE[style]
+    if factor > 1:
+        rgba = scale(rgba, factor)
+    h, w = len(rgba), len(rgba[0])
     raw = bytearray()
-    for row in grid:
+    for row in rgba:
         raw.append(0)
-        for c in row:
-            raw.extend((0, 0, 0, 0) if c == '.' else hex_rgba(PALETTE[c]))
+        for px in row:
+            raw.extend(px)
 
     def chunk(tag, data):
         body = tag + data
@@ -690,15 +709,38 @@ def build():
     return sprites, enemies
 
 
+def use_figures(name):
+    """Tauscht die Grundfiguren aus (siehe sprite_clonk). Die Listen werden an Ort und Stelle ersetzt,
+    damit LINE_SPRITES und GRIDS, die auf dieselben Listen zeigen, die neuen Figuren sehen."""
+    for var, grid in sprite_clonk.FIGURES[name].items():
+        globals()[var][:] = grid
+
+
+# Stil des Spiels: Clonk-artige Figuren im Höllenshooter-Look (passend zu ArtStyle.DEFAULT).
+# --classic erzeugt die früheren Sprites, --figures/--style wählen einzeln.
+DEFAULT_FIGURES = 'clonk'
+DEFAULT_STYLE = 'doom'
+
+
+def option(name, default):
+    if '--classic' in sys.argv:
+        default = None
+    return sys.argv[sys.argv.index(name) + 1] if name in sys.argv else default
+
+
 def main():
+    figures = option('--figures', DEFAULT_FIGURES)
+    if figures:
+        use_figures(figures)
     units, enemies = build()
     for old in (ROOT / 'assets/sprites/units').glob('*.png'):
         old.unlink()
     # Jedes Kunst-Pixel wird als PIXEL_SCALE x PIXEL_SCALE Block gespeichert (größere Pixel).
+    style = option('--style', DEFAULT_STYLE)
     for name, grid in units.items():
-        write_png(ROOT / 'assets/sprites/units' / f'{name}.png', scale(grid, PIXEL_SCALE))
+        write_png(ROOT / 'assets/sprites/units' / f'{name}.png', grid, style, PIXEL_SCALE)
     for name, grid in enemies.items():
-        write_png(ROOT / 'assets/sprites/enemies' / f'{name}.png', scale(grid, PIXEL_SCALE))
+        write_png(ROOT / 'assets/sprites/enemies' / f'{name}.png', grid, style, PIXEL_SCALE)
     print(f'{len(units)} Einheiten und {len(enemies)} Gegner geschrieben.')
 
     if '--preview' in sys.argv:

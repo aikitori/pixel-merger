@@ -52,6 +52,22 @@ var blessings: Dictionary = {}
 signal blessings_changed
 
 
+var _art_overlay: CanvasLayer
+
+
+func _ready() -> void:
+	refresh_art_style()
+
+
+## Hängt die Nachbearbeitung des aktiven Bildstils (ArtStyle) über alle Szenen; nach ArtStyle.set_style aufrufen.
+func refresh_art_style() -> void:
+	if is_instance_valid(_art_overlay):
+		_art_overlay.queue_free()
+	_art_overlay = ArtStyle.make_overlay()
+	if _art_overlay != null:
+		add_child(_art_overlay)
+
+
 func reset() -> void:
 	round_number = 1
 	gold = START_GOLD

@@ -13,30 +13,43 @@ const PARCHMENT := Color("#f3e3b8")
 static var _cache: Dictionary = {}
 
 
+## Nach einem Stilwechsel (ArtStyle) neu zeichnen.
+static func clear_cache() -> void:
+	_cache.clear()
+
+
 ## Das Theme für die ganze Oberfläche (Knöpfe, Panels, Eingabefeld, Scrollbalken, Tooltips).
 static func make() -> Theme:
 	var theme := Theme.new()
 	theme.default_font_size = 12
 
-	theme.set_stylebox("normal", "Button", _box("btn", Color("#8a5630"), Color("#6b4122"), GOLD, 8, 3))
-	theme.set_stylebox("hover", "Button", _box("btn_hover", Color("#a56a3a"), Color("#7f4e2a"), GOLD_LIGHT, 8, 3))
-	theme.set_stylebox("pressed", "Button", _box("btn_pressed", Color("#5a3520"), Color("#4a2a18"), GOLD, 8, 3, 1))
+	var edge := ArtStyle.ui("edge", GOLD)
+	var outline := ArtStyle.ui("outline", INK)
+	var text := ArtStyle.ui("text", CREAM)
+	var shadow := ArtStyle.ui("text_shadow", Color(0, 0, 0, 0.55))
+	theme.set_stylebox("normal", "Button", _box("btn", ArtStyle.ui("btn_top", Color("#8a5630")),
+			ArtStyle.ui("btn_bottom", Color("#6b4122")), edge, 8, 3, 0, outline))
+	theme.set_stylebox("hover", "Button", _box("btn_hover", ArtStyle.ui("btn_hover_top", Color("#a56a3a")),
+			ArtStyle.ui("btn_bottom", Color("#7f4e2a")), ArtStyle.ui("edge", GOLD_LIGHT), 8, 3, 0, outline))
+	theme.set_stylebox("pressed", "Button", _box("btn_pressed", ArtStyle.ui("btn_pressed_top", Color("#5a3520")),
+			ArtStyle.ui("btn_pressed_bottom", Color("#4a2a18")), edge, 8, 3, 1, outline))
 	theme.set_stylebox("disabled", "Button", _box("btn_off", Color("#4a3a30"), Color("#3a2c24"), Color("#6b5a45"), 8, 3))
 	theme.set_stylebox("focus", "Button", StyleBoxEmpty.new())
-	theme.set_color("font_color", "Button", CREAM)
+	theme.set_color("font_color", "Button", text)
 	theme.set_color("font_hover_color", "Button", Color.WHITE)
 	theme.set_color("font_pressed_color", "Button", GOLD_LIGHT)
 	theme.set_color("font_disabled_color", "Button", Color("#8a7a66"))
-	theme.set_color("font_shadow_color", "Button", Color(0, 0, 0, 0.55))
+	theme.set_color("font_shadow_color", "Button", shadow)
 	theme.set_constant("shadow_offset_x", "Button", 1)
 	theme.set_constant("shadow_offset_y", "Button", 1)
 
-	var panel := _box("panel", Color("#3a2415"), Color("#2a190e"), GOLD, 6, 5)
+	var panel := _box("panel", ArtStyle.ui("panel_top", Color("#3a2415")), ArtStyle.ui("panel_bottom", Color("#2a190e")),
+			edge, 6, 5, 0, outline)
 	theme.set_stylebox("panel", "PanelContainer", panel)
 	theme.set_stylebox("panel", "Panel", panel)
 
-	theme.set_color("font_color", "Label", CREAM)
-	theme.set_color("font_shadow_color", "Label", Color(0, 0, 0, 0.6))
+	theme.set_color("font_color", "Label", ArtStyle.ui("label_text", text))
+	theme.set_color("font_shadow_color", "Label", ArtStyle.ui("label_shadow", ArtStyle.ui("text_shadow", Color(0, 0, 0, 0.6))))
 	theme.set_constant("shadow_offset_x", "Label", 1)
 	theme.set_constant("shadow_offset_y", "Label", 1)
 
@@ -75,7 +88,8 @@ static func make_parchment() -> Theme:
 
 ## Holztafel für Beschriftungen (Schilder im Dorf, Hinweise).
 static func sign_style() -> StyleBoxTexture:
-	return _box("sign", Color("#8a5630"), Color("#6b4122"), Color("#3a2410"), 5, 2)
+	return _box("sign", ArtStyle.ui("btn_top", Color("#8a5630")), ArtStyle.ui("btn_bottom", Color("#6b4122")),
+			ArtStyle.ui("outline", Color("#3a2410")), 5, 2, 0, ArtStyle.ui("outline", INK))
 
 
 ## Querbalken aus Holzplanken, `edge_top`: Zierleiste oben (untere Leiste) statt unten (obere Leiste).
@@ -90,13 +104,13 @@ static func plank_bar(width: int, height: int, edge_top: bool) -> ImageTexture:
 	for y in height:
 		for x in width:
 			var plank := x / plank_width
-			var base := Color("#5c3a20") if plank % 2 == 0 else Color("#523319")
+			var base := ArtStyle.ui("plank_a", Color("#5c3a20")) if plank % 2 == 0 else ArtStyle.ui("plank_b", Color("#523319"))
 			var shade := rng.randf_range(-0.03, 0.03)
 			if (y + plank * 5) % 6 == 0:  # Maserung
 				shade -= 0.05
 			var c := base.lightened(shade) if shade > 0.0 else base.darkened(-shade)
 			if x % plank_width == 0:
-				c = Color("#2a160a")
+				c = ArtStyle.ui("plank_seam", Color("#2a160a"))
 			elif x % plank_width == 1:
 				c = base.lightened(0.1)
 			img.set_pixel(x, y, c)
@@ -109,8 +123,8 @@ static func plank_bar(width: int, height: int, edge_top: bool) -> ImageTexture:
 	var edge_y := 0 if edge_top else height - 1
 	var step := 1 if edge_top else -1
 	for x in width:
-		img.set_pixel(x, edge_y, INK)
-		img.set_pixel(x, edge_y + step, GOLD)
+		img.set_pixel(x, edge_y, ArtStyle.ui("outline", INK))
+		img.set_pixel(x, edge_y + step, ArtStyle.ui("edge", GOLD))
 		img.set_pixel(x, edge_y + 2 * step, Color("#8a5f1e"))
 	var tex := ImageTexture.create_from_image(img)
 	_cache[key] = tex

@@ -189,6 +189,21 @@ Offen:
 
 - Godot 4.4, Renderer "Mobile", GDScript.
 - Pixel-Art: Basisauflösung 640x360, Integer-Skalierung, Nearest-Filter, Pixel-Snapping.
+
+## Bildstil "Höllenshooter mit Clonk-Figuren" (umgesetzt)
+
+- Figuren nach Art der Clonk-Männchen: Seitenansicht, runder Kopf mit Nase und einem Auge, schmaler Körper,
+  Schrittstellung. Gilt für die Grundfiguren (Ritter, Schütze, Magier, Heiler, Zwerg) und für Pferd, Wolf, Drache,
+  Goblin, Ork, Skelett und Golem; Stufen, Kombinationen, Gegner und Bosse bauen darauf auf.
+- Färbung im Stil früher Ego-Shooter: doppelte Auflösung (Scale2x), wuchtigere Proportionen, keine schwarzen
+  Umrisse, sondern plastische Schattierung (hell innen, dunkel am Rand, Licht von oben links) und Körnung. Die
+  ursprünglichen Farben bleiben, leicht warm.
+- Über dem ganzen Bild liegt eine Nachbearbeitung: etwas entsättigt, Gras Richtung Oliv, mehr Kontrast, wenige
+  Farbstufen mit Dithering, oben und unten dunkler.
+- Oberfläche: graue Steinknöpfe und -leisten, rote Schrift. Titel als Pixel-Logo, in dem "PIXEL" (Stahl) und
+  "MERGER" (Feuer) verschmelzen: Der Fuß des L geht in das Bein des M über, an der Naht leuchtet es.
+- Der frühere Holz-Stil ist erhalten (`generate_sprites.py --classic`, `ArtStyle.set_style(&"")`), aber nicht im
+  Spiel wählbar.
 - Einheiten, Gegner und Rezepte sind Resources (`UnitData`, `RecipeData`) unter `data/`.
 
 ## Sound und Musik (umgesetzt)

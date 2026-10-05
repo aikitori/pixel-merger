@@ -10,6 +10,9 @@ func _ready() -> void:
 	var original_language := Loc.language
 	if OS.get_environment("SHOT_LANG") != "":
 		Loc.set_language(OS.get_environment("SHOT_LANG"))
+	if OS.get_environment("SHOT_STYLE") != "":
+		ArtStyle.set_style(StringName(OS.get_environment("SHOT_STYLE")))
+		Game.refresh_art_style()
 	var arena: Node = load("res://scenes/main.tscn").instantiate()
 	add_child(arena)
 	await _frames(5)
@@ -86,6 +89,29 @@ func _ready() -> void:
 				Game.gold = 0
 				arena.start_battle()
 				await _frames(int(args[2]) if args.size() > 2 else 240)
+			"einheiten":
+				# Einheiten-Galerie: Grundeinheiten und Kombinationen vergrößert auf Gras
+				var gallery := CanvasLayer.new()
+				gallery.layer = 60
+				var ground := ColorRect.new()
+				ground.color = Color("#4fb04a")
+				ground.size = Vector2(640, 360)
+				gallery.add_child(ground)
+				var ids := ["peasant", "knight", "crusader", "archer", "sharpshooter", "mage", "archmage", "healer",
+						"doctor", "horse", "warhorse", "shadow_wolf", "fenrir", "wyrmling", "witch", "dwarf_warrior",
+						"skeleton", "lich_king", "phoenix", "thor", "medusa", "kraken", "anubis", "valkyrie"]
+				for i in ids.size():
+					if not Registry.units.has(ids[i]):
+						continue
+					var icon := TextureRect.new()
+					icon.texture = Registry.units[ids[i]].sprite
+					icon.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+					icon.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+					icon.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+					icon.position = Vector2(14 + (i % 8) * 77, 12 + (i / 8) * 116)
+					icon.size = Vector2(72, 96)
+					gallery.add_child(icon)
+				add_child(gallery)
 			"erfolge":
 				hud._achievements.open_panel()
 			"menue":

@@ -585,9 +585,13 @@ func _test_real_round_then_village() -> void:
 	_check(is_equal_approx(absf(old._flip), 1.0) and old._walk_phase == 0.0 and old._swing_left == 0.0,
 		"Nach dem Kampf sind Drehung, Laufwippen und Schwertschwung zurückgesetzt")
 	# Antippen am Kopf (oberer Sprite-Rand) trifft ebenfalls.
-	for other in _units():  # Zufällig verteilte Nachbarn könnten die Kopfstelle verdecken
+	# Zufällig verteilte Nachbarn könnten die Kopfstelle verdecken; nebeneinander, nicht gestapelt,
+	# sonst entscheidet die Sprite-Größe, welche Figur unten im Test angetippt wird
+	var slot := 0
+	for other in _units():
 		if other != old:
-			other.position = Vector2(60, 200) if old.position.x > 320 else Vector2(580, 200)
+			other.position = Vector2(60 + slot * 60, 200) if old.position.x > 320 else Vector2(580 - slot * 60, 200)
+			slot += 1
 	var head := old.position + Vector2(0, -old.sprite.get_height() + 2)
 	_check(_arena._unit_at(head) == old, "Antippen am Kopf trifft die Figur")
 	var before := old.position

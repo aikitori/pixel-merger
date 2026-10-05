@@ -107,7 +107,15 @@ func _animate_walker(figure: TextureRect, index: int) -> void:
 
 
 func _build_title() -> void:
+	var logo := ArtStyle.logo()
+	if logo:
+		var image := TextureRect.new()
+		image.texture = logo
+		image.position = Vector2(roundi((640 - logo.get_width()) / 2.0), 18)
+		image.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		add_child(image)
 	var title := Label.new()
+	title.visible = logo == null
 	title.text = tr("Pixel Merger")
 	title.position = Vector2(0, 18)
 	title.size = Vector2(640, 52)

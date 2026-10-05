@@ -190,6 +190,7 @@ def adaptive_island_top():
 
 
 def main():
+    gs.use_figures(gs.DEFAULT_FIGURES)  # dieselben Grundfiguren wie im Spiel
     # Klassisches Icon: 48 Zeichen-Pixel, 4-fach = 192 px
     write_png(ROOT / 'assets/icon/icon_192.png', round_corners(upscale(flat_icon(48), 4), 28))
     # Projekt-Icon: dasselbe Bild
