@@ -48,31 +48,11 @@ func start_game() -> void:
 # --- Aufbau -------------------------------------------------------------------
 
 func _build_background() -> void:
-	var sky := Gradient.new()
-	sky.set_color(0, Color("#171446"))
-	sky.set_color(1, Color("#d1699a"))
-	var sky_texture := GradientTexture2D.new()
-	sky_texture.gradient = sky
-	sky_texture.fill_from = Vector2(0, 0)
-	sky_texture.fill_to = Vector2(0, 1)
-	sky_texture.height = 64
-	sky_texture.width = 4
-	var sky_rect := TextureRect.new()
-	sky_rect.texture = sky_texture
-	sky_rect.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
-	sky_rect.stretch_mode = TextureRect.STRETCH_SCALE
-	sky_rect.size = Vector2(640, 360)
-	sky_rect.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	add_child(sky_rect)
-
-	var village := TextureRect.new()
-	village.texture = ImageTexture.create_from_image(Village.build_art())
-	village.position = Vector2(0, 64)
-	village.size = Vector2(640, 296)
-	village.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
-	village.stretch_mode = TextureRect.STRETCH_SCALE
-	village.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	add_child(village)
+	var ground := TextureRect.new()
+	ground.texture = World.TERRAIN
+	ground.size = Vector2(640, 360)
+	ground.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	add_child(ground)
 
 	var dim := ColorRect.new()
 	dim.color = Color(0.05, 0.02, 0.12, 0.4)
@@ -80,15 +60,15 @@ func _build_background() -> void:
 	dim.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	add_child(dim)
 
-	# Helden laufen unten durchs Bild und hüpfen dabei
+	# Helden laufen durch den Gang
 	for i in HEROES.size():
 		var data: UnitData = Registry.units.get(StringName(HEROES[i]))
 		if data == null:
 			continue
 		var figure := TextureRect.new()
-		figure.texture = data.sprite
+		figure.texture = Combatant.frames_texture(data.sprite, true)
 		figure.mouse_filter = Control.MOUSE_FILTER_IGNORE
-		var lane_y := 318.0 + (i % 3) * 8.0
+		var lane_y := 224.0 + (i % 3) * 8.0  # unten im waagrechten Gang der Arena
 		figure.position = Vector2(-40.0 + i * 85.0, lane_y - data.sprite.get_height())
 		add_child(figure)
 		_animate_walker(figure, i)
@@ -100,10 +80,6 @@ func _animate_walker(figure: TextureRect, index: int) -> void:
 	walk.tween_property(figure, "position:x", 680.0, (680.0 - figure.position.x) / speed)
 	walk.tween_callback(func() -> void: figure.position.x = -48.0)
 	walk.tween_property(figure, "position:x", 680.0, 728.0 / speed)
-	var hop := create_tween().set_loops()
-	hop.tween_interval(randf() * 0.4)
-	hop.tween_property(figure, "position:y", figure.position.y - 3.0, 0.22)
-	hop.tween_property(figure, "position:y", figure.position.y, 0.22)
 
 
 func _build_title() -> void:

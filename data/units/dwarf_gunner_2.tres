@@ -8,7 +8,7 @@
 script = ExtResource("1")
 sprite = ExtResource("2")
 id = &"dwarf_gunner_2"
-display_name = "Büchsenmeister"
+display_name = "Armbrustmeister"
 line_name = "Kombination"
 category = "Kombination"
 color = Color(0.961, 0.788, 0.208, 1)

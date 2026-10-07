@@ -8,7 +8,7 @@
 script = ExtResource("1")
 sprite = ExtResource("2")
 id = &"earth_spirit"
-display_name = "Erdgeist"
+display_name = "Moorgeist"
 line_name = "Erde"
 category = "Elemente"
 color = Color(0.294, 0.416, 0.110, 1)

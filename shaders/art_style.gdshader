@@ -7,6 +7,7 @@ shader_type canvas_item;
 //   4 Zuckerwatte: Pastell, aufgehellte Schatten, weiche lila Konturen statt Schwarz
 //   5 Düsterwald: entsättigt, kalte Schatten, nur Rot bleibt kräftig, Vignette und Korn
 //   6 Höllenshooter: warm-schmutzige Erdtöne, harter Kontrast, wenige Farbstufen, Körnung
+//   7 Kerker: Fackellicht für die Dungeon-Crawl-Kacheln, warm in der Mitte, dunklere Ränder, sonst unverändert
 
 uniform sampler2D screen_tex : hint_screen_texture, filter_nearest;
 uniform int style = 0;
@@ -165,6 +166,10 @@ void fragment() {
 		o = floor(o * 14.0 + bayer4(pix) * 0.8) / 14.0;
 		// zum oberen und unteren Rand dunkler, wie schwaches Deckenlicht
 		o *= 1.0 - pow(abs(uv.y - 0.5) * 2.0, 3.0) * 0.35;
+	} else if (style == 7) {
+		o = pow(c, vec3(1.08)) * 1.06;
+		o *= mix(vec3(1.05, 0.98, 0.88), vec3(1.0), smoothstep(0.0, 0.25, vig));
+		o *= 1.0 - vig * 0.9;
 	}
 	COLOR = vec4(clamp(o, 0.0, 1.0), 1.0);
 }

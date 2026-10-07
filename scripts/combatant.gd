@@ -22,6 +22,11 @@ const FLIP_SPEED := 9.0
 const TURN_ACCELERATION := 8.0
 const WALK_STEP_RATE := 0.35
 const WALK_BOB := 2.0
+## Animationsstreifen (assets/sprites/anim/): 4 Bilder Stehen, dann 4 Bilder Laufen.
+const ANIM_FRAMES := 8
+const IDLE_FRAME_SECONDS := 0.2
+## Laufbilder pro Schrittphase (eine Phase von 2*PI zeigt alle vier Laufbilder).
+const RUN_FRAMES_PER_RADIAN := 2.0 / PI
 const WALK_TILT := 0.08
 ## Intelligenz in Prozent = Chance, gezielt den schwächsten Gegner in der Nähe zu wählen.
 const MAX_SMART_CHANCE := 90.0
@@ -72,6 +77,10 @@ var team: Team = Team.PLAYER
 var unit_data: UnitData
 var display_name := ""
 var sprite: Texture2D
+## Animationsstreifen zum Sprite, null wenn es keinen gibt.
+var anim: Texture2D
+var _anim_clock := randf() * 4.0
+var _anim_frame := 0
 var color := Color.WHITE
 var level := 1
 var body_size := 12.0
@@ -143,6 +152,7 @@ func setup_player(data: UnitData) -> void:
 	unit_data = data
 	display_name = data.display_name
 	sprite = data.sprite
+	anim = _load_anim(sprite)
 	color = data.color
 	level = data.level
 	body_size = _sprite_height(10.0 + 2.0 * data.level)
@@ -241,6 +251,7 @@ func setup_enemy(data: EnemyData) -> void:
 	team = Team.ENEMY
 	display_name = data.display_name
 	sprite = data.sprite
+	anim = _load_anim(sprite)
 	color = data.color
 	body_size = _sprite_height(data.body_size)
 	max_health = data.max_health * Game.health_scale()
@@ -264,6 +275,37 @@ func setup_enemy(data: EnemyData) -> void:
 	_facing_left = true
 	_flip = -1.0
 	add_to_group(GROUP_ENEMY)
+
+
+static func _load_anim(texture: Texture2D) -> Texture2D:
+	if texture == null:
+		return null
+	var path := texture.resource_path.replace("/sprites/", "/sprites/anim/")
+	return load(path) if path != texture.resource_path and ResourceLoader.exists(path) else null
+
+
+## Vier Bilder Stehen oder Laufen als AnimatedTexture (für Oberflächen), ohne Streifen das Einzelbild.
+## AnimatedTexture beachtet keine AtlasTexture-Ausschnitte, deshalb eigene Bilder je Frame.
+static func frames_texture(texture: Texture2D, running: bool) -> Texture2D:
+	var strip := _load_anim(texture)
+	if strip == null:
+		return texture
+	var image := strip.get_image()
+	var frame_w := image.get_width() / ANIM_FRAMES
+	var frames := AnimatedTexture.new()
+	frames.frames = 4
+	for i in 4:
+		var region := Rect2i(frame_w * (i + (4 if running else 0)), 0, frame_w, image.get_height())
+		frames.set_frame_texture(i, ImageTexture.create_from_image(image.get_region(region)))
+		frames.set_frame_duration(i, 0.11 if running else IDLE_FRAME_SECONDS)
+	return frames
+
+
+## Aktuelles Bild im Streifen: Laufen nach Schrittphase, sonst Stehen nach Zeit.
+func _current_frame() -> int:
+	if _walk_phase != 0.0:
+		return 4 + int(_walk_phase * RUN_FRAMES_PER_RADIAN) % 4
+	return int(_anim_clock / IDLE_FRAME_SECONDS) % 4
 
 
 func _sprite_height(fallback: float) -> float:
@@ -411,6 +453,12 @@ func _leave_group() -> void:
 
 ## Bauphase: Eigene Einheiten hüpfen ab und zu und schauen mal in die andere Richtung.
 func _process(delta: float) -> void:
+	if anim != null:
+		_anim_clock += delta
+		var frame := _current_frame()
+		if frame != _anim_frame:
+			_anim_frame = frame
+			queue_redraw()
 	if Game.phase != Game.Phase.BUILD or team != Team.PLAYER or highlighted:
 		if _hop_t >= 0.0:
 			_hop_t = -1.0
@@ -1172,13 +1220,18 @@ func _draw() -> void:
 		body_offset = _swing_dir * sin(swing_t * PI) * 3.0
 	if _hop_t >= 0.0:  # Leerlauf-Hüpfer in der Bauphase
 		body_offset.y -= sin(_hop_t * PI) * IDLE_HOP_HEIGHT
-	if _walk_phase != 0.0:  # Laufen: kleine Hüpfer und leichtes Wiegen
-		body_offset.y -= absf(sin(_walk_phase)) * WALK_BOB
-		tilt = sin(_walk_phase) * WALK_TILT
+	if _walk_phase != 0.0:  # Laufen: kleine Hüpfer und leichtes Wiegen (mit Laufbildern nur Wiegen)
+		if anim == null:
+			body_offset.y -= absf(sin(_walk_phase)) * WALK_BOB
+		tilt = sin(_walk_phase) * WALK_TILT * (0.5 if anim != null else 1.0)
 	# Spiegeln über die Skalierung: Eine negative Breite in draw_texture_rect würde zwar die
 	# Textur umdrehen, aber die linke Kante behalten und das Sprite um seine Breite verschieben.
 	draw_set_transform(body_offset, tilt, Vector2(_flip, 1.0))
-	if sprite != null:
+	if anim != null:
+		var frame_size := Vector2(anim.get_width() / float(ANIM_FRAMES), anim.get_height())
+		draw_texture_rect_region(anim, Rect2(Vector2(-frame_size.x / 2.0, -frame_size.y), frame_size),
+				Rect2(Vector2(frame_size.x * _current_frame(), 0.0), frame_size))
+	elif sprite != null:
 		var size := sprite.get_size()
 		draw_texture_rect(sprite, Rect2(Vector2(-size.x / 2.0, -size.y), size), false)
 	else:

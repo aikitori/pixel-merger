@@ -755,6 +755,25 @@ def option(name, default):
 
 
 def main():
+    if '--classic' in sys.argv or '--figures' in sys.argv:
+        return main_raster()
+    import pixel_image
+    import sprite_dcss
+    units, enemies = sprite_dcss.build()
+    for folder in ('units', 'enemies', 'anim/units', 'anim/enemies'):
+        for old in (ROOT / 'assets/sprites' / folder).glob('*.png'):
+            old.unlink()
+    for folder, images in (('units', units), ('enemies', enemies)):
+        for name, img in images.items():
+            pixel_image.write_png(ROOT / 'assets/sprites' / folder / f'{name}.png', img)
+            pixel_image.write_png(ROOT / 'assets/sprites/anim' / folder / f'{name}.png', sprite_dcss.animate(img))
+    import tiles_dcss
+    for name, img in tiles_dcss.build().items():
+        pixel_image.write_png(ROOT / 'assets/sprites/tiles' / f'{name}.png', img)
+    print(f'{len(units)} Einheiten, {len(enemies)} Gegner, Arena und Dorf (Dungeon Crawl) geschrieben.')
+
+
+def main_raster():
     figures = option('--figures', DEFAULT_FIGURES)
     if figures:
         use_figures(figures)

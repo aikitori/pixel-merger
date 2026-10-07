@@ -139,11 +139,11 @@ Stand: Idee vom 4. Oktober 2026, bewusst zurückgestellt.
 - **Rezepte mit drei Zutaten (entschieden: etwa 8 zum Start).** Entwurf:
   - Templer: Ritter + Magier + Heiler
   - Zerberus: Wolf + Ghul + Flamme
-  - Elementarfürst: Flamme + Welle + Kiesel
+  - Elementarfürst: Flamme + Strudel + Felskäfer
   - Waldläufer: Bogenschütze + Wolf + Waldelf
   - Streitwagen: Streitross + Ritter + Bogenschütze
   - Kopfloser Reiter: Skelett + Pferd + Flamme
-  - Weltenbaum: Waldelf + Kiesel + Tropfen
+  - Weltenbaum: Waldelf + Felskäfer + Tropfen
   - Golddrache: Drachenjunges + Funke + Zwergenkrieger
 - **Technik:** `RecipeData` braucht eine dritte Zutat (`ingredient_c`), `Registry` eine Suche nach
   einer Menge von Zutaten. Anzupassen: Rezeptbuch (drei Symbole), Rezeptliste beim Anfassen
@@ -190,21 +190,23 @@ Offen:
 - Godot 4.4, Renderer "Mobile", GDScript.
 - Pixel-Art: Basisauflösung 640x360, Integer-Skalierung, Nearest-Filter, Pixel-Snapping.
 
-## Bildstil "Höllenshooter mit Clonk-Figuren" (umgesetzt)
+## Bildstil "Kerker" mit Dungeon-Crawl-Kacheln (umgesetzt)
 
-- Figuren nach Art der Clonk-Männchen: Seitenansicht, runder Kopf mit Nase und einem Auge, schmaler Körper,
-  Schrittstellung. Gilt für die Grundfiguren (Ritter, Schütze, Magier, Heiler, Zwerg) und für Pferd, Wolf, Drache,
-  Goblin, Ork, Skelett, Golem, Flamme, Tropfen, Wirbel, Drachenei und Schleim; Stufen, Kombinationen und Gegner
-  bauen darauf auf. Die vier Bosse haben eigene, doppelt so feine Zeichnungen mit Krone.
-- Färbung im Stil früher Ego-Shooter: doppelte Auflösung (Scale2x), wuchtigere Proportionen, keine schwarzen
-  Umrisse, sondern plastische Schattierung (hell innen, dunkel am Rand, Licht von oben links) und Körnung. Die
-  ursprünglichen Farben bleiben, leicht warm.
-- Über dem ganzen Bild liegt eine Nachbearbeitung: etwas entsättigt, Gras Richtung Oliv, mehr Kontrast, wenige
-  Farbstufen mit Dithering, oben und unten dunkler.
-- Oberfläche: graue Steinknöpfe und -leisten, helle Schrift mit schwarzem Schatten. Titel als Pixel-Logo, in dem "PIXEL" (Stahl) und
-  "MERGER" (Feuer) verschmelzen: Der Fuß des L geht in das Bein des M über, an der Naht leuchtet es.
-- Der frühere Holz-Stil ist erhalten (`generate_sprites.py --classic`, `ArtStyle.set_style(&"")`), aber nicht im
-  Spiel wählbar.
+- Alle Figuren, Gegner, Arena, Dorf und Oberflächenteile kommen aus den 32x32-Kacheln von Dungeon Crawl
+  Stone Soup (CC0, `tools/dcss/`). Perspektive wie dort: Boden und Mauern von oben, Figuren schräg von vorn.
+- Einheiten: passende Monsterkachel oder eine Figur aus Puppenteilen (Körper, Rüstung, Helm, Waffe, Schild,
+  Umhang). Was fehlt, ist im selben Stil selbst gezeichnet: Pferd (mit Fellfarben, Schabracke, Stirnpanzer,
+  Horn, Flügeln) und Drachenei. Reiter sitzen mit dem Oberkörper auf dem Pferd oder Wolf.
+- Kombinationen haben je Stufe eine eigene Kachel oder werden mit Stufe 2 und 3 in ihrer Farbe umrandet.
+- Namen folgen dem Bild: Felskäfer, Strudel, Moorgeist, Harpyie, Kristallkoloss, Armbrustmeister.
+- Animation wie bei 0x72: je 4 Bilder Stehen (Atmen) und Laufen (Wippen, schwingende Beine), aus jeder Kachel
+  abgeleitet (`assets/sprites/anim/`). Auch im Dorf und im Menü bewegen sich die Figuren so.
+- Arena: Kreuz aus Gras zwischen Steinmauern mit Fackeln, Steinplatz mit Runenkreis in der Mitte. Hindernisse
+  sind Baum, Eisblock, Säulenstumpf und Fels. Dorf: Häuser aus Mauerkacheln mit Tür und Schmuck, Wege, Brunnen.
+- Oberfläche: dunkler Granit mit Stahl- oder Goldrand wie die Reiter in Dungeon Crawl, Goldhaufen als Münze.
+  Nachbearbeitung "Kerker": leicht warmes Fackellicht, dunklere Bildränder.
+- Der Clonk-Stil (`generate_sprites.py --figures clonk`) und der Holz-Stil (`--classic`) sind erhalten, aber nicht
+  im Spiel wählbar.
 - Einheiten, Gegner und Rezepte sind Resources (`UnitData`, `RecipeData`) unter `data/`.
 
 ## Sound und Musik (umgesetzt)

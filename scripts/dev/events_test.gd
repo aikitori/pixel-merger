@@ -73,7 +73,7 @@ func _ready() -> void:
 	_check(Abilities.display_name(&"shield") == "Shield Up" and tr("Neustart") == "Restart", "Englisch: Fähigkeiten und Oberfläche übersetzt")
 	var missing: Array[String] = []
 	for unit: UnitData in Registry.units.values():
-		if unit.display_name == Registry._german_names[unit][0] and not Registry._german_names[unit][0] in ["Paladin", "Anubis", "Chiron", "Gaia", "Hydra", "Ifrit", "Loki", "Medusa", "Pegasus", "Poltergeist", "Satyr", "Sleipnir", "Surtr", "Thor", "Titan", "Troll", "Veteran", "Wolf", "Ymir", "Zerberus", "Basilisk", "Banshee", "Ent", "Golem", "Kelpie", "Seraph", "Trickster", "Undine", "Faun", "Muspel", "Leviathan", "Achilles", "Asklepios", "Sprint", "Wyrmling", "Fee"]:
+		if unit.display_name == Registry._german_names[unit][0] and not Registry._german_names[unit][0] in ["Paladin", "Anubis", "Chiron", "Hydra", "Ifrit", "Loki", "Medusa", "Pegasus", "Poltergeist", "Satyr", "Sleipnir", "Surtr", "Thor", "Titan", "Troll", "Veteran", "Wolf", "Ymir", "Zerberus", "Basilisk", "Banshee", "Ent", "Golem", "Kelpie", "Seraph", "Trickster", "Undine", "Faun", "Muspel", "Leviathan", "Achilles", "Asklepios", "Sprint", "Wyrmling", "Fee"]:
 			missing.append(unit.display_name)
 	_check(missing.is_empty(), "Alle Einheitennamen haben eine englische Übersetzung (unübersetzt: %s)" % [missing.slice(0, 5)])
 	Loc.set_language("de")

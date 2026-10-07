@@ -8,7 +8,7 @@
 script = ExtResource("1")
 sprite = ExtResource("2")
 id = &"wind_spirit"
-display_name = "Windgeist"
+display_name = "Harpyie"
 line_name = "Wind"
 category = "Elemente"
 color = Color(0.529, 0.584, 0.678, 1)

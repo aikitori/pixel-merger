@@ -2,7 +2,7 @@ class_name ArtStyle
 extends RefCounted
 ## Bildstile: eine Nachbearbeitung über das ganze Bild (shaders/art_style.gdshader) plus eigene Farben und
 ## Materialien für die Oberfläche (UiTheme liest sie über ui()) und optional ein Titel-Logo.
-## DEFAULT ist der Stil des Spiels (passend zu den erzeugten Sprites), &"" der frühere Holz-Stil.
+## DEFAULT ist der Stil des Spiels (passend zu den Dungeon-Crawl-Sprites), &"" der frühere Holz-Stil.
 ## Die Nachbearbeitung hängt Game ein (Game.refresh_art_style). Screenshots: SHOT_STYLE=<id> (scenes/dev/shot.tscn).
 
 const STYLES := {
@@ -52,9 +52,24 @@ const STYLES := {
 		"label_text": Color("#e8c060"), "label_shadow": Color("#1a0a04"),
 		"plank_a": Color("#555555"), "plank_b": Color("#4c4c4c"), "plank_seam": Color("#262626"),
 	}},
+	&"dungeon": {"name": "Kerker", "shader": 7, "logo": "res://assets/logo/logo_doom.png",
+		# Granit mit Gold- oder Stahlrand wie die Reiter in Dungeon Crawl (tools/tiles_dcss.py)
+		"textures": {
+			"btn": "res://assets/sprites/tiles/ui_btn.png", "btn_hover": "res://assets/sprites/tiles/ui_btn_hover.png",
+			"btn_pressed": "res://assets/sprites/tiles/ui_btn_pressed.png", "btn_off": "res://assets/sprites/tiles/ui_btn_off.png",
+			"panel": "res://assets/sprites/tiles/ui_panel.png", "tip": "res://assets/sprites/tiles/ui_panel.png",
+			"sign": "res://assets/sprites/tiles/ui_btn.png", "bar": "res://assets/sprites/tiles/ui_bar.png",
+			"coin": "res://assets/sprites/tiles/ui_coin.png",
+		},
+		"ui": {
+			"edge": Color("#b8862e"), "outline": Color("#0a0806"),
+			"text": Color("#efe4c8"), "text_shadow": Color(0, 0, 0, 1),
+			"label_text": Color("#e8c060"), "label_shadow": Color("#0a0604"),
+			"plank_seam": Color("#0a0806"),
+		}},
 }
 
-const DEFAULT := &"doom"
+const DEFAULT := &"dungeon"
 
 static var current: StringName = DEFAULT
 
@@ -73,6 +88,13 @@ static func ui(key: String, fallback: Color) -> Color:
 	if not STYLES.has(current):
 		return fallback
 	return STYLES[current]["ui"].get(key, fallback)
+
+
+## Bild des aktiven Stils für ein Oberflächenteil (btn, panel, bar, coin ...), sonst null.
+static func texture(key: String) -> Texture2D:
+	if not STYLES.has(current) or not STYLES[current].get("textures", {}).has(key):
+		return null
+	return load(STYLES[current]["textures"][key])
 
 
 ## Eigenes Titel-Logo des aktiven Stils (tools/generate_logo.py), sonst null.

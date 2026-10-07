@@ -8,7 +8,7 @@
 script = ExtResource("1")
 sprite = ExtResource("2")
 id = &"pebble"
-display_name = "Kiesel"
+display_name = "Felskäfer"
 line_name = "Erde"
 category = "Elemente"
 color = Color(0.604, 0.404, 0.196, 1)

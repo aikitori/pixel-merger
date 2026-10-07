@@ -40,12 +40,12 @@ EN = {
     # Feuer
     'Funke': 'Spark', 'Flamme': 'Flame', 'Feuergeist': 'Fire Spirit', 'Feuerelementar': 'Fire Elemental', 'Ifrit': 'Ifrit',
     # Wasser
-    'Tropfen': 'Droplet', 'Welle': 'Wave', 'Wassergeist': 'Water Spirit', 'Wasserelementar': 'Water Elemental',
+    'Tropfen': 'Droplet', 'Strudel': 'Whirlpool', 'Wassergeist': 'Water Spirit', 'Wasserelementar': 'Water Elemental',
     'Leviathan': 'Leviathan',
     # Erde
-    'Kiesel': 'Pebble', 'Golem': 'Golem', 'Erdgeist': 'Earth Spirit', 'Erdelementar': 'Earth Elemental', 'Gaia': 'Gaia',
+    'Felskäfer': 'Rock Beetle', 'Golem': 'Golem', 'Moorgeist': 'Bog Spirit', 'Erdelementar': 'Earth Elemental', 'Kristallkoloss': 'Crystal Colossus',
     # Wind
-    'Windhauch': 'Breath of Wind', 'Brise': 'Breeze', 'Windgeist': 'Wind Spirit', 'Luftelementar': 'Air Elemental',
+    'Windhauch': 'Breath of Wind', 'Brise': 'Breeze', 'Harpyie': 'Harpy', 'Luftelementar': 'Air Elemental',
     'Dschinn': 'Djinn',
     # Heiler
     'Kräuterkundiger': 'Herb Lore Healer', 'Heiler': 'Healer', 'Schamane': 'Shaman', 'Arzt': 'Doctor',
@@ -95,7 +95,7 @@ EN = {
     'Steinwächter': 'Stone Guardian', 'Bergwächter': 'Mountain Guardian', 'Titanenwächter': 'Titan Guardian',
     'Feuerzwerg': 'Fire Dwarf', 'Schmiedemeister': 'Forge Master', 'Essenkönig': 'Forge King',
     'Zwergenritter': 'Dwarf Knight', 'Eisenwächter': 'Iron Guard', 'Schildträger': 'Shield Bearer',
-    'Zwergenschütze': 'Dwarf Gunner', 'Büchsenmeister': 'Gun Master', 'Meisterschütze': 'Master Marksman',
+    'Zwergenschütze': 'Dwarf Gunner', 'Armbrustmeister': 'Crossbow Master', 'Meisterschütze': 'Master Marksman',
     'Thor': 'Thor', 'Donnerer': 'Thunderer',
     # Elfen
     'Feuerelf': 'Fire Elf', 'Glutelf': 'Ember Elf', 'Sonnenelf': 'Sun Elf',

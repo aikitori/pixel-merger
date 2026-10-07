@@ -8,7 +8,7 @@
 script = ExtResource("1")
 sprite = ExtResource("2")
 id = &"wave"
-display_name = "Welle"
+display_name = "Strudel"
 line_name = "Wasser"
 category = "Elemente"
 color = Color(0.247, 0.471, 0.847, 1)

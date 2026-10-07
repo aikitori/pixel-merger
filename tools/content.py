@@ -147,15 +147,15 @@ LINES['fire'] = _generated_line(
     (10, 5, 45, 0.9, 40), ['#f5c935', '#f08a24', '#d63c34', '#3f78d8', '#f4f4f4'])
 LINES['water'] = _generated_line(
     'Wasser', 14, ['droplet', 'wave', 'water_spirit', 'water_elemental', 'leviathan'],
-    ['Tropfen', 'Welle', 'Wassergeist', 'Wasserelementar', 'Leviathan'],
+    ['Tropfen', 'Strudel', 'Wassergeist', 'Wasserelementar', 'Leviathan'],
     (16, 3.5, 60, 1.1, 36), ['#8fe0ff', '#3f78d8', '#58b84e', '#264b94', '#f4f4f4'])
 LINES['earth'] = _generated_line(
     'Erde', 15, ['pebble', 'golem', 'earth_spirit', 'earth_elemental', 'gaia'],
-    ['Kiesel', 'Golem', 'Erdgeist', 'Erdelementar', 'Gaia'],
+    ['Felskäfer', 'Golem', 'Moorgeist', 'Erdelementar', 'Kristallkoloss'],
     (34, 3, 12, 1.4, 22), ['#9a6732', '#8795ad', '#4b6a1c', '#f5c935', '#8fe0ff'])
 LINES['air'] = _generated_line(
     'Wind', 16, ['breath', 'breeze', 'wind_spirit', 'air_elemental', 'djinn'],
-    ['Windhauch', 'Brise', 'Windgeist', 'Luftelementar', 'Dschinn'],
+    ['Windhauch', 'Brise', 'Harpyie', 'Luftelementar', 'Dschinn'],
     (10, 3, 35, 0.6, 65), ['#f4f4f4', '#8fe0ff', '#8795ad', '#9b50c8', '#f5c935'])
 
 # --- Heilkunst: Heiler heilen verletzte Verbündete, statt Gegner anzugreifen. 'atk' ist die
@@ -334,7 +334,7 @@ COMBO_TABLE = [
     ('stone_guard', 'axe_master', 'golem', 'earth', 'b', ['Steinwächter', 'Bergwächter', 'Titanenwächter']),
     ('fire_dwarf', 'dwarf_warrior', 'flame', 'fire', 'a', ['Feuerzwerg', 'Schmiedemeister', 'Essenkönig']),
     ('dwarf_knight', 'dwarf_warrior', 'knight', 'gold', 'a', ['Zwergenritter', 'Eisenwächter', 'Schildträger']),
-    ('dwarf_gunner', 'miner', 'archer', 'gold', 'b', ['Zwergenschütze', 'Büchsenmeister', 'Meisterschütze']),
+    ('dwarf_gunner', 'miner', 'archer', 'gold', 'b', ['Zwergenschütze', 'Armbrustmeister', 'Meisterschütze']),
     ('thor', 'dwarf_lord', 'spark', 'thunder', 'a', ['Thor', 'Donnerer', 'Donnergott']),
     # Elfen
     ('fire_elf', 'wood_elf', 'flame', 'fire', 'a', ['Feuerelf', 'Glutelf', 'Sonnenelf']),

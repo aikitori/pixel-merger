@@ -12,8 +12,12 @@ Einheiten, Sprites, Sounds und Namen kommen aus Python-Skripten (nur Standardbib
 |---|---|
 | `tools/content.py` | Linien, Kombinationen, Fähigkeiten (die inhaltliche Wahrheit) |
 | `tools/generate_data.py` | `data/*.tres`, `scripts/i18n/names_en.gd` |
-| `tools/generate_sprites.py`, `tools/sprite_kits.py` | PNG-Sprites (ASCII-Raster plus Ausrüstungsteile je Stufe) |
-| `tools/sprite_clonk.py`, `tools/sprite_styles.py` | Grundfiguren im Clonk-Stil und Höllenshooter-Look, die `generate_sprites.py` standardmäßig nutzt (`--classic` für die früheren Sprites) |
+| `tools/generate_sprites.py` | Schreibt Sprites, Animationsstreifen (`assets/sprites/anim/`), Arena, Dorf und Oberflächenbilder (`assets/sprites/tiles/`) |
+| `tools/sprite_dcss.py` | Zuordnung Einheit/Gegner zu Dungeon-Crawl-Kachel oder Puppenfigur, eigenes Pferd und Ei, 4+4 Animationsbilder |
+| `tools/tiles_dcss.py` | Arena, Dorf, Hindernisse, Knöpfe und Leisten aus Kacheln (Maße passend zu `world.gd` und `village.gd`) |
+| `tools/pixel_image.py` | PNG lesen und schreiben, Bilder zusammensetzen (nur Standardbibliothek) |
+| `tools/dcss/` | Verwendete Kacheln aus Dungeon Crawl Stone Soup (CC0). Neue Kacheln holt `tools/import_dcss.py <Paketordner>` (einmalig, braucht Pillow) |
+| `tools/sprite_kits.py`, `tools/sprite_clonk.py`, `tools/sprite_styles.py` | Früherer Clonk-Stil (`generate_sprites.py --figures clonk`, `--classic`); nutzt noch `generate_icon.py` |
 | `tools/generate_logo.py` | Titel-Logo `assets/logo/logo_doom.png` |
 | `tools/generate_icon.py` | App-Icons (mit denselben Grundfiguren) |
 | `tools/generate_audio.py` | Sound-Effekte |
@@ -27,8 +31,9 @@ Nach Änderungen: `python3 tools/generate_data.py` und/oder `python3 tools/gener
 - Hauptszene ist das Menü (`scenes/menu.tscn`), das Spiel `scenes/main.tscn` (`scripts/main.gd`, y-sortiert).
 - Kampf: `scripts/combatant.gd`. Fähigkeiten: `scripts/abilities.gd` (Daten) plus `_cast_ability` im Combatant.
 - Oberfläche: `scripts/hud.gd`, `recipe_book.gd`, `shop.gd`, `village.gd`, `ui_theme.gd` (im Code gezeichnet, Farben aus `art_style.gd`).
-- Bildstil: `scripts/art_style.gd` (Oberflächenfarben, Logo, Auswahl) plus `shaders/art_style.gdshader` (Nachbearbeitung über das ganze Bild, von `Game` eingehängt). Standard ist `ArtStyle.DEFAULT`, er muss zu den erzeugten Sprites passen.
-- Spielfeld: `scripts/world.gd` (Kreuz aus zwei Armen, Hindernisse, Kollision).
+- Bildstil: `scripts/art_style.gd` (Oberflächenfarben und -bilder, Logo, Auswahl) plus `shaders/art_style.gdshader` (Nachbearbeitung über das ganze Bild, von `Game` eingehängt). Standard ist `ArtStyle.DEFAULT` (`dungeon`), er muss zu den erzeugten Sprites passen.
+- Spielfeld: `scripts/world.gd` (Kreuz aus zwei Armen, Hindernisse, Kollision); Boden und Mauern sind das Bild `assets/sprites/tiles/arena.png`.
+- Animation: `Combatant` zeichnet aus dem Streifen `assets/sprites/anim/<ordner>/<id>.png` (4 Bilder Stehen, 4 Laufen); `Combatant.frames_texture` liefert dieselben Bilder für Oberflächen.
 - Texte: deutsche Strings stehen im Code in `tr()` (statisch: `TranslationServer.translate`). Die englische Übersetzung steht in `scripts/i18n/ui_en.gd`. **Jeder neue deutsche Text braucht dort einen Eintrag**, der Schlüssel muss exakt dem deutschen Text entsprechen.
 
 ## Fallstricke

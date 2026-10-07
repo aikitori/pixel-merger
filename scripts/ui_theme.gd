@@ -1,6 +1,7 @@
 class_name UiTheme
 extends RefCounted
-## Gemeinsames Aussehen der Oberfläche: Holz, Gold und Pergament, passend zum Pixel-Fantasy-Stil.
+## Gemeinsames Aussehen der Oberfläche: im Code gezeichnete Rahmen (Holz, Gold, Pergament) oder die Bilder
+## des aktiven Stils (ArtStyle.texture, z.B. Granit mit Goldrand im Kerker-Stil).
 ## Alle Rahmen sind kleine, im Code gezeichnete Bilder (9-Patch), damit die Pixel scharf bleiben.
 
 const INK := Color("#24123a")
@@ -101,6 +102,17 @@ static func plank_bar(width: int, height: int, edge_top: bool) -> ImageTexture:
 	var rng := RandomNumberGenerator.new()
 	rng.seed = 21
 	var plank_width := 80
+	var styled := ArtStyle.texture("bar")
+	if styled != null:  # Stein des Stils kacheln, Nägel und Planken entfallen
+		var stone := styled.get_image()
+		stone.convert(Image.FORMAT_RGBA8)
+		for y in height:
+			for x in width:
+				img.set_pixel(x, y, stone.get_pixel(x % stone.get_width(), y % stone.get_height()))
+		_bar_edge(img, width, height, edge_top)
+		var stone_tex := ImageTexture.create_from_image(img)
+		_cache[key] = stone_tex
+		return stone_tex
 	for y in height:
 		for x in width:
 			var plank := x / plank_width
@@ -120,19 +132,26 @@ static func plank_bar(width: int, height: int, edge_top: bool) -> ImageTexture:
 				var nx: int = plank * plank_width + dx
 				if nx < width and nail_y >= 0 and nail_y < height:
 					img.set_pixel(nx, nail_y, Color("#b8a58a"))
+	_bar_edge(img, width, height, edge_top)
+	var tex := ImageTexture.create_from_image(img)
+	_cache[key] = tex
+	return tex
+
+
+## Zierkante der Leiste zum Spielfeld hin.
+static func _bar_edge(img: Image, width: int, height: int, edge_top: bool) -> void:
 	var edge_y := 0 if edge_top else height - 1
 	var step := 1 if edge_top else -1
 	for x in width:
 		img.set_pixel(x, edge_y, ArtStyle.ui("outline", INK))
 		img.set_pixel(x, edge_y + step, ArtStyle.ui("edge", GOLD))
 		img.set_pixel(x, edge_y + 2 * step, Color("#8a5f1e"))
-	var tex := ImageTexture.create_from_image(img)
-	_cache[key] = tex
-	return tex
 
 
-## Kleine Goldmünze (10x10).
-static func coin() -> ImageTexture:
+## Kleine Goldmünze (10x10), im Stil mit Bild der Goldhaufen.
+static func coin() -> Texture2D:
+	if ArtStyle.texture("coin") != null:
+		return ArtStyle.texture("coin")
 	if _cache.has("coin"):
 		return _cache["coin"]
 	var rows := [
@@ -182,14 +201,17 @@ static func silhouette(texture: Texture2D) -> Texture2D:
 ## 9-Patch-Rahmen: Umriss, Zierkante, Füllung mit Farbverlauf und hellerer Oberkante.
 static func _box(key: String, top: Color, bottom: Color, edge: Color, margin_x: int, margin_y: int,
 		press_offset := 0, outline := INK) -> StyleBoxTexture:
-	var tex: ImageTexture
-	if _cache.has(key):
-		tex = _cache[key]
-	else:
-		tex = _frame_texture(12, 12, outline, edge, top, bottom)
-		_cache[key] = tex
 	var box := StyleBoxTexture.new()
-	box.texture = tex
+	var styled := ArtStyle.texture(key)
+	if styled != null:  # fertiges Bild des Stils, Füllung gekachelt statt gestreckt
+		box.texture = styled
+		box.axis_stretch_horizontal = StyleBoxTexture.AXIS_STRETCH_MODE_TILE_FIT
+		box.axis_stretch_vertical = StyleBoxTexture.AXIS_STRETCH_MODE_TILE_FIT
+	elif _cache.has(key):
+		box.texture = _cache[key]
+	else:
+		box.texture = _frame_texture(12, 12, outline, edge, top, bottom)
+		_cache[key] = box.texture
 	box.set_texture_margin_all(4)
 	box.content_margin_left = margin_x
 	box.content_margin_right = margin_x
