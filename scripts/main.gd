@@ -65,6 +65,7 @@ func _ready() -> void:
 	_hud.order_pressed.connect(cycle_order)
 	_hud.ability_pressed.connect(cast_selected)
 	_hud.select_all_pressed.connect(select_all)
+	_hud.clear_selection = clear_selection
 	_hud.return_pressed.connect(return_selected)
 	_hud.event_chosen.connect(_on_event_chosen)
 	_hud.multi_toggled.connect(func(on: bool) -> void: _multi_mode = on)
@@ -255,6 +256,10 @@ func _unit_at(point: Vector2, exclude: Combatant = null, radius := PICK_RADIUS) 
 # --- Eingabe -------------------------------------------------------------------
 
 func _unhandled_input(event: InputEvent) -> void:
+	# Rechtsklick (Desktop) hebt im Kampf die Auswahl auf.
+	if event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_RIGHT and event.pressed:
+		clear_selection()
+		return
 	if not (event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_LEFT and event.pressed):
 		return
 	var point := _local_position(event)
@@ -428,6 +433,10 @@ func _command(point: Vector2, additive := false) -> void:
 				_select(unit)
 		else:
 			_select(unit)
+		# Ein Tipp, der die Einheit abgewählt hat, zählt nicht als erster Tipp eines Doppeltipps:
+		# sonst wählt schnelles Ab- und wieder Antippen gleich alle Einheiten dieser Sorte.
+		if not _selection.has(unit):
+			_last_tap_unit = null
 	elif not _selection.is_empty() and World.contains(point):
 		_order_group(point)
 		_picking_guard = false
@@ -479,9 +488,11 @@ func _select_same_kind(unit: Combatant, additive: bool) -> void:
 	_hud.toast(tr("Alle %s gewählt (%d)") % [unit.display_name, picked.size()])
 
 
-## Alle eigenen Einheiten wählen (Knopf "Alle").
+## Knopf "Alle"/"Keine": ohne Auswahl alle eigenen Einheiten wählen, sonst die Auswahl aufheben.
 func select_all() -> void:
 	if Game.phase != Game.Phase.BATTLE:
+		return
+	if clear_selection():
 		return
 	var all: Array[Combatant] = []
 	all.append_array(get_player_units())
@@ -499,6 +510,15 @@ func _order_group(point: Vector2) -> void:
 	for unit in _selection:
 		var offset := (unit.position - center).limit_length(45.0) if _selection.size() > 1 else Vector2.ZERO
 		unit.give_order(World.clamp_point(point + offset))
+
+
+## Kampfphase: Auswahl aufheben (Knopf "Keine", Zurück/Esc, Rechtsklick). Gibt false zurück,
+## wenn nichts gewählt war.
+func clear_selection() -> bool:
+	if Game.phase != Game.Phase.BATTLE or (_selection.is_empty() and not _picking_guard):
+		return false
+	_apply_selection([] as Array[Combatant])
+	return true
 
 
 func _prune_selection() -> void:

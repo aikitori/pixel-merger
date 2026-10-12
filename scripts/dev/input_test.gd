@@ -380,9 +380,30 @@ func _test_multi_select() -> void:
 	# Tipp auf eine Einheit der Gruppe wählt nur diese
 	await _tap(cluster[1].center())
 	_check(_arena._selection.size() == 1 and _arena._selected == cluster[1], "Tipp auf Gruppenmitglied wählt nur diese Einheit")
-	# Alle wählen
-	hud._group_box.get_child(0).pressed.emit()
+	# Abwählen: erneuter Tipp (nach der Doppeltipp-Zeit), danach ist ein schneller Tipp kein Doppeltipp
+	await get_tree().create_timer(0.45).timeout
+	await _tap(cluster[1].center())
+	_check(_arena._selection.is_empty(), "Tipp auf die gewählte Einheit hebt die Auswahl auf")
+	await _tap(cluster[1].center())
+	_check(_arena._selection.size() == 1 and _arena._selected == cluster[1], "Schneller Tipp nach dem Abwählen wählt nur diese Einheit wieder")
+	# Mit Auswahl heißt der Knopf "Keine" und hebt sie auf, danach wählt er alle
+	var all_button: Button = hud._group_box.get_child(0)
+	_check(all_button.text == "Keine", "Knopf heißt mit Auswahl 'Keine' (%s)" % all_button.text)
+	all_button.pressed.emit()
+	await get_tree().process_frame
+	_check(_arena._selection.is_empty() and not cluster[1].highlighted, "Knopf 'Keine' hebt die Auswahl auf")
+	_check(all_button.text == "Alle", "Knopf heißt ohne Auswahl 'Alle' (%s)" % all_button.text)
+	all_button.pressed.emit()
 	_check(_arena._selection.size() == _units().size(), "Knopf 'Alle' wählt alle Einheiten (%d)" % _arena._selection.size())
+	_check(hud.handle_back() and _arena._selection.is_empty(), "Zurück/Esc hebt die Auswahl auf")
+	_check(not hud.handle_back(), "Zurück ohne Auswahl bleibt für das Hauptmenü")
+	_arena._select(cluster[0])
+	var right := InputEventMouseButton.new()
+	right.button_index = MOUSE_BUTTON_RIGHT
+	right.pressed = true
+	right.position = cluster[0].center()
+	_arena._unhandled_input(right)
+	_check(_arena._selection.is_empty(), "Rechtsklick hebt die Auswahl auf")
 	# Mehrfach-Modus: Antippen fügt hinzu und nimmt heraus
 	_arena._select(null)
 	hud._multi_button.button_pressed = true

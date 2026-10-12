@@ -243,6 +243,7 @@ const TEXTS := {
 	"Schneesturm": "Blizzard",
 	"Alle bewegen sich langsamer, Freund und Feind.": "Everyone moves slower, friend and foe.",
 	"Alle": "All",
+	"Keine": "None",
 	"Alle %s gewählt (%d)": "All %s selected (%d)",
 	"Mehrfach": "Multi",
 	"Zurückschicken": "Send back",

@@ -37,6 +37,9 @@ var _achievements_button: Button
 var _fullscreen_button: Button
 var _group_box: HBoxContainer
 var _multi_button: Button
+var _all_button: Button
+## Von der Arena gesetzt: hebt die Auswahl im Kampf auf, false wenn nichts gewählt war (Zurück/Esc).
+var clear_selection: Callable
 var _return_button: Button
 var _achievements: AchievementsPanel
 var _banner: Label
@@ -516,7 +519,7 @@ func show_unit_card(unit: Combatant, extra := 0) -> void:
 
 
 ## Mögliche Rezepte der gehaltenen Einheit, links unter der Karte.
-## Kampfphase, untere Leiste: "Alle" wählt jede Einheit, "Mehrfach" lässt Antippen Einheiten hinzufügen oder abwählen.
+## Kampfphase, untere Leiste: "Alle" wählt jede Einheit (mit Auswahl heißt er "Keine" und hebt sie auf), "Mehrfach" lässt Antippen Einheiten hinzufügen oder abwählen.
 func _build_group_buttons(root: Control) -> void:
 	_group_box = HBoxContainer.new()
 	_group_box.position = Vector2(176, 326)
@@ -524,12 +527,12 @@ func _build_group_buttons(root: Control) -> void:
 	_group_box.add_theme_constant_override("separation", 4)
 	_group_box.visible = false
 	root.add_child(_group_box)
-	var all := Button.new()
-	all.text = tr("Alle")
-	all.custom_minimum_size = Vector2(40, 28)
-	all.add_theme_font_size_override("font_size", 10)
-	all.pressed.connect(func() -> void: select_all_pressed.emit())
-	_group_box.add_child(all)
+	_all_button = Button.new()
+	_all_button.text = tr("Alle")
+	_all_button.custom_minimum_size = Vector2(40, 28)
+	_all_button.add_theme_font_size_override("font_size", 10)
+	_all_button.pressed.connect(func() -> void: select_all_pressed.emit())
+	_group_box.add_child(_all_button)
 	_multi_button = Button.new()
 	_multi_button.text = tr("Mehrfach")
 	_multi_button.toggle_mode = true
@@ -555,6 +558,9 @@ func set_return_selection(count: int, refund: int) -> void:
 	var text := tr("Zurück: +%dg") % refund if count > 0 else tr("Zurückschicken")
 	if _return_button.text != text:
 		_return_button.text = text
+	var all_text := tr("Keine") if count > 0 else tr("Alle")
+	if _all_button.text != all_text:
+		_all_button.text = all_text
 
 
 func _build_hint_panel(root: Control) -> void:
@@ -790,7 +796,7 @@ func handle_back() -> bool:
 		_village.visible = false
 		_refresh()
 		return true
-	return false
+	return clear_selection.is_valid() and clear_selection.call()
 
 
 func _add_bar(parent: Control, rect: Rect2, edge_top: bool) -> void:
