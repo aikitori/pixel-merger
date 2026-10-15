@@ -80,6 +80,48 @@ func base_units(unit: UnitData) -> Dictionary:
 	return {}
 
 
+## Stufen einer Linie, die das Dorf anbietet: die Grundeinheit und ihre Stufen bis DIRECT_BUY_MAX_LEVEL.
+func line_levels(start: UnitData) -> Array[UnitData]:
+	var result: Array[UnitData] = [start]
+	while result.back().upgrade != null and result.size() < Game.DIRECT_BUY_MAX_LEVEL:
+		result.append(result.back().upgrade)
+	return result
+
+
+## Gold, das eine Einheit über Kaufen und Selbst-Merge kostet (Grundeinheiten plus Verbindungen).
+func build_cost(unit: UnitData) -> int:
+	if unit.shop_order > 0:
+		return unit.price
+	if _previous.has(unit):
+		var previous: UnitData = _previous[unit]
+		return 2 * build_cost(previous) + previous.upgrade_cost
+	return bundle_price(base_units(unit))
+
+
+## Preis im Dorf: Grundeinheit zum Listenpreis, höhere Stufen mit Aufschlag (siehe Game.DIRECT_BUY_*).
+func shop_price(unit: UnitData) -> int:
+	return unit.price if unit.shop_order > 0 else roundi(build_cost(unit) * Game.DIRECT_BUY_MARKUP)
+
+
+## Warum die Einheit im Dorf (noch) nicht kaufbar ist, "" wenn sie es ist. Gold zählt hier nicht.
+func buy_block_reason(unit: UnitData) -> String:
+	var start := unit
+	while _previous.has(start):
+		start = _previous[start]
+	if start.shop_order <= 0:
+		return tr("Nur durch Verbinden")
+	if Game.house_level(start.category) < start.house_level:
+		return tr("Erst ab Ausbaustufe %d des Hauses") % start.house_level
+	if unit != start:
+		if unit.level > Game.DIRECT_BUY_MAX_LEVEL:
+			return tr("Nur durch Verbinden")
+		if Game.round_number < Game.DIRECT_BUY_ROUND:
+			return tr("Höhere Stufen erst ab Runde %d") % Game.DIRECT_BUY_ROUND
+		if unit.unlock_round > Game.round_number:
+			return tr("Erst ab Runde %d") % unit.unlock_round
+	return ""
+
+
 func merge_counts(a: Dictionary, b: Dictionary) -> Dictionary:
 	var result := a.duplicate()
 	for key in b:

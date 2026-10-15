@@ -166,6 +166,37 @@ LINES['healer'] = _generated_line(
     (14, 3, 75, 1.4, 32), ['#58b84e', '#f4f4f4', '#9a6732', '#2f8cff', '#f5c935'],
     hp_mult=[1, 1.6, 2.6, 4.4, 7.5], atk_mult=[1, 1.8, 3.0, 5.2, 9.0])
 
+# --- Linien der ausgebauten Dorfhäuser: kaufbar erst ab HOUSE_LINE_LEVEL des Hauses ihrer Kategorie.
+HOUSE_LINE_LEVEL = 2
+LINES['spear'] = _generated_line(
+    'Garde', 18, ['spearman', 'pikeman', 'halberdier', 'guardsman', 'marshal'],
+    ['Speerträger', 'Pikenier', 'Hellebardier', 'Gardist', 'Feldmarschall'],
+    (26, 3, 20, 1.0, 36), ['#9a6732', '#8795ad', '#d63c34', '#3f78d8', '#f5c935'])
+LINES['naga'] = _generated_line(
+    'Nagas', 19, ['naga', 'naga_archer', 'naga_mage', 'naga_guard', 'naga_queen'],
+    ['Naga', 'Nagaschütze', 'Nagamagierin', 'Nagawächter', 'Nagakönigin'],
+    (16, 3.5, 75, 1.1, 30), ['#58b84e', '#8795ad', '#9b50c8', '#2f7d32', '#d63c34'])
+LINES['frog'] = _generated_line(
+    'Frösche', 20, ['tree_frog', 'frog', 'spiny_frog', 'giant_toad', 'frog_king'],
+    ['Laubfrosch', 'Frosch', 'Stachelfrosch', 'Riesenkröte', 'Froschkönig'],
+    (18, 3, 12, 0.8, 55), ['#58b84e', '#2f7d32', '#c9a227', '#9a6732', '#f5c935'])
+LINES['griffin'] = _generated_line(
+    'Greifen', 21, ['hippogriff', 'griffin', 'sphinx', 'lamassu', 'sky_griffin'],
+    ['Hippogreif', 'Greif', 'Sphinx', 'Lamassu', 'Himmelsgreif'],
+    (24, 3.5, 14, 0.9, 58), ['#c98a4b', '#f4f4f4', '#8795ad', '#efb78d', '#fff4b0'])
+LINES['ice'] = _generated_line(
+    'Eis', 22, ['snowflake', 'frost_imp', 'polar_bear', 'frost_demon', 'frost_lord'],
+    ['Schneeflocke', 'Frostwicht', 'Eisbär', 'Frostdämon', 'Frostfürst'],
+    (12, 4, 55, 1.2, 34), ['#8fe0ff', '#f4f4f4', '#dfe6f2', '#3f78d8', '#8fe0ff'])
+LINES['monk'] = _generated_line(
+    'Kloster', 23, ['novice', 'monk', 'prior', 'abbot', 'saint'],
+    ['Novize', 'Mönch', 'Prior', 'Abt', 'Heiliger'],
+    (16, 3, 75, 1.4, 32), ['#9a6732', '#5e3b1a', '#f4f4f4', '#9b50c8', '#f5c935'],
+    hp_mult=[1, 1.6, 2.6, 4.4, 7.5], atk_mult=[1, 1.8, 3.0, 5.2, 9.0])
+HOUSE_LINES = {'spear', 'naga', 'frog', 'griffin', 'ice', 'monk'}
+for _key in LINES:
+    LINES[_key]['house_level'] = HOUSE_LINE_LEVEL if _key in HOUSE_LINES else 0
+
 
 # Intelligenz der generierten Linien: Basiswert mal Faktor pro Stufe.
 _INT_MULT = [1, 1.4, 1.9, 2.6, 3.5]
@@ -176,6 +207,7 @@ _INT_BASE = {
 
 
 _INT_BASE.update({'fire': 30, 'water': 35, 'earth': 5, 'air': 25})
+_INT_BASE.update({'spear': 10, 'naga': 35, 'frog': 10, 'griffin': 20, 'ice': 30, 'monk': 35})
 for _key, _base in _INT_BASE.items():
     LINES[_key]['int'] = [round(_base * m) for m in _INT_MULT]
 
@@ -188,6 +220,8 @@ _SHOP = {
     'dragon': ('Mythologie', 8), 'centaur': ('Mythologie', 7),
     'healer': ('Heilkunst', 7),
     'fire': ('Elemente', 7), 'water': ('Elemente', 7), 'earth': ('Elemente', 6), 'air': ('Elemente', 7),
+    'spear': ('Klassisch', 6), 'naga': ('Fantasy', 8), 'frog': ('Märchen', 6), 'griffin': ('Mythologie', 9),
+    'ice': ('Elemente', 7), 'monk': ('Heilkunst', 8),
 }
 for _key, (_category, _price) in _SHOP.items():
     LINES[_key]['category'] = _category
@@ -382,6 +416,20 @@ COMBO_TABLE = [
     ('silver_unicorn', 'unicorn', 'herb_healer', 'light', 'a', ['Silbereinhorn', 'Heilendes Einhorn', 'Lebenseinhorn']),
     ('angel', 'doctor', 'wind_spirit', 'light', 'a', ['Engel', 'Erzengel', 'Seraph']),
     ('asclepius', 'doctor', 'spark', 'gold', 'a', ['Asklepios', 'Heilgott', 'Gott der Heilkunst']),
+    # Linien der ausgebauten Dorfhäuser
+    ('lancer', 'pikeman', 'horse', 'gold', 'a', ['Lanzenreiter', 'Ulan', 'Lanzenfürst']),
+    ('triton', 'spearman', 'droplet', 'water', 'a', ['Triton', 'Meereswächter', 'Poseidons Speer']),
+    ('lamia', 'naga', 'witch', 'dark', 'a', ['Lamia', 'Schlangenhexe', 'Lamia-Königin']),
+    ('shock_serpent', 'naga', 'spark', 'thunder', 'a', ['Blitznatter', 'Donnerschlange', 'Sturmschlange']),
+    ('frog_prince', 'frog', 'knight', 'gold', 'a', ['Froschprinz', 'Prinz', 'König Frosch']),
+    ('newt', 'tree_frog', 'droplet', 'water', 'a', ['Molch', 'Riesenmolch', 'Drachenmolch']),
+    ('griffin_rider', 'griffin', 'knight', 'gold', 'a', ['Greifenreiter', 'Greifenritter', 'Greifenkönig']),
+    ('apis', 'hippogriff', 'horse', 'gold', 'a', ['Apis', 'Himmelsstier', 'Sonnenstier']),
+    ('ice_griffin', 'griffin', 'frost_imp', 'ice', 'a', ['Frostgreif', 'Eisgreif', 'Wintergreif']),
+    ('frost_knight', 'snowflake', 'knight', 'ice', 'b', ['Frostritter', 'Eisritter', 'Winterritter']),
+    ('ice_mage', 'snowflake', 'mage', 'ice', 'b', ['Eismagier', 'Frostmagier', 'Gletschermagier']),
+    ('templar', 'monk', 'knight', 'light', 'b', ['Templer', 'Tempelritter', 'Ordensmeister']),
+    ('exorcist', 'monk', 'skeleton', 'light', 'a', ['Exorzist', 'Geisterbanner', 'Hoher Exorzist']),
 ]
 
 # Geheimrezepte: stehen erst im Rezeptbuch, wenn sie einmal durch Ausprobieren entdeckt wurden.
@@ -391,6 +439,7 @@ SECRET_TABLE = [
     ('baba_yaga', 'witch', 'ghoul', 'dark', 'a', ['Baba Jaga', 'Knochenhexe', 'Hexe der Hühnerhütte']),
     ('kraken', 'hydra', 'wave', 'water', 'a', ['Krake', 'Riesenkrake', 'Kraken']),
     ('robin_hood', 'archer', 'wood_elf', 'nature', 'a', ['Robin Hood', 'König der Diebe', 'Held von Sherwood']),
+    ('st_george', 'guardsman', 'wyrmling', 'gold', 'a', ['Sankt Georg', 'Drachentöter', 'Heiliger Georg']),
 ]
 SECRET_COMBOS = {row[0] for row in SECRET_TABLE}
 COMBO_TABLE += SECRET_TABLE
@@ -434,7 +483,7 @@ _register_table_combos()
 
 # Kombinationen mit mindestens einem heilenden Bestandteil heilen selbst statt anzugreifen.
 HEAL_COMBOS = set()
-_heal_ids = set(LINES['healer']['ids'])
+_heal_ids = set(LINES['healer']['ids']) | set(LINES['monk']['ids'])
 for _base, _combo in COMBOS.items():
     if _combo['a'] in _heal_ids or _combo['b'] in _heal_ids:
         HEAL_COMBOS.add(_base)
@@ -451,6 +500,8 @@ LINE_ABILITY = {
     'witch': 'slow_aura', 'wolf': 'war_cry', 'giant': 'taunt', 'centaur': 'war_aura',
     'fire': 'meteor', 'water': 'regen', 'earth': 'shield', 'air': 'evasion',
     'healer': ['mass_heal', 'mass_heal', 'mass_heal', 'revive', 'revive'],
+    'spear': 'whirlwind', 'naga': 'poison_cloud', 'frog': 'charm', 'griffin': 'charge', 'ice': 'frost_nova',
+    'monk': 'holy_light',
 }
 # Handgemachte Kombinationen ohne Sprite-Tausch.
 HAND_COMBO_ABILITY = {
@@ -481,6 +532,8 @@ COMBO_ABILITY_OVERRIDE = {
     'dryad': 'thorns', 'dwarf_knight': 'thorns',
     'dwarf_gunner': 'crit', 'arcane_archer': 'crit',
     'anubis': 'execute',
+    'lancer': 'charge', 'griffin_rider': 'charge', 'apis': 'charge', 'triton': 'tidal_wave', 'lamia': 'hex',
+    'shock_serpent': 'chain_lightning', 'st_george': 'divine_shield',
 }
 # Heilende Einheiten können mit diesen Fähigkeiten nichts anfangen (kein Gegnerziel / kein Schaden).
 _NEEDS_ATTACKER = {'meteor', 'arrow_rain', 'lifesteal', 'chain_lightning', 'fire_breath', 'poison_cloud', 'crit', 'execute'}

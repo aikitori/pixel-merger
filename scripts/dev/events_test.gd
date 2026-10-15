@@ -59,6 +59,11 @@ func _ready() -> void:
 	for unit in _arena.get_player_units():
 		unit.discard()
 	await get_tree().process_frame
+	await _test_merge_all()
+	_test_houses()
+	await _test_house_lines_and_direct_buy()
+	_test_late_scaling()
+	await get_tree().process_frame
 
 	# Version: Anzeige im Menü (project.godot) und APK-Version (export_presets.cfg) müssen übereinstimmen.
 	var presets := FileAccess.get_file_as_string("res://export_presets.cfg")
@@ -73,7 +78,7 @@ func _ready() -> void:
 	_check(Abilities.display_name(&"shield") == "Shield Up" and tr("Neustart") == "Restart", "Englisch: Fähigkeiten und Oberfläche übersetzt")
 	var missing: Array[String] = []
 	for unit: UnitData in Registry.units.values():
-		if unit.display_name == Registry._german_names[unit][0] and not Registry._german_names[unit][0] in ["Paladin", "Anubis", "Chiron", "Hydra", "Ifrit", "Loki", "Medusa", "Pegasus", "Poltergeist", "Satyr", "Sleipnir", "Surtr", "Thor", "Titan", "Troll", "Veteran", "Wolf", "Ymir", "Zerberus", "Basilisk", "Banshee", "Ent", "Golem", "Kelpie", "Seraph", "Trickster", "Undine", "Faun", "Muspel", "Leviathan", "Achilles", "Asklepios", "Sprint", "Wyrmling", "Fee"]:
+		if unit.display_name == Registry._german_names[unit][0] and not Registry._german_names[unit][0] in ["Paladin", "Anubis", "Chiron", "Hydra", "Ifrit", "Loki", "Medusa", "Pegasus", "Poltergeist", "Satyr", "Sleipnir", "Surtr", "Thor", "Titan", "Troll", "Veteran", "Wolf", "Ymir", "Zerberus", "Basilisk", "Banshee", "Ent", "Golem", "Kelpie", "Seraph", "Trickster", "Undine", "Faun", "Muspel", "Leviathan", "Achilles", "Asklepios", "Sprint", "Wyrmling", "Fee", "Apis", "Lamassu", "Lamia", "Naga", "Prior", "Sphinx", "Triton"]:
 			missing.append(unit.display_name)
 	_check(missing.is_empty(), "Alle Einheitennamen haben eine englische Übersetzung (unübersetzt: %s)" % [missing.slice(0, 5)])
 	Loc.set_language("de")
@@ -185,6 +190,115 @@ func _ready() -> void:
 	get_tree().quit(1 if _failed else 0)
 
 
+## "Alles verbinden": nur gleiche Paare, niedrigste Stufe zuerst, Freischaltrunde und Gold zählen.
+func _test_merge_all() -> void:
+	var peasant: UnitData = Registry.units["peasant"]
+	var second: UnitData = peasant.upgrade
+	var apprentice: UnitData = Registry.units["apprentice"]
+	Game.gold = 1000
+	for i in 5:
+		_arena.buy_unit(peasant)
+	_arena.buy_unit(apprentice)
+	Game.gold = 1000
+	_check(_arena.merge_all_plan() == Vector2i(2, 2 * peasant.upgrade_cost),
+		"Runde 1: zwei Paare Stufe 1, Stufe 3 noch gesperrt (%s)" % _arena.merge_all_plan())
+	Game.round_number = 2
+	var cost := 2 * peasant.upgrade_cost + second.upgrade_cost
+	_check(_arena.merge_all_plan() == Vector2i(3, cost), "Runde 2: danach auch die beiden Stufe-2 (%s)" % _arena.merge_all_plan())
+	Game.gold = 2 * peasant.upgrade_cost + 1
+	_check(_arena.merge_all_plan() == Vector2i(2, 2 * peasant.upgrade_cost), "Plan hört auf, wenn das Gold nicht reicht")
+	Game.gold = 1000
+	_check(_arena.merge_all() == 3 and Game.gold == 1000 - cost, "Alles verbinden führt den Plan aus (%dg bezahlt)" % (1000 - Game.gold))
+	await get_tree().process_frame
+	var types := {}
+	for unit in _arena.get_player_units():
+		types[unit.unit_data] = types.get(unit.unit_data, 0) + 1
+	_check(types == {second.upgrade: 1, peasant: 1, apprentice: 1}, "Ergebnis: eine Stufe 3, Einzelstücke bleiben (%s)" % [types.size()])
+	_check(_arena.merge_all_plan() == Vector2i.ZERO and _arena.merge_all() == 0, "Danach gibt es nichts mehr zu verbinden")
+	Game.round_number = 1
+	for unit in _arena.get_player_units():
+		unit.discard()
+	await get_tree().process_frame
+
+
+## Hausausbau: Preis steigt, Einheiten der Kategorie werden stärker, Kombinationen anteilig.
+func _test_houses() -> void:
+	var peasant: UnitData = Registry.units["peasant"]
+	var unit: Combatant = _arena.call("_spawn_player", peasant, Vector2(320, 180))
+	var health := unit.max_health
+	Game.gold = Game.HOUSE_BASE_PRICE - 1
+	_check(not Game.upgrade_house(peasant.category) and Game.house_level(peasant.category) == 0, "Ausbau ohne genug Gold geht nicht")
+	Game.gold = 1000
+	_check(Game.upgrade_house(peasant.category) and Game.gold == 1000 - Game.HOUSE_BASE_PRICE, "Ausbau Stufe 1 kostet %dg" % Game.HOUSE_BASE_PRICE)
+	_check(Game.house_price(peasant.category) > Game.HOUSE_BASE_PRICE, "Nächste Stufe ist teurer (%dg)" % Game.house_price(peasant.category))
+	_check(is_equal_approx(unit.max_health, health * (1.0 + Game.HOUSE_BONUS_PER_LEVEL)), "Vorhandene Einheit wird stärker (%.1f -> %.1f)" % [health, unit.max_health])
+	# Kombination aus Kaserne und einem anderen Haus: zählt nach dem Anteil ihrer Grundeinheiten.
+	var mixed: UnitData = null
+	var share := 0.0
+	for recipe in Registry.recipes:
+		var bundle: Dictionary = Registry.base_units(recipe.result)
+		var own := 0
+		for base: UnitData in bundle:
+			own += bundle[base] if base.category == peasant.category else 0
+		if own > 0 and own < Registry.bundle_size(bundle):
+			mixed = recipe.result
+			share = float(own) / Registry.bundle_size(bundle)
+			break
+	_check(mixed != null and is_equal_approx(Game.house_factor(mixed), 1.0 + Game.HOUSE_BONUS_PER_LEVEL * share),
+		"Kombination zählt anteilig (%s: %.3f)" % [mixed.id if mixed else "-", Game.house_factor(mixed)])
+	var other: UnitData = Registry.shop_units().filter(func(u: UnitData) -> bool: return u.category != peasant.category)[0]
+	_check(Game.house_factor(other) == 1.0, "Andere Häuser bleiben unverändert")
+	unit.discard()
+	Game.house_levels = {}
+	Game.call("_reset_house_cache")
+
+
+## Linien der Dorfhäuser erst ab Ausbaustufe, höhere Stufen ab Runde Game.DIRECT_BUY_ROUND direkt.
+func _test_house_lines_and_direct_buy() -> void:
+	var spearman: UnitData = Registry.units["spearman"]
+	var house_lines := Registry.shop_units().filter(func(u: UnitData) -> bool: return u.house_level > 0)
+	var categories := {}
+	for unit: UnitData in house_lines:
+		categories[unit.category] = true
+	_check(categories.size() == Village.HOUSES.size(), "Jedes Haus hat eine Linie, die erst der Ausbau freischaltet (%d)" % categories.size())
+	Game.gold = 1000
+	_check(not _arena.buy_unit(spearman) and Game.gold == 1000, "Speerträger ohne Ausbau nicht kaufbar")
+	for i in spearman.house_level:
+		Game.upgrade_house(spearman.category)
+	Game.gold = 1000
+	_check(_arena.buy_unit(spearman) and Game.gold == 1000 - spearman.price, "Nach Ausbau Stufe %d kaufbar" % spearman.house_level)
+	var peasant: UnitData = Registry.units["peasant"]
+	var second: UnitData = peasant.upgrade
+	var expected := roundi((2 * peasant.price + peasant.upgrade_cost) * Game.DIRECT_BUY_MARKUP)
+	_check(Registry.shop_price(second) == expected, "Stufe 2 kostet Zutaten plus Aufschlag (%dg)" % Registry.shop_price(second))
+	Game.round_number = Game.DIRECT_BUY_ROUND - 1
+	_check(not _arena.buy_unit(second), "Stufe 2 vor Runde %d nicht direkt kaufbar" % Game.DIRECT_BUY_ROUND)
+	Game.round_number = Game.DIRECT_BUY_ROUND
+	Game.gold = 1000
+	_check(_arena.buy_unit(second) and Game.gold == 1000 - expected, "Ab Runde %d: Stufe 2 direkt gekauft" % Game.DIRECT_BUY_ROUND)
+	_check(_arena.buy_unit(second.upgrade), "Stufe 3 direkt kaufbar")
+	_check(not _arena.buy_unit(second.upgrade.upgrade), "Stufe 4 nur durch Verbinden")
+	_check(Registry.line_levels(peasant).size() == Game.DIRECT_BUY_MAX_LEVEL, "Dorf bietet %d Stufen je Linie an" % Game.DIRECT_BUY_MAX_LEVEL)
+	Game.round_number = 1
+	Game.house_levels = {}
+	Game.call("_reset_house_cache")
+	for unit in _arena.get_player_units():
+		unit.discard()
+	await get_tree().process_frame
+
+
+## Gegner wachsen ab Runde 10 zusätzlich aufeinander aufbauend.
+func _test_late_scaling() -> void:
+	Game.round_number = 10
+	var linear := 1.0 + Game.HEALTH_SCALE_PER_ROUND * 9
+	_check(is_equal_approx(Game.health_scale(), linear), "Bis Runde 10 wächst das Leben linear")
+	Game.round_number = 12
+	_check(is_equal_approx(Game.health_scale(), (1.0 + Game.HEALTH_SCALE_PER_ROUND * 11) * pow(Game.LATE_HEALTH_GROWTH, 2)),
+		"Ab Runde 11 kommt der späte Zuwachs dazu (%.2f)" % Game.health_scale())
+	_check(Game.damage_scale() > 1.0 + Game.DAMAGE_SCALE_PER_ROUND * 11, "Auch der Schaden wächst später schneller")
+	Game.round_number = 1
+
+
 func _test_round_events() -> void:
 	for unit: Combatant in _arena.get_player_units():
 		unit.discard()
@@ -269,7 +383,7 @@ func _test_round_events() -> void:
 func _test_secret_recipes() -> void:
 	Progress.reset()
 	var secrets := Registry.recipes.filter(func(r: RecipeData) -> bool: return r.secret)
-	_check(secrets.size() == 5 and Progress.secret_count() == 5, "Es gibt 5 Geheimrezepte (%d)" % secrets.size())
+	_check(secrets.size() == 6 and Progress.secret_count() == 6, "Es gibt 6 Geheimrezepte (%d)" % secrets.size())
 	var arthur: RecipeData = Registry.find_recipe(Registry.units["knight"], Registry.units["unicorn"])
 	_check(arthur != null and arthur.secret and Progress.is_hidden(arthur), "Ritter + Einhorn ist ein verborgenes Geheimrezept")
 	var hud: Hud = _arena.get("_hud")
@@ -278,7 +392,7 @@ func _test_secret_recipes() -> void:
 	book.set_query("artus")
 	_check(book.match_count(0) == 0, "Im Buch verrät die Suche den Namen nicht")
 	book.set_query("geheim")
-	_check(book.match_count(0) == 5, "Das Buch zeigt 5 verborgene Geheimrezepte (%d)" % book.match_count(0))
+	_check(book.match_count(0) == 6, "Das Buch zeigt 6 verborgene Geheimrezepte (%d)" % book.match_count(0))
 	book.set_query("")
 	book.close_book()
 	# Hinweise beim Anfassen nennen das Geheimrezept nicht
@@ -309,7 +423,7 @@ func _test_secret_recipes() -> void:
 	book.set_query("artus")
 	_check(book.match_count(0) == 1, "Nach dem Entdecken steht König Artus im Buch")
 	book.set_query("geheim")
-	_check(book.match_count(0) == 4, "Noch 4 verborgene Geheimrezepte")
+	_check(book.match_count(0) == 5, "Noch 5 verborgene Geheimrezepte")
 	book.set_query("")
 	book.close_book()
 	# Händler bietet nie Geheimrezepte an

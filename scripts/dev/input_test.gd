@@ -17,6 +17,7 @@ func _ready() -> void:
 	add_child(_arena)
 	await get_tree().process_frame
 	await _test_shop()
+	await _test_house_and_merge_all()
 	await _test_merge_preview_and_book()
 	await _test_merge_on_whole_field()
 	await _test_merge_without_gold()
@@ -107,7 +108,7 @@ func _test_shop() -> void:
 	var total := 0
 	for i in buttons.size():
 		(buttons[i] as Button).pressed.emit()
-		var listed: int = shop._price_buttons.size()
+		var listed: int = shop._price_buttons.values().filter(func(u: UnitData) -> bool: return u.shop_order > 0).size()
 		var expected := Registry.shop_units().filter(func(u: UnitData) -> bool: return u.category == Village.HOUSES[i]["category"]).size()
 		_check(shop.visible and listed == expected and listed > 0, "Haus %s listet %d Einheiten seiner Kategorie" % [Village.HOUSES[i]["name"], listed])
 		total += listed
@@ -118,6 +119,46 @@ func _test_shop() -> void:
 	_check(_units().size() == 1 and Game.gold == gold - 5, "Kauf im Haus: Einheit erscheint in der Arena, 5 Gold abgezogen")
 	hud._shop_button.pressed.emit()
 	_check(not village.visible and not shop.visible, "Knopf 'Arena' schließt Dorf und Kaufliste")
+
+
+## Ausbau im Haus und Knopf "Alles verbinden" (danach wie vorher: ein Bauer, gleiches Gold).
+func _test_house_and_merge_all() -> void:
+	var hud: Hud = _arena.get("_hud")
+	var shop: Shop = hud._shop
+	var gold_before := Game.gold
+	var peasant: Combatant = _units()[0]
+	var health := peasant.max_health
+	Game.gold = 100
+	hud._shop_button.pressed.emit()
+	(hud._village._buttons[0] as Button).pressed.emit()
+	_check(shop._house_button.text == "Ausbauen: %dg" % Game.HOUSE_BASE_PRICE and not shop._house_button.disabled,
+		"Haus zeigt den Ausbau mit Preis (%s)" % shop._house_button.text)
+	shop._house_button.pressed.emit()
+	_check(Game.house_level("Klassisch") == 1 and Game.gold == 100 - Game.HOUSE_BASE_PRICE, "Knopf baut das Haus aus")
+	_check(peasant.max_health > health, "Einheit des Hauses wird stärker")
+	var signs: Array = hud._village._signs.keys()
+	_check(signs.any(func(l: Label) -> bool: return l.text == "Kaserne St. 1"), "Schild zeigt die Ausbaustufe")
+	Game.house_levels = {}
+	Game.call("_reset_house_cache")
+	Game.houses_changed.emit()
+	(shop._price_buttons.keys()[0] as Button).pressed.emit()
+	(shop._price_buttons.keys()[0] as Button).pressed.emit()
+	await get_tree().process_frame
+	_check(not hud._merge_all_button.visible, "Im Dorf ist 'Alles verbinden' ausgeblendet")
+	hud._shop_button.pressed.emit()
+	await get_tree().process_frame
+	_check(hud._merge_all_button.visible and hud._merge_all_button.text == "Verbinden 1x: 6g",
+		"Drei Bauern: Knopf bietet einen Merge an (%s)" % hud._merge_all_button.text)
+	hud._merge_all_button.pressed.emit()
+	await get_tree().process_frame
+	_check(_units().size() == 2, "Alles verbinden: aus drei Bauern werden zwei Einheiten (%d)" % _units().size())
+	await get_tree().process_frame
+	_check(not hud._merge_all_button.visible, "Nichts mehr zu verbinden: Knopf verschwindet")
+	for unit in _units():
+		unit.discard()
+	_arena.call("_spawn_player", Registry.units["peasant"], Vector2(320, 180))
+	Game.gold = gold_before
+	await get_tree().process_frame
 
 
 func _test_merge_preview_and_book() -> void:
@@ -574,13 +615,17 @@ func _test_real_round_then_village() -> void:
 		unit.discard()
 	await get_tree().process_frame
 	Game.gold = 500
-	_arena.buy_unit(Registry.units[&"knight"])
-	_arena.buy_unit(Registry.units[&"knight"])
-	_arena.buy_unit(Registry.units[&"archer"])
+	for id in [&"knight", &"knight", &"archer"]:  # höhere Stufen direkt (ohne Kauf), Test des Kampfs
+		_arena.call("_spawn_player", Registry.units[id], World.CENTER)
 	var veterans := _units()
 	veterans[0].position = World.CENTER + Vector2(-30, 0)
 	veterans[1].position = World.CENTER + Vector2(30, 0)
 	veterans[2].position = World.CENTER + Vector2(0, 30)
+	# Zufällige Gegner und Sonderregeln dürfen die drei nicht besiegen (Test, kein Balancing).
+	Game.set_modifier(&"")
+	Game.add_blessing(&"all", "hp", 4.0)
+	for unit in veterans:
+		unit.refresh_blessings()
 	hud._speed_button.visible = true
 	_check(_arena.start_battle(), "Kampf starten (Dorf-nach-Kampf-Test)")
 	await _tap(veterans[0].center())
@@ -591,6 +636,7 @@ func _test_real_round_then_village() -> void:
 		await get_tree().physics_frame
 		frames += 1
 	Engine.time_scale = 1.0
+	Game.blessings = {}
 	_check(Game.phase == Game.Phase.BUILD, "Voller Kampf endet in der Bauphase (Phase %d)" % Game.phase)
 	veterans = _units()
 	if veterans.size() < 2:

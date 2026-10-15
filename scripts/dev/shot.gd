@@ -18,7 +18,7 @@ func _ready() -> void:
 	await _frames(5)
 	var hud: Hud = arena.get("_hud")
 	for unit_id in ["crusader", "sharpshooter", "archmage", "doctor", "warhorse", "shadow_wolf"]:
-		arena.buy_unit(Registry.units[unit_id])
+		arena.call("_spawn_player", Registry.units[unit_id], World.random_center_point())
 	await _frames(3)
 	for view: String in views:
 		match view:

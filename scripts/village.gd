@@ -24,6 +24,8 @@ const HOUSES := [
 
 var shop: Shop
 var _buttons: Array[Button] = []
+## Hausschilder: Label -> [Haus, Anzahl Einheiten], zeigen ab Stufe 1 den Ausbau.
+var _signs: Dictionary = {}
 
 
 func _ready() -> void:
@@ -47,6 +49,9 @@ func _ready() -> void:
 	var by_category := _units_by_category()
 	for house in HOUSES:
 		_add_house(house, by_category.get(house["category"], []))
+
+	Game.houses_changed.connect(_update_signs)
+	_update_signs()
 
 	shop = Shop.new()
 	shop.unit_chosen.connect(func(data: UnitData) -> void: unit_chosen.emit(data))
@@ -94,7 +99,9 @@ func _add_house(house: Dictionary, units: Array) -> void:
 	button.pressed.connect(func() -> void: open_category(house["category"]))
 	add_child(button)
 	_buttons.append(button)
-	add_child(_sign("%s (%d)" % [tr(house["name"]), units.size()], Rect2(cx - 62, base + 6, 124, 16)))
+	var sign := _sign("", Rect2(cx - 62, base + 6, 124, 16))
+	_signs[sign] = [house, units.size()]
+	add_child(sign)
 	# Zwei Bewohner vor der Tür, damit man sieht, was es dort gibt.
 	for i in mini(units.size(), 2):
 		var unit: UnitData = units[i]
@@ -104,6 +111,14 @@ func _add_house(house: Dictionary, units: Array) -> void:
 		var feet := Vector2(cx + (-40 if i == 0 else 8), base + 4)
 		figure.position = feet - Vector2(figure.texture.get_width() / 2.0 - 16.0, figure.texture.get_height())
 		add_child(figure)
+
+
+func _update_signs() -> void:
+	for sign: Label in _signs:
+		var house: Dictionary = _signs[sign][0]
+		var level := Game.house_level(house["category"])
+		sign.text = tr("%s St. %d") % [tr(house["name"]), level] if level > 0 \
+				else "%s (%d)" % [tr(house["name"]), _signs[sign][1]]
 
 
 func _sign(text: String, rect: Rect2) -> Label:

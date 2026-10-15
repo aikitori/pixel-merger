@@ -25,7 +25,7 @@ ARROW_COMBOS = {'robin_hood', 'mounted_archer', 'storm_archer', 'dwarf_gunner', 
                 'beast_master', 'dark_elf', 'red_hood', 'arcane_archer'}
 
 
-HEAL_LINES = {'healer'}
+HEAL_LINES = {'healer', 'monk'}
 
 
 def attack_style(rng, arrows, heals=False):
@@ -37,7 +37,7 @@ def attack_style(rng, arrows, heals=False):
 
 
 def write_unit(uid, name, line_name, level, hex_color, stats, intel, shop_order=0, price=0, category='',
-               unlock_round=1, upgrade=None, upgrade_cost=0, arrows=False, heals=False, ability=''):
+               unlock_round=1, upgrade=None, upgrade_cost=0, arrows=False, heals=False, ability='', house_level=0):
     hp, atk, rng, cd, spd = stats
     exts = [('Script', 'res://scripts/data/unit_data.gd'),
             ('Texture2D', f'res://assets/sprites/units/{uid}.png')]
@@ -48,7 +48,7 @@ def write_unit(uid, name, line_name, level, hex_color, stats, intel, shop_order=
     props = [('script', 'ExtResource("1")'), ('sprite', 'ExtResource("2")'),
              ('id', f'&"{uid}"'), ('display_name', f'"{name}"'), ('line_name', f'"{line_name}"'),
              ('category', f'"{category}"'), ('color', color(hex_color)), ('level', level),
-             ('shop_order', shop_order), ('price', price),
+             ('shop_order', shop_order), ('price', price), ('house_level', house_level),
              ('unlock_round', unlock_round),
              ('max_health', float(hp)), ('attack', float(atk)), ('attack_range', float(rng)), ('attack_style', f'&"{attack_style(rng, arrows, heals)}"'),
              ('ability', f'&"{ability}"'), ('attack_cooldown', float(cd)), ('move_speed', float(spd)), ('intelligence', float(intel))]
@@ -137,6 +137,7 @@ def main():
                 line['int'][i],
                 shop_order=line['order'] if i == 0 else 0,
                 price=line['price'] if i == 0 else 0, category=line['category'],
+                house_level=line['house_level'] if i == 0 else 0,
                 unlock_round=content.LEVEL_UNLOCK_ROUND[i],
                 arrows=key in ARROW_LINES, heals=key in HEAL_LINES, ability=content.UNIT_ABILITY[uid],
                 upgrade=None if last else line['ids'][i + 1],

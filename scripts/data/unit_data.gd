@@ -18,6 +18,8 @@ extends Resource
 @export var shop_order: int = 0
 ## Goldpreis im Shop.
 @export var price: int = 0
+## Ausbaustufe des Dorfhauses der Kategorie, ab der die Einheit kaufbar ist (0 = von Anfang an).
+@export var house_level: int = 0
 ## Ab dieser Runde darf diese Einheit durch Selbst-Merge entstehen.
 @export var unlock_round: int = 1
 ## Nächste Stufe, wenn zwei dieser Einheiten verbunden werden. null = höchste Stufe.

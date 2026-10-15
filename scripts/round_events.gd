@@ -86,7 +86,9 @@ static func build(id: StringName, arena: Node) -> Dictionary:
 		&"recruit":
 			if not room:
 				return {}
-			var unit: UnitData = Registry.shop_units().pick_random()
+			var recruits := Registry.shop_units().filter(func(u: UnitData) -> bool:
+				return Registry.buy_block_reason(u) == "")
+			var unit: UnitData = recruits.pick_random()
 			offer["title"] = tr_("Rekrut")
 			offer["text"] = tr_("%s möchte sich dir anschließen, umsonst.") % unit.display_name
 			offer["icon"] = unit.sprite

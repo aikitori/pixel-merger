@@ -14,6 +14,7 @@ signal menu_pressed
 signal quick_buy_pressed(bundle: Dictionary)
 signal order_pressed
 signal ability_pressed
+signal merge_all_pressed
 
 var _round_label: Label
 var _gold_label: Label
@@ -41,6 +42,7 @@ var _all_button: Button
 ## Von der Arena gesetzt: hebt die Auswahl im Kampf auf, false wenn nichts gewählt war (Zurück/Esc).
 var clear_selection: Callable
 var _return_button: Button
+var _merge_all_button: Button
 var _achievements: AchievementsPanel
 var _banner: Label
 var _modifier_sign: PanelContainer
@@ -209,6 +211,15 @@ func _ready() -> void:
 	_build_unit_card(root)
 	_build_hint_panel(root)
 	_build_group_buttons(root)
+	# Bauphase: alle gleichen Paare auf einmal verbinden, über "Kampf starten" (nur wenn etwas geht).
+	_merge_all_button = Button.new()
+	_merge_all_button.position = Vector2(520, 294)
+	_merge_all_button.size = Vector2(114, 26)
+	_merge_all_button.visible = false
+	_merge_all_button.add_theme_font_size_override("font_size", 10)
+	_merge_all_button.tooltip_text = tr("Verbindet je zwei gleiche Einheiten zur nächsten Stufe, niedrigste Stufe zuerst")
+	_merge_all_button.pressed.connect(func() -> void: merge_all_pressed.emit())
+	root.add_child(_merge_all_button)
 	_book = RecipeBook.new()
 	_book.quick_buy.connect(func(bundle: Dictionary) -> void: quick_buy_pressed.emit(bundle))
 	root.add_child(_book)
@@ -551,6 +562,16 @@ func _build_group_buttons(root: Control) -> void:
 	_return_button.add_theme_font_size_override("font_size", 10)
 	_return_button.pressed.connect(func() -> void: return_pressed.emit())
 	root.add_child(_return_button)
+
+
+## `plan`: Vector2i(Anzahl Merges, Gesamtkosten) von "Alles verbinden", (0, 0) blendet den Knopf aus.
+func set_merge_all(plan: Vector2i) -> void:
+	var show := plan.x > 0 and Game.phase == Game.Phase.BUILD and not _village.visible \
+			and not _book.visible and not _events.visible
+	_merge_all_button.visible = show
+	var text := tr("Verbinden %dx: %dg") % [plan.x, plan.y]
+	if show and _merge_all_button.text != text:
+		_merge_all_button.text = text
 
 
 func set_return_selection(count: int, refund: int) -> void:

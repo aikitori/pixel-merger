@@ -25,6 +25,21 @@ const SPAWN_INTERVAL_STEP := 0.15
 const MIN_SPAWN_INTERVAL := 0.6
 const HEALTH_SCALE_PER_ROUND := 0.15
 const DAMAGE_SCALE_PER_ROUND := 0.08
+## Ab dieser Runde wachsen Leben und Schaden der Gegner zusätzlich um einen festen Anteil je Runde,
+## aufeinander aufbauend: Stufen, Veteranen und Ausbau machen die eigene Armee schneller als linear stärker.
+const LATE_ROUND := 10
+const LATE_HEALTH_GROWTH := 1.08
+const LATE_DAMAGE_GROWTH := 1.05
+## Ausbau der Dorfhäuser: jede Stufe gibt den Einheiten der Kategorie mehr Leben und Stärke,
+## der Preis steigt mit jeder Stufe (Goldsenke für späte Runden).
+const HOUSE_BONUS_PER_LEVEL := 0.08
+const HOUSE_BASE_PRICE := 30
+const HOUSE_PRICE_GROWTH := 1.8
+## Ab dieser Runde verkauft das Dorf auch Stufe 2 und 3 einer Linie direkt: Preis der Grundeinheiten
+## und Verbindungen plus Aufschlag (spart in späten Runden das viele Verbinden).
+const DIRECT_BUY_ROUND := 8
+const DIRECT_BUY_MAX_LEVEL := 3
+const DIRECT_BUY_MARKUP := 1.25
 const GOLD_SCALE_PER_ROUND := 0.10
 ## Ab dieser Runde wächst das Gold pro Gegner nur noch halb so schnell (sonst staut es sich an).
 const GOLD_SCALE_SLOWDOWN_ROUND := 10
@@ -50,6 +65,10 @@ var modifier: StringName = &""
 ## Gruppen: &"melee", &"ranged", &"heal" (Kampfstil) und &"all" (alle eigenen Einheiten).
 var blessings: Dictionary = {}
 signal blessings_changed
+## Ausbaustufe der Dorfhäuser für diesen Lauf: Kategorie (z.B. "Klassisch") -> Stufe, fehlt = 0.
+var house_levels: Dictionary = {}
+var _house_factors: Dictionary = {}  # UnitData -> Faktor (Kombinationen sind teuer zu berechnen)
+signal houses_changed
 
 
 var _art_overlay: CanvasLayer
@@ -74,6 +93,8 @@ func reset() -> void:
 	boss_enraged = false
 	modifier = &""
 	blessings = {}
+	house_levels = {}
+	_reset_house_cache()
 	phase = Phase.BUILD
 	round_changed.emit(round_number)
 	gold_changed.emit(gold)
@@ -144,6 +165,46 @@ func blessing(group: StringName, stat: String) -> float:
 	return total
 
 
+func house_level(category: String) -> int:
+	return int(house_levels.get(category, 0))
+
+
+func house_price(category: String) -> int:
+	return roundi(HOUSE_BASE_PRICE * pow(HOUSE_PRICE_GROWTH, house_level(category)))
+
+
+## Haus der Kategorie eine Stufe ausbauen (nur in der Bauphase). False bei zu wenig Gold.
+func upgrade_house(category: String) -> bool:
+	if phase != Phase.BUILD or not spend_gold(house_price(category)):
+		return false
+	house_levels[category] = house_level(category) + 1
+	_reset_house_cache()
+	houses_changed.emit()
+	return true
+
+
+func _reset_house_cache() -> void:
+	_house_factors = {}
+
+
+## Faktor auf Leben und Stärke durch den Hausausbau. Kombinationen zählen anteilig nach ihren
+## Grundeinheiten (Paladin = Ritter + Magier: halb Kaserne, halb Gildenhaus).
+func house_factor(data: UnitData) -> float:
+	if house_levels.is_empty() or data == null:
+		return 1.0
+	if _house_factors.has(data):
+		return _house_factors[data]
+	var bundle := Registry.base_units(data)
+	var total := 0
+	var bonus := 0.0
+	for base: UnitData in bundle:
+		total += bundle[base]
+		bonus += bundle[base] * HOUSE_BONUS_PER_LEVEL * house_level(base.category)
+	var factor := 1.0 + (bonus / total if total > 0 else HOUSE_BONUS_PER_LEVEL * house_level(data.category))
+	_house_factors[data] = factor
+	return factor
+
+
 ## Sonderregel setzen (z.B. durch ein Ereignis zwischen den Runden).
 func set_modifier(id: StringName) -> void:
 	modifier = id
@@ -167,11 +228,15 @@ func bonus_prize() -> int:
 
 
 func health_scale() -> float:
-	return 1.0 + HEALTH_SCALE_PER_ROUND * (round_number - 1)
+	return (1.0 + HEALTH_SCALE_PER_ROUND * (round_number - 1)) * pow(LATE_HEALTH_GROWTH, _late_rounds())
 
 
 func damage_scale() -> float:
-	return 1.0 + DAMAGE_SCALE_PER_ROUND * (round_number - 1)
+	return (1.0 + DAMAGE_SCALE_PER_ROUND * (round_number - 1)) * pow(LATE_DAMAGE_GROWTH, _late_rounds())
+
+
+func _late_rounds() -> int:
+	return maxi(round_number - LATE_ROUND, 0)
 
 
 func gold_scale() -> float:

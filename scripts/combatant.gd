@@ -166,8 +166,8 @@ func setup_player(data: UnitData) -> void:
 	ability = data.ability
 	ability_power = Abilities.power(data.level, data.category == "Kombination")
 	_ability_cd = randf_range(2.0, 5.0)
-	max_health *= Game.blessing(style_group(), "hp") * veteran_factor()
-	attack *= Game.blessing(style_group(), "atk") * veteran_factor()
+	max_health *= _player_factor("hp")
+	attack *= _player_factor("atk")
 	health = max_health
 	add_to_group(GROUP_PLAYER)
 
@@ -180,15 +180,20 @@ func style_group() -> StringName:
 	return &"ranged"
 
 
-## Segen neu anwenden (nach einem Ereignis), der Lebensanteil bleibt erhalten.
+## Segen und Hausausbau neu anwenden, der Lebensanteil bleibt erhalten.
 func refresh_blessings() -> void:
 	if unit_data == null:
 		return
 	var share := health / maxf(max_health, 0.001)
-	max_health = unit_data.max_health * Game.blessing(style_group(), "hp") * veteran_factor()
-	attack = unit_data.attack * Game.blessing(style_group(), "atk") * veteran_factor()
+	max_health = unit_data.max_health * _player_factor("hp")
+	attack = unit_data.attack * _player_factor("atk")
 	health = max_health * share
 	queue_redraw()
+
+
+## Faktor auf Leben ("hp") oder Stärke ("atk"): Segen, Veteranenstufe und Ausbau des Dorfhauses.
+func _player_factor(stat: String) -> float:
+	return Game.blessing(style_group(), stat) * veteran_factor() * Game.house_factor(unit_data)
 
 
 # --- Veteranen -------------------------------------------------------------------

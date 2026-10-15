@@ -15,6 +15,7 @@ color = Color(0.608, 0.314, 0.784, 1)
 level = 3
 shop_order = 0
 price = 0
+house_level = 0
 unlock_round = 2
 max_health = 26.0
 attack = 11.2

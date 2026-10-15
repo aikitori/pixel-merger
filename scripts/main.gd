@@ -65,6 +65,7 @@ func _ready() -> void:
 	_hud.order_pressed.connect(cycle_order)
 	_hud.ability_pressed.connect(cast_selected)
 	_hud.select_all_pressed.connect(select_all)
+	_hud.merge_all_pressed.connect(merge_all)
 	_hud.clear_selection = clear_selection
 	_hud.return_pressed.connect(return_selected)
 	_hud.event_chosen.connect(_on_event_chosen)
@@ -72,6 +73,9 @@ func _ready() -> void:
 	_hud.restart_pressed.connect(func() -> void: get_tree().reload_current_scene())
 	Game.phase_changed.connect(_on_phase_changed)
 	Game.round_changed.connect(_on_round_changed)
+	Game.houses_changed.connect(func() -> void:
+		for unit in get_player_units():
+			unit.refresh_blessings())
 	_build_obstacles()
 	add_child(Weather.new())
 
@@ -143,8 +147,14 @@ func buy_unit(data: UnitData) -> bool:
 		_hud.toast(tr("Arena voll (max. %d Einheiten)") % Game.BUILD_MAX_UNITS)
 		Sound.play(&"error")
 		return false
-	if not Game.spend_gold(data.price):
-		_hud.toast(tr("Zu wenig Gold: %s kostet %dg") % [data.display_name, data.price])
+	var blocked := Registry.buy_block_reason(data)
+	if blocked != "":
+		_hud.toast("%s: %s" % [data.display_name, blocked])
+		Sound.play(&"error")
+		return false
+	var price := Registry.shop_price(data)
+	if not Game.spend_gold(price):
+		_hud.toast(tr("Zu wenig Gold: %s kostet %dg") % [data.display_name, price])
 		Sound.play(&"error")
 		return false
 	_spawn_player(data, _free_position())
@@ -160,6 +170,12 @@ func buy_bundle(bundle: Dictionary) -> bool:
 		return false
 	var count := Registry.bundle_size(bundle)
 	var price := Registry.bundle_price(bundle)
+	for unit: UnitData in bundle:
+		var blocked := Registry.buy_block_reason(unit)
+		if blocked != "":
+			_hud.toast("%s: %s" % [unit.display_name, blocked])
+			Sound.play(&"error")
+			return false
 	if get_player_units().size() + count > Game.BUILD_MAX_UNITS:
 		_hud.toast(tr("Arena voll: %d Einheiten passen nicht mehr (max. %d)") % [count, Game.BUILD_MAX_UNITS])
 		Sound.play(&"error")
@@ -187,7 +203,8 @@ func _free_position() -> Vector2:
 	return pos
 
 
-func try_merge(a: Combatant, b: Combatant) -> bool:
+## `quiet`: ohne Meldung und Klang je Merge (Alles verbinden meldet einmal am Ende).
+func try_merge(a: Combatant, b: Combatant, quiet := false) -> bool:
 	var recipe := Registry.find_recipe(a.unit_data, b.unit_data)
 	if recipe == null:
 		_hud.toast(tr("Diese Einheiten lassen sich nicht verbinden"))
@@ -210,8 +227,9 @@ func try_merge(a: Combatant, b: Combatant) -> bool:
 	Achievements.report(&"merge")
 	if recipe.ingredient_a != recipe.ingredient_b:
 		Achievements.report(&"combo")
-	_hud.toast("%s!" % recipe.result.display_name)
-	Sound.play(&"merge", 0.0)
+	if not quiet:
+		_hud.toast("%s!" % recipe.result.display_name)
+		Sound.play(&"merge", 0.0)
 	if discovered:
 		Achievements.report(&"secret")
 		_hud.announce(tr("Geheimrezept entdeckt: %s!") % recipe.result.display_name)
@@ -219,6 +237,69 @@ func try_merge(a: Combatant, b: Combatant) -> bool:
 		burst.setup(&"burst", pos + Vector2(0, -10), 40.0, UiTheme.GOLD_LIGHT)
 		add_child(burst)
 	return true
+
+
+# --- Alles verbinden -------------------------------------------------------------
+
+## Nächster Selbst-Merge für "Alles verbinden": zwei gleiche Einheiten, niedrigste Stufe zuerst, dann
+## der billigste. Kombinationen aus verschiedenen Einheiten bleiben Entscheidung des Spielers.
+## `counts`: UnitData -> Anzahl. Gibt die Zutat zurück oder null.
+func _next_auto_merge(counts: Dictionary, gold: int) -> UnitData:
+	var best: UnitData = null
+	for data: UnitData in counts:
+		if counts[data] < 2 or data.upgrade == null or data.upgrade.unlock_round > Game.round_number \
+				or data.upgrade_cost > gold:
+			continue
+		if best == null or [data.level, data.upgrade_cost, data.id] < [best.level, best.upgrade_cost, best.id]:
+			best = data
+	return best
+
+
+func _unit_counts() -> Dictionary:
+	var counts := {}
+	for unit in get_player_units():
+		counts[unit.unit_data] = int(counts.get(unit.unit_data, 0)) + 1
+	return counts
+
+
+## Was "Alles verbinden" gerade täte: Vector2i(Anzahl Merges, Gesamtkosten). Rechnet nur, ändert nichts.
+func merge_all_plan() -> Vector2i:
+	var counts := _unit_counts()
+	var gold := Game.gold
+	var plan := Vector2i.ZERO
+	while true:
+		var data := _next_auto_merge(counts, gold)
+		if data == null:
+			break
+		counts[data] -= 2
+		counts[data.upgrade] = int(counts.get(data.upgrade, 0)) + 1
+		gold -= data.upgrade_cost
+		plan += Vector2i(1, data.upgrade_cost)
+	return plan
+
+
+## Knopf "Alles verbinden": führt den Plan aus. Die erfahrenste Einheit wird mit der unerfahrensten
+## verbunden (das Ergebnis behält die höhere Erfahrung, so geht am wenigsten verloren).
+func merge_all() -> int:
+	if Game.phase != Game.Phase.BUILD or _dragging != null:
+		return 0
+	var merges := 0
+	var cost := 0
+	while true:
+		var data := _next_auto_merge(_unit_counts(), Game.gold)
+		if data == null:
+			break
+		var pair := get_player_units().filter(func(u: Combatant) -> bool: return u.unit_data == data)
+		pair.sort_custom(func(a: Combatant, b: Combatant) -> bool: return a.xp > b.xp)
+		if not try_merge(pair[0], pair[-1], true):
+			break
+		merges += 1
+		cost += data.upgrade_cost
+	if merges > 0:
+		_apply_selection([] as Array[Combatant])
+		_hud.toast(tr("%d-mal verbunden: -%d Gold") % [merges, cost])
+		Sound.play(&"merge", 0.0)
+	return merges
 
 
 ## Name des Ergebnisses, bei unentdeckten Geheimrezepten "???".
@@ -303,6 +384,7 @@ func _process(_delta: float) -> void:
 	_hud.set_return_selection(_selection.size(), _selection.reduce(func(sum: int, u: Combatant) -> int: return sum + refund_for(u), 0))
 	_hud.show_unit_card(_selected, _selection.size() - 1)
 	_hud.set_ability_unit(_selected, _selection)
+	_hud.set_merge_all(merge_all_plan() if Game.phase == Game.Phase.BUILD else Vector2i.ZERO)
 	var hovered := _unit_at(_pointer)
 	_hud.show_info(hovered if hovered != null else _selected)
 

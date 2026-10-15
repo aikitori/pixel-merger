@@ -1,0 +1,29 @@
+[gd_resource type="Resource" script_class="UnitData" load_steps=4 format=3]
+
+[ext_resource type="Script" path="res://scripts/data/unit_data.gd" id="1"]
+[ext_resource type="Texture2D" path="res://assets/sprites/units/tree_frog.png" id="2"]
+[ext_resource type="Resource" path="res://data/units/frog.tres" id="3"]
+
+[resource]
+script = ExtResource("1")
+sprite = ExtResource("2")
+id = &"tree_frog"
+display_name = "Laubfrosch"
+line_name = "Frösche"
+category = "Märchen"
+color = Color(0.345, 0.722, 0.306, 1)
+level = 1
+shop_order = 20
+price = 6
+house_level = 2
+unlock_round = 1
+max_health = 18.0
+attack = 3.0
+attack_range = 12.0
+attack_style = &"melee"
+ability = &"charm"
+attack_cooldown = 0.8
+move_speed = 55.0
+intelligence = 10.0
+upgrade = ExtResource("3")
+upgrade_cost = 6

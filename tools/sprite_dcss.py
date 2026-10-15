@@ -331,7 +331,7 @@ LINE = {
     # Drachen
     'dragon_egg': lambda: pi.scale(egg(), 2),
     'wyrmling': lambda: M('forest_drake', flip=True),
-    'young_dragon': lambda: M('fire_drake'),
+    'young_dragon': lambda: M('fire_drake', flip=True),
     'dragon': lambda: M('dragons/storm_dragon_new', flip=True),
     'elder_dragon': lambda: M('dragons/golden_dragon'),
     # Hexen
@@ -345,10 +345,10 @@ LINE = {
     'witch_queen': lambda: doll(HUMAN_F, 'cloak/red', 'boots/long_red', 'body/robe_red_gold', 'hair/fem_black',
                                 'head/crown_gold_3', 'hand_right/staff_ruby'),
     # Wölfe
-    'wolf_pup': lambda: M('animals/jackal_new'),
+    'wolf_pup': lambda: M('animals/jackal_new', flip=True),
     'wolf': lambda: M('animals/wolf', flip=True),
     'shadow_wolf': lambda: M('animals/warg', flip=True),
-    'werewolf': lambda: M('gnoll_sergeant'),
+    'werewolf': lambda: M('gnoll_sergeant', flip=True),
     'fenrir': lambda: M('animals/raiju', flip=True),
     # Riesen
     'gnome': lambda: M('gnome'),
@@ -396,6 +396,52 @@ LINE = {
     'doctor': lambda: doll(HUMAN, 'boots/middle_gray', 'body/robe_white_blue', 'hair/short_white',
                            'gloves/glove_white', 'hand_right/rod_blue_new'),
     'life_giver': lambda: M('daeva'),
+    # Linien der ausgebauten Dorfhäuser
+    # Kaserne: Garde
+    'spearman': lambda: doll(HUMAN, 'legs/pants_brown', 'boots/short_brown', 'body/leather_armor_2', 'hair/brown_2',
+                             'hand_right/spear'),
+    'pikeman': lambda: doll(HUMAN, 'legs/pants_short_gray', 'boots/middle_brown', 'body/ringmail', 'head/iron_1',
+                            'hand_right/pike'),
+    'halberdier': lambda: doll(HUMAN, 'legs/leg_armor_1', 'boots/middle_gray', 'body/chainmail', 'head/helm_red',
+                               'hand_right/halberd_new'),
+    'guardsman': lambda: doll(HUMAN, 'cloak/blue', 'legs/leg_armor_2', 'boots/mesh_blue', 'body/half_plate',
+                              'head/iron_3', 'hand_right/glaive_new', 'hand_left/shield_kite_2'),
+    'marshal': lambda: glow(doll(HUMAN, 'cloak/red', 'legs/leg_armor_3', 'boots/middle_gold', 'body/bplate_metal_1',
+                                 'head/full_gold', 'hand_right/trishula', 'hand_left/shield_kite_4'), '#ffd91f', 150),
+    # Gildenhaus: Nagas
+    'naga': lambda: M('naga', flip=True),
+    'naga_archer': lambda: M('naga_sharpshooter', flip=True),
+    'naga_mage': lambda: M('naga_mage', flip=True),
+    'naga_guard': lambda: M('guardian_naga', flip=True),
+    'naga_queen': lambda: glow(M('naga_warrior_unique', flip=True), '#d63c34', 150),
+    # Märchenhütte: Frösche
+    'tree_frog': lambda: M('animals/blink_frog_new'),
+    'frog': lambda: M('animals/giant_frog'),
+    'spiny_frog': lambda: M('animals/spiny_frog', flip=True),
+    'giant_toad': lambda: M('animals/giant_toad', flip=True),
+    'frog_king': lambda: glow(crown(tinted(M('animals/giant_frog'), '#f5c935', 0.45)), '#ffd91f', 160),
+    # Tempel: Greifen
+    'hippogriff': lambda: M('hippogriff_new', flip=True),
+    'griffin': lambda: M('griffon'),
+    'sphinx': lambda: M('sphinx_new', flip=True),
+    'lamassu': lambda: M('holy/shedu_new', flip=True),
+    'sky_griffin': lambda: glow(M('griffon'), '#fff4b0', 200, 2),
+    # Elementarturm: Eis
+    'snowflake': lambda: M('nonliving/orb_of_ice'),
+    'frost_imp': lambda: M('demons/white_imp'),
+    'polar_bear': lambda: M('animals/polar_bear'),
+    'frost_demon': lambda: M('demons/ice_fiend'),
+    'frost_lord': lambda: glow(M('demons/ice_fiend'), '#8fe0ff', 200, 2),
+    # Lazarett: Kloster
+    'novice': lambda: doll(HUMAN, 'boots/short_brown', 'body/robe_brown_2', 'hair/brown_1', 'hand_right/stick'),
+    'monk': lambda: doll(HUMAN, 'boots/short_brown_2', 'body/robe_brown_3', 'head/hood_ybrown',
+                         'hand_right/quarterstaff_1'),
+    'prior': lambda: doll(HUMAN, 'boots/middle_brown', 'body/robe_white_green', 'beard/short_white',
+                          'head/hood_white_2', 'hand_right/staff_scepter'),
+    'abbot': lambda: doll(HUMAN, 'cloak/magenta', 'boots/middle_purple', 'body/robe_purple', 'beard/long_white',
+                          'hair/short_white', 'hand_right/staff_ring_blue'),
+    'saint': lambda: glow(doll(HUMAN, 'boots/long_white', 'body/robe_white_blue', 'beard/long_white',
+                               'hair/long_white', 'hand_right/staff_fancy'), '#ffd91f', 200, 2),
 }
 
 
@@ -577,6 +623,32 @@ COMBO = {
     'kraken': lambda: M('aquatic/kraken_head_new'),
     'robin_hood': lambda: doll(HUMAN, 'cloak/green', 'legs/trouser_green', 'boots/middle_brown', 'body/aragorn',
                                'hair/brown_2', 'head/feather_green', 'hand_right/bow_2'),
+    'st_george': lambda: doll(HUMAN, 'cloak/white', 'legs/leg_armor_2', 'boots/blue_gold', 'body/dragon_armor_gold_new',
+                              'head/helm_plume', 'hand_right/lance', 'hand_left/shield_kite_3'),
+    # Linien der ausgebauten Dorfhäuser
+    'lancer': lambda: mounted('bay', HUMAN, 'body/ringmail', 'head/iron_1', 'hand_right/lance_2'),
+    'triton': lambda: M('merfolk_impaler_water_new', flip=True),
+    'lamia': lambda: doll('naga_red_female', 'hair/long_black', 'hand_right/staff_evil', flip=True),
+    'shock_serpent': lambda: M('animals/shock_serpent', flip=True),
+    'frog_prince': [lambda: crown(M('animals/giant_frog')),
+                    lambda: doll(HUMAN, 'cloak/green', 'legs/pants_darkgreen', 'boots/middle_brown',
+                                 'body/leather_green', 'hair/short_yellow', 'head/crown_gold_2', 'hand_right/rapier'),
+                    lambda: glow(doll(HUMAN, 'cloak/red', 'legs/pants_red', 'boots/middle_gold', 'body/china_red',
+                                      'hair/short_yellow', 'head/crown_gold_3', 'hand_right/scepter'), '#ffd91f', 170)],
+    'newt': lambda: M('animals/giant_newt_new'),
+    'griffin_rider': lambda: ride(M('griffon'),
+                                  rider_doll(HUMAN, 'body/plate', 'head/helm_plume', 'hand_right/lance'), 14, 12),
+    'apis': lambda: M('holy/apis', flip=True),
+    'ice_griffin': lambda: themed(M('griffon'), 'ice', 0.6),
+    'frost_knight': lambda: doll(HUMAN, 'cloak/cyan', 'legs/leg_armor_1', 'boots/mesh_white',
+                                 'body/dragon_armor_cyan_new', 'head/fhelm_horn_2', 'hand_right/sword_2',
+                                 'hand_left/shield_middle_cyan'),
+    'ice_mage': lambda: glow(doll(HUMAN, 'cloak/cyan', 'boots/mesh_blue', 'body/robe_cyan', 'beard/long_white',
+                                  'head/wizard_bluegreen', 'hand_right/staff_ring_blue'), '#8fe0ff', 110),
+    'templar': lambda: doll(HUMAN, 'cloak/white', 'legs/leg_armor_1', 'boots/mesh_white', 'body/plate_and_cloth_2',
+                            'head/fhelm_horn_yellow', 'hand_right/long_sword', 'hand_left/shield_holy'),
+    'exorcist': lambda: doll(HUMAN, 'boots/mesh_black', 'body/robe_black_hood', 'hair/short_black',
+                             'hand_right/staff_skull'),
 }
 
 

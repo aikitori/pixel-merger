@@ -18,7 +18,9 @@ Mehrere Runden, jede Runde besteht aus zwei Phasen:
   darf selbst Zutat eines anderen Rezepts sein.
 - Jedes Rezept hat **genau zwei Zutaten**.
 - Die Reihenfolge der Zutaten ist egal: A + B = B + A.
-- **Gegner:** KI-Wellen, die mit der Runde stärker werden.
+- **Gegner:** KI-Wellen, die mit der Runde stärker werden: Leben +15 %, Schaden +8 % je Runde (linear).
+  Ab Runde 11 kommt ein aufeinander aufbauender Zuwachs dazu (Leben x1,08, Schaden x1,05 je Runde,
+  `Game.LATE_*`), weil Stufen, Veteranen und Hausausbau die eigene Armee schneller als linear stärken.
 - **Kampfphase:** Während des Zeitfensters (x Sekunden bis Minuten) spawnen laufend neue Monster.
 - **Kampfanimationen:** Nahkämpfer (Reichweite bis 30) schwingen das Schwert, Fernkämpfer schießen Pfeile (Linien Fernkampf, Elfen, Waldwesen und Schützen-Kombinationen), alle anderen Fernkämpfer werfen Feuerbälle. Der Stil steht pro Einheit in `attack_style` (erzeugt von `tools/generate_data.py`). Der Schaden wird beim Einschlag verteilt. Beim Laufen wippen die Figuren, bei Zielwechsel drehen sie sich weich (Spiegelung läuft über die Zeit, die Laufrichtung folgt dem Ziel mit Beschleunigung).
   Überleben bis zum Ende des Zeitfensters = Runde überstanden. Noch lebende Gegner bleiben
@@ -82,6 +84,30 @@ Mehrere Runden, jede Runde besteht aus zwei Phasen:
   und von der Runde ab, bis Runde 10 +10 % je Runde, danach nur noch +5 % je Runde.
 - **Merge-Kosten:** Verbinden kostet Gold. Je größer und komplexer das Ergebnis, desto teurer
   (aktuell 12g für Stufe 2 bis 150g für die Legende, pro Rezept in `merge_cost`).
+- **Alles verbinden:** In der Bauphase erscheint über "Kampf starten" der Knopf "Verbinden Nx: Gg",
+  sobald zwei gleiche Einheiten verbunden werden können. Er verbindet alle gleichen Paare zur nächsten
+  Stufe, niedrigste Stufe zuerst, solange Gold und Freischaltrunde reichen (auch in Folge: vier Bauern
+  ergeben einen Ritter). Kombinationen aus verschiedenen Einheiten bleiben Handarbeit, damit keine
+  geplante Zutat verloren geht. Die erfahrenste Einheit wird mit der unerfahrensten verbunden.
+- **Hausausbau:** In der Kaufliste jedes Dorfhauses lässt sich das Haus ausbauen. Jede Stufe gibt allen
+  Einheiten dieser Kategorie +8 % Leben und Stärke, Kombinationen anteilig nach ihren Grundeinheiten
+  (Paladin aus 4 Bauern und 2 Lehrlingen zählt ganz zur Kaserne). Preis 30g, je Stufe x1,8 (30, 54, 97,
+  175, ...): eine Goldsenke ohne Obergrenze für späte Runden. Gilt für den laufenden Lauf, das Schild
+  am Haus zeigt die Stufe.
+- **Linien der Dorfhäuser:** Ab Ausbaustufe 2 (`HOUSE_LINE_LEVEL` in `tools/content.py`) bietet jedes Haus
+  eine eigene Linie an, vorher steht sie gesperrt in der Kaufliste ("ab Ausbau 2"):
+  Kaserne Garde (Speerträger bis Feldmarschall, Wirbelwind), Gildenhaus Nagas (Naga bis Nagakönigin, Giftwolke),
+  Märchenhütte Frösche (Laubfrosch bis Froschkönig, Bezaubern), Tempel Greifen (Hippogreif bis Himmelsgreif,
+  Sturmangriff), Elementarturm Eis (Schneeflocke bis Frostfürst, Frostnova), Lazarett Kloster (Novize bis
+  Heiliger, heilen mit Heiligem Licht). Dazu 13 Kombinationen: Lanzenreiter (Pikenier + Pferd), Triton
+  (Speerträger + Tropfen), Lamia (Naga + Hexe), Blitznatter (Naga + Funke), Froschprinz (Frosch + Ritter),
+  Molch (Laubfrosch + Tropfen), Greifenreiter (Greif + Ritter), Apis (Hippogreif + Pferd), Frostgreif
+  (Greif + Frostwicht), Frostritter (Schneeflocke + Ritter), Eismagier (Schneeflocke + Magier), Templer
+  (Mönch + Ritter, heilt), Exorzist (Mönch + Skelett, heilt). Geheimrezept: Sankt Georg (Gardist + Wyrmling).
+- **Höhere Stufen direkt kaufen:** Ab Runde 8 (`Game.DIRECT_BUY_ROUND`) stehen in der Kaufliste neben jeder
+  Grundeinheit Knöpfe für Stufe 2 und 3. Preis: Grundeinheiten und Verbindungskosten mal 1,25
+  (`Registry.shop_price`), z.B. Knappe 20g statt 2 x 5g + 6g. Stufe 4 und 5 entstehen weiter nur durch
+  Verbinden. Ob etwas kaufbar ist, entscheidet `Registry.buy_block_reason` (Hausausbau, Runde).
 - **Werte:** Jede Einheit und Kombination hat Lebenspunkte (LP), Stärke (Schaden pro Treffer),
   Beweglichkeit (Lauftempo) und Intelligenz. Intelligenz = Chance (in Prozent, max. 90), im Kampf
   gezielt den schwächsten Gegner in der Nähe anzugreifen statt blind den nächsten.
