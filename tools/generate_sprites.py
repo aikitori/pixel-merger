@@ -770,7 +770,8 @@ def main():
     import tiles_dcss
     for name, img in tiles_dcss.build().items():
         pixel_image.write_png(ROOT / 'assets/sprites/tiles' / f'{name}.png', img)
-    print(f'{len(units)} Einheiten, {len(enemies)} Gegner, Arena und Dorf (Dungeon Crawl) geschrieben.')
+    tiles_dcss.arena_dcss.write_gd(ROOT / 'scripts/arena_layouts.gd')
+    print(f'{len(units)} Einheiten, {len(enemies)} Gegner, Arenen und Dorf (Dungeon Crawl) geschrieben.')
 
 
 def main_raster():

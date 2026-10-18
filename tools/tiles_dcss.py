@@ -1,19 +1,12 @@
-"""Arena, Dorf und Hindernisse aus Dungeon-Crawl-Kacheln (CC0), von oben gesehen wie die Figuren.
+"""Dorf, Hindernisse und Oberflächenbilder aus Dungeon-Crawl-Kacheln (CC0), von oben gesehen wie die Figuren.
 
-Erzeugt assets/sprites/tiles/: arena.png (ganzes Bild 640x360), village.png (Dorf 640x296) und
-obstacle_<art>.png. Die Maße der Arena müssen zu scripts/world.gd passen (FIELD, CENTER, ARM_HALF_WIDTH),
-die Häuser zu scripts/village.gd (HOUSES).
+Erzeugt assets/sprites/tiles/: die Arenen (aus arena_dcss.py), village.png (Dorf 640x296) und
+obstacle_<art>.png. Die Häuser müssen zu scripts/village.gd (HOUSES) passen.
 """
 import pixel_image as pi
 from pixel_image import Img
 from sprite_dcss import tile
-
-W, H = 640, 360
-FIELD_TOP, FIELD_BOTTOM = 24, 320
-CENTER = (320, 172)
-ARM = 70
-PLAZA = (252, 106, 388, 240)  # CENTER_SQUARE plus 4 Pixel
-
+import arena_dcss
 
 def _hash(*v):
     h = 2166136261
@@ -45,79 +38,11 @@ def darken(img, x, y, factor):
     img.set(x, y, (round(c[0] * factor), round(c[1] * factor), round(c[2] * factor), c[3]))
 
 
-# --- Arena -----------------------------------------------------------------------------
-
-def on_cross(x, y):
-    in_h = CENTER[1] - ARM <= y < CENTER[1] + ARM
-    in_v = CENTER[0] - ARM <= x < CENTER[0] + ARM and FIELD_TOP <= y < FIELD_BOTTOM
-    return in_h or in_v
-
-
-def on_plaza(x, y):
-    return PLAZA[0] <= x < PLAZA[2] and PLAZA[1] <= y < PLAZA[3]
-
+# --- Boden (auch fürs Dorf) ---------------------------------------------------------------
 
 GRASS = ['grass/grass_0_new', 'grass/grass_1_new', 'grass/grass_2_new', 'grass/grass_0_new', 'grass/grass_1_new',
          'grass/grass_2_new', 'grass/grass_flowers_yellow_1_new', 'grass/grass_flowers_blue_2_new',
          'grass/grass_flowers_red_3_new']
-PLAZA_FLOOR = ['limestone_0', 'limestone_1', 'limestone_2', 'limestone_3', 'limestone_5', 'limestone_8']
-WALL = ['brick_gray_0', 'brick_gray_1', 'brick_gray_2', 'brick_gray_3', 'brick_gray_0', 'brick_gray_1',
-        'wall_vines_1', 'wall_vines_3']
-
-
-def arena():
-    img = Img(W, H, [(20, 18, 16, 255)] * (W * H))
-    ox, oy = CENTER[0] - 16, CENTER[1] - 16  # Raster so, dass ein Feld genau in der Mitte liegt
-    for gy in range(-7, 7):
-        for gx in range(-11, 11):
-            x0, y0 = ox + gx * 32, oy + gy * 32
-            blit_clipped(img, floor_tile(_variant(GRASS, gx, gy)), x0, y0, on_cross)
-            blit_clipped(img, tile(f'dungeon/wall/{_variant(WALL, gx, gy, 3)}'), x0, y0,
-                         lambda x, y: not on_cross(x, y))
-            blit_clipped(img, floor_tile(_variant(PLAZA_FLOOR, gx, gy, 5)), x0, y0, on_plaza)
-    _wall_edges(img)
-    _rune_circle(img)
-    # Fackeln an der Wand über und unter dem waagrechten Arm
-    torch = tile('dungeon/wall/torches/torch_2')
-    for x in (40, 136, 456, 552):
-        pi.paste(img, torch, x, CENTER[1] - ARM - 30)
-    for x in (88, 184, 424, 520):
-        pi.paste(img, torch, x, CENTER[1] + ARM + 2)
-    return img
-
-
-def _wall_edges(img):
-    """Dunkle Kante an der Wand und Schatten auf dem Boden unter und rechts von Wänden."""
-    for y in range(FIELD_TOP, FIELD_BOTTOM):
-        for x in range(W):
-            if not on_cross(x, y):
-                if on_cross(x, y + 1) or on_cross(x + 1, y) or on_cross(x - 1, y) or on_cross(x, y - 1):
-                    img.set(x, y, (24, 20, 18, 255))
-                continue
-            for d in range(1, 9):  # Wand oberhalb wirft Schatten
-                if not on_cross(x, y - d):
-                    darken(img, x, y, 0.55 + 0.05 * d)
-                    break
-            for d in range(1, 5):
-                if not on_cross(x - d, y):
-                    darken(img, x, y, 0.7 + 0.06 * d)
-                    break
-
-
-def _rune_circle(img):
-    import math
-    for radius, color in ((56.0, (123, 230, 255, 255)), (48.0, (181, 131, 255, 255))):
-        steps = int(math.tau * radius * 2)
-        for i in range(steps):
-            a = math.tau * i / steps
-            if i % 9 < 6:
-                img.set(int(CENTER[0] + math.cos(a) * radius), int(CENTER[1] + math.sin(a) * radius * 0.8), color)
-    for i in range(8):
-        a = math.tau * i / 8
-        rx, ry = int(CENTER[0] + math.cos(a) * 52), int(CENTER[1] + math.sin(a) * 52 * 0.8)
-        for dy in (-1, 0, 1):
-            for dx in (-1, 0, 1):
-                img.set(rx + dx, ry + dy, (255, 226, 122, 255))
 
 
 # --- Hindernisse -----------------------------------------------------------------------
@@ -127,6 +52,7 @@ OBSTACLES = {
     'crystal': lambda: tile('monster/statues/block_of_ice_2'),
     'ruin': lambda: tile('dungeon/statues/crumbled_column_1'),
     'rock': lambda: tile('dungeon/statues/granite_stump_new'),
+    'pillar': lambda: tile('dungeon/statues/crumbled_column_3'),
 }
 
 
@@ -286,7 +212,7 @@ def ui():
 
 
 def build():
-    out = {'arena': arena(), 'village': village(), **ui()}
+    out = {**arena_dcss.images(), 'village': village(), **ui()}
     for kind, fn in OBSTACLES.items():
         out[f'obstacle_{kind}'] = pi.trim(fn())
     return out

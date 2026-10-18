@@ -1,7 +1,7 @@
 extends Node
 ## Entwickler-Werkzeug: speichert Screenshots der Oberfläche (braucht ein Fenster, z.B. Xvfb).
 ## Start: godot res://scenes/dev/shot.tscn -- <Ordner> [ansicht ...]
-## Ansichten: bau, dorf, haus, buch, buch2, linien, kampf
+## Ansichten: bau, dorf, haus, buch, buch2, linien, kampf, arena (Runde aus SHOT_ROUND, Datei arena_<runde>.png)
 
 func _ready() -> void:
 	var args := OS.get_cmdline_user_args()
@@ -21,6 +21,7 @@ func _ready() -> void:
 		arena.call("_spawn_player", Registry.units[unit_id], World.random_center_point())
 	await _frames(3)
 	for view: String in views:
+		var file := view
 		match view:
 			"bau":
 				pass
@@ -119,6 +120,16 @@ func _ready() -> void:
 				var menu: Node = load("res://scenes/menu.tscn").instantiate()
 				add_child(menu)
 				await _frames(10)
+			"arena":
+				var round_number := int(OS.get_environment("SHOT_ROUND")) if OS.get_environment("SHOT_ROUND") != "" else 5
+				file = "arena_%d" % round_number
+				hud._book.close_book()
+				hud._village.visible = false
+				Game.round_number = round_number
+				arena._on_round_changed(round_number)
+				Game.gold = 0
+				arena.start_battle()
+				await _frames(int(args[2]) if args.size() > 2 else 150)
 			"kampf":
 				hud._book.close_book()
 				hud._village.visible = false
@@ -127,8 +138,8 @@ func _ready() -> void:
 				await _frames(120)
 		await _frames(4)
 		var image := get_viewport().get_texture().get_image()
-		image.save_png("%s/%s.png" % [folder, view])
-		print("Screenshot: ", view)
+		image.save_png("%s/%s.png" % [folder, file])
+		print("Screenshot: ", file)
 	Loc.set_language(original_language)
 	get_tree().quit()
 

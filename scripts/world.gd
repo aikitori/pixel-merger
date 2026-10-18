@@ -1,9 +1,9 @@
 class_name World
 extends RefCounted
-## Spielwelt: ein Kreuz aus zwei sich schneidenden Armen, von oben gesehen. Die eigenen Einheiten stehen in
-## der Mitte, die Gegner kommen aus allen vier Richtungen. Außerhalb des Kreuzes sind Mauern.
-## Boden, Mauern und Hindernisse sind Bilder aus tools/tiles_dcss.py (Maße müssen zu den Konstanten passen).
-## Alle Positionen sind Fußpunkte der Figuren in Arena-Koordinaten (640x360).
+## Spielwelt, schräg von oben gesehen. Normale Runden: ein Kreuz aus zwei sich schneidenden Armen, die
+## eigenen Einheiten stehen in der Mitte, die Gegner kommen aus allen vier Richtungen. Bossrunden spielen in
+## einer eigenen Arena (Thronsaal, Abgrund, Rundarena). Grundrisse und Bilder erzeugt tools/arena_dcss.py
+## (scripts/arena_layouts.gd). Alle Positionen sind Fußpunkte der Figuren in Arena-Koordinaten (640x360).
 
 enum Arm { WEST, NORTH, EAST, SOUTH }
 
@@ -39,6 +39,31 @@ const FOOT_RADIUS := 4.0
 static var stage := 0
 ## Einträge: {pos: Vector2 (Fußpunkt), radius: float, kind: String}
 static var obstacles: Array[Dictionary] = []
+## Grundriss der aktuellen Runde (Schlüssel in ArenaLayouts.LAYOUTS) mit begehbaren Rechtecken und Bild.
+static var layout_name: StringName = &"cross"
+static var walk: Array = ArenaLayouts.LAYOUTS[&"cross"]["walk"]
+static var terrain: Texture2D = TERRAIN
+
+
+## Grundriss einer Runde: Bossrunden (5, 15, 25, ...) reihum in einer Bossarena, sonst das Kreuz.
+static func layout_for_round(round_number: int) -> StringName:
+	if round_number % 10 != 5:
+		return &"cross"
+	return ArenaLayouts.BOSS_LAYOUTS[(round_number / 10) % ArenaLayouts.BOSS_LAYOUTS.size()]
+
+
+## Stellt Grundriss, Bild und Hindernisse für eine Runde ein.
+static func set_round(round_number: int) -> void:
+	layout_name = layout_for_round(round_number)
+	var layout: Dictionary = ArenaLayouts.LAYOUTS[layout_name]
+	walk = layout["walk"]
+	set_stage(stage_for_round(round_number))
+	if layout_name == &"cross":
+		return
+	terrain = load(layout["texture"])
+	obstacles = []
+	for fixed: Dictionary in layout["obstacles"]:
+		obstacles.append({"pos": fixed["pos"], "radius": _kind_radius(fixed["kind"]), "kind": fixed["kind"]})
 
 
 ## Geländestufe einer Runde: 0 bis Runde 5, danach +1 nach jedem Boss (Runde 6, 16, 26, ...).
@@ -51,8 +76,10 @@ static func obstacle_count(for_stage: int) -> int:
 	return maxi(MAX_OBSTACLES - OBSTACLES_REMOVED_PER_STAGE * for_stage, 0)
 
 
+## Hindernisse und Bild des Kreuzes für eine Geländestufe (der Mauerstil wechselt mit jeder Stufe).
 static func set_stage(new_stage: int) -> void:
 	stage = new_stage
+	terrain = load(ArenaLayouts.CROSS_TEXTURES[new_stage % ArenaLayouts.CROSS_TEXTURES.size()])
 	obstacles = []
 	var rng := RandomNumberGenerator.new()
 	rng.seed = 4177
@@ -70,6 +97,7 @@ static func set_stage(new_stage: int) -> void:
 static func _kind_radius(kind: String) -> float:
 	match kind:
 		"tree": return 7.0
+		"pillar": return 8.0
 		"crystal": return 9.0
 		"ruin": return 9.0
 		_: return 11.0
@@ -123,38 +151,40 @@ static func obstacle_offset(kind: String) -> Vector2:
 ## Inklusive Ränder: Figuren, die von clamp_point() an den Rand gesetzt wurden, zählen als drin
 ## (Rect2.has_point schließt die rechte und untere Kante aus).
 static func contains(point: Vector2) -> bool:
-	return _inside(WALK_HORIZONTAL, point) or _inside(WALK_VERTICAL, point)
+	for rect: Rect2 in walk:
+		if _inside(rect, point):
+			return true
+	return false
 
 
-## Nächster begehbarer Punkt. Liegt der Punkt schon im Kreuz, bleibt er unverändert.
+## Nächster begehbarer Punkt. Liegt der Punkt schon auf dem Boden, bleibt er unverändert.
 static func clamp_point(point: Vector2) -> Vector2:
-	var result := _clamp_to_cross(point)
+	var result := _clamp_to_floor(point)
 	if obstacles.is_empty():
 		return result
 	for i in 2:  # Herausschieben kann aus dem Kreuz führen, dann noch einmal zurück
-		result = _clamp_to_cross(push_out_of_obstacles(result))
+		result = _clamp_to_floor(push_out_of_obstacles(result))
 	return result
 
 
-static func _clamp_to_cross(point: Vector2) -> Vector2:
+static func _clamp_to_floor(point: Vector2) -> Vector2:
 	if contains(point):
 		return point
-	var a := _clamp_to_rect(point, WALK_HORIZONTAL)
-	var b := _clamp_to_rect(point, WALK_VERTICAL)
-	return a if point.distance_squared_to(a) <= point.distance_squared_to(b) else b
+	var best := point
+	var best_distance := INF
+	for rect: Rect2 in walk:
+		var candidate := _clamp_to_rect(point, rect)
+		var distance := point.distance_squared_to(candidate)
+		if distance < best_distance:
+			best = candidate
+			best_distance = distance
+	return best
 
 
-## Zufälliger Punkt am äußeren Ende des Arms, an dem Gegner erscheinen.
+## Zufälliger Punkt an dem Tor (Armende, Portal), aus dem die Gegner dieses Arms kommen.
 static func spawn_point(arm: Arm) -> Vector2:
-	match arm:
-		Arm.WEST:
-			return Vector2(WALK_HORIZONTAL.position.x + 2.0, randf_range(WALK_HORIZONTAL.position.y, WALK_HORIZONTAL.end.y))
-		Arm.EAST:
-			return Vector2(WALK_HORIZONTAL.end.x - 2.0, randf_range(WALK_HORIZONTAL.position.y, WALK_HORIZONTAL.end.y))
-		Arm.NORTH:
-			return Vector2(randf_range(WALK_VERTICAL.position.x, WALK_VERTICAL.end.x), WALK_VERTICAL.position.y + 2.0)
-		_:
-			return Vector2(randf_range(WALK_VERTICAL.position.x, WALK_VERTICAL.end.x), WALK_VERTICAL.end.y - 2.0)
+	var line: Array = ArenaLayouts.LAYOUTS[layout_name]["spawn"][arm]
+	return (line[0] as Vector2).lerp(line[1], randf())
 
 
 ## Zufälliger Platz in der Mitte (Standard für neu gekaufte Einheiten).
@@ -166,7 +196,7 @@ static func random_center_point() -> Vector2:
 
 ## Zeichnet Boden und Mauern. `canvas` ist das Node2D, auf dem gemalt wird.
 static func draw(canvas: CanvasItem) -> void:
-	canvas.draw_texture(TERRAIN, Vector2.ZERO)
+	canvas.draw_texture(terrain, Vector2.ZERO)
 
 
 const TERRAIN := preload("res://assets/sprites/tiles/arena.png")

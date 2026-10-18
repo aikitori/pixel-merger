@@ -61,6 +61,15 @@ Mehrere Runden, jede Runde besteht aus zwei Phasen:
   Gegner geben dreifaches Gold und kommen schneller, am Ende gibt es eine Prämie (`Game.bonus_prize`).
   Die Bau-Leiste kündigt die Spezialrunde schon an.
 - **Gelände:** Das Feld startet voller Hindernisse (18: Fels, Baum, Kristall, Ruinensäule). Nach jedem Boss (ab Runde 6, 16, 26, ...) verschwinden drei, nach sechs Bossen ist es frei. Die Platzierung ist fest. Figuren rutschen seitlich daran vorbei (`World.push_out_of_obstacles`); Platz in der Mitte und Armenden bleiben frei.
+  Mit jeder Geländestufe wechselt auch der Mauerstil des Kreuzes: grauer Stein, Backstein, bewachsene Mauern,
+  Marmor, dunkle Reliefs (danach von vorn).
+- **Bossarenen:** Bossrunden spielen nicht im Kreuz, sondern reihum in einer eigenen Arena
+  (`World.layout_for_round`): **Thronsaal** (Runde 5, 35, ...: große Halle mit Säulenreihen, rotem Teppich,
+  Tor in der Rückwand, Seitengängen und Treppe), **Abgrund** (15, 45, ...: Brücke über die Tiefe, Plattform in
+  der Mitte, Gegner kommen auch aus zwei Portalen) und **Rundarena** (25, 55, ...: achteckiger Sandplatz mit vier
+  Toren). Die Hindernisse dort sind fest. Beim Wechsel rücken Figuren außerhalb des neuen Bodens auf den
+  nächsten freien Platz, ein Hinweis kündigt die Arena an. Grundrisse: `LAYOUTS` in `tools/arena_dcss.py`,
+  daraus erzeugt `scripts/arena_layouts.gd` (begehbare Rechtecke, Tore, Hindernisse).
 - **Erfolge:** Autoload `Achievements` (Liste in `scripts/autoload/achievements.gd`, Speicherung in
   `user://achievements.cfg`), Knopf "Erfolge" oben. Beispiele: erster Boss, erste Stufe-5-Einheit,
   Runde ohne Verluste, Bonusrunde, 100 Gegner, volle Arena, Wiederbeleben. Neue Erfolge werden
@@ -227,8 +236,10 @@ Offen:
 - Namen folgen dem Bild: Felskäfer, Strudel, Moorgeist, Harpyie, Kristallkoloss, Armbrustmeister.
 - Animation wie bei 0x72: je 4 Bilder Stehen (Atmen) und Laufen (Wippen, schwingende Beine), aus jeder Kachel
   abgeleitet (`assets/sprites/anim/`). Auch im Dorf und im Menü bewegen sich die Figuren so.
-- Arena: Kreuz aus Gras zwischen Steinmauern mit Fackeln, Steinplatz mit Runenkreis in der Mitte. Hindernisse
-  sind Baum, Eisblock, Säulenstumpf und Fels. Dorf: Häuser aus Mauerkacheln mit Tür und Schmuck, Wege, Brunnen.
+- Arena schräg von oben: Mauern zeigen oben ihre Vorderseite (mit Zinnen, Fackeln, Bannern), unten nur
+  niedrige Zinnen, damit niemand verdeckt wird. Tore an den Stellen, an denen Gegner erscheinen (Torbogen mit
+  Fallgitter, dunkler Gang, Treppe, Portal). Der Steinplatz mit Runenkreis liegt eine Stufe erhöht. Hindernisse
+  sind Baum, Eisblock, Säulenstumpf, Säule und Fels. Dorf: Häuser aus Mauerkacheln mit Tür und Schmuck, Wege, Brunnen.
 - Oberfläche: dunkler Granit mit Stahl- oder Goldrand wie die Reiter in Dungeon Crawl, Goldhaufen als Münze.
   Nachbearbeitung "Kerker": leicht warmes Fackellicht, dunklere Bildränder.
 - Der Clonk-Stil (`generate_sprites.py --figures clonk`) und der Holz-Stil (`--classic`) sind erhalten, aber nicht

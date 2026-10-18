@@ -50,12 +50,18 @@ var events_enabled := true
 
 signal enemy_spawned(enemy: Combatant, arm: World.Arm)
 
+const BOSS_ARENA_NOTICES := {
+	&"hall": "Der Boss erwartet euch im Thronsaal!",
+	&"chasm": "Der Boss erwartet euch am Abgrund!",
+	&"ring": "Der Boss erwartet euch in der Arena!",
+}
+
 
 func _ready() -> void:
 	y_sort_enabled = true
 	add_to_group(&"arena")
 	Game.reset()
-	World.set_stage(World.stage_for_round(Game.round_number))
+	World.set_round(Game.round_number)
 	_hud = Hud.new()
 	add_child(_hud)
 	_hud.shop_pressed.connect(buy_unit)
@@ -80,15 +86,29 @@ func _ready() -> void:
 	add_child(Weather.new())
 
 
-## Nach einem Boss ändert sich das Gelände: drei Hindernisse verschwinden.
+## Bossrunden spielen in einer eigenen Arena. Nach einem Boss ändert sich das Gelände: neuer Mauerstil,
+## drei Hindernisse weniger.
 func _on_round_changed(round_number: int) -> void:
-	var new_stage := World.stage_for_round(round_number)
-	if new_stage == World.stage:
+	var old_layout := World.layout_name
+	var old_stage := World.stage
+	World.set_round(round_number)
+	if World.layout_name == old_layout and World.stage == old_stage:
 		return
-	World.set_stage(new_stage)
 	_build_obstacles()
-	if new_stage > 0:
-		_hud.toast(tr("Das Gelände hat sich verändert: weniger Hindernisse!"))
+	for unit in get_player_units():  # Figuren dürfen nicht außerhalb des neuen Bodens stehen
+		unit.position = World.clamp_point(unit.position)
+		unit.home_position = unit.position
+	queue_redraw()
+	var notice := ""
+	if World.layout_name != &"cross":
+		notice = tr(String(BOSS_ARENA_NOTICES.get(World.layout_name, "Der Boss erwartet euch!")))
+	elif World.stage > 0:
+		notice = tr("Das Gelände hat sich verändert: weniger Hindernisse!")
+	if notice != "":
+		# Erst nach der Rundenmeldung zeigen, sonst überschreibt sie den Hinweis sofort.
+		get_tree().create_timer(2.6).timeout.connect(func() -> void:
+			if is_instance_valid(_hud):
+				_hud.toast(notice))
 
 
 func _build_obstacles() -> void:

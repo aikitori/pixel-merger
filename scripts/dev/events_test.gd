@@ -184,6 +184,7 @@ func _ready() -> void:
 	await get_tree().process_frame
 	_check(get_tree().get_nodes_in_group(&"obstacle").size() == 18, "Hindernisse erscheinen als Bilder im Spiel")
 	World.set_stage(0)
+	_test_arenas()
 
 	Engine.time_scale = 1.0
 	print("EVENTS-TEST ", "FEHLGESCHLAGEN" if _failed else "OK")
@@ -439,6 +440,44 @@ func _test_secret_recipes() -> void:
 	for unit: Combatant in _arena.get_player_units():
 		unit.discard()
 	await get_tree().process_frame
+
+
+## Bossarenen: eigene Grundrisse, Platz in der Mitte und alle Tore begehbar, Hindernisse nicht im Weg.
+func _test_arenas() -> void:
+	_check(World.layout_for_round(4) == &"cross" and World.layout_for_round(6) == &"cross"
+			and World.layout_for_round(10) == &"cross", "Normale Runden und Bonusrunden spielen im Kreuz")
+	var bosses := [World.layout_for_round(5), World.layout_for_round(15), World.layout_for_round(25)]
+	_check(not bosses.has(&"cross") and bosses[0] != bosses[1] and bosses[1] != bosses[2] and bosses[0] != bosses[2]
+			and World.layout_for_round(35) == bosses[0], "Bossrunden wechseln reihum die Arena (%s)" % [bosses])
+	for round_number in [1, 5, 6, 15, 16, 25, 26, 36, 46]:
+		World.set_round(round_number)
+		var name := World.layout_name
+		var ok := World.terrain != null
+		for corner in [World.CENTER_SQUARE.position, World.CENTER_SQUARE.end,
+				Vector2(World.CENTER_SQUARE.position.x, World.CENTER_SQUARE.end.y), Vector2(World.CENTER_SQUARE.end.x, World.CENTER_SQUARE.position.y)]:
+			ok = ok and World.contains(corner)
+		_check(ok, "Arena %s (Runde %d): Bild da, Platz in der Mitte begehbar" % [name, round_number])
+		var gates := true
+		for arm in World.Arm.values():
+			for i in 5:
+				var spot := World.spawn_point(arm)
+				gates = gates and World.contains(spot) and World.clamp_point(spot).distance_to(spot) < 0.01 \
+						and spot.distance_to(World.CENTER) > 80.0
+		_check(gates, "Arena %s: alle Tore liegen auf dem Boden, frei und weit genug von der Mitte" % name)
+		var free := true
+		for obstacle in World.obstacles:
+			var spot: Vector2 = obstacle["pos"]
+			free = free and World.contains(spot) and not World.CENTER_SQUARE.grow(16.0).has_point(spot)
+		_check(free, "Arena %s: Hindernisse stehen auf dem Boden und nicht auf dem Platz" % name)
+		# Von jedem Tor aus kommt man zur Mitte: Schritte entlang clamp_point bleiben nicht hängen.
+		var reach := true
+		for arm in World.Arm.values():
+			var pos := World.spawn_point(arm)
+			for step in 400:
+				pos = World.clamp_point(pos + (World.CENTER - pos).limit_length(2.0))
+			reach = reach and pos.distance_to(World.CENTER) < 40.0
+		_check(reach, "Arena %s: Gegner finden von jedem Tor zur Mitte" % name)
+	World.set_round(1)
 
 
 func _test_veterans() -> void:

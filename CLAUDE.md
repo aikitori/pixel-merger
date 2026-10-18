@@ -14,7 +14,8 @@ Einheiten, Sprites, Sounds und Namen kommen aus Python-Skripten (nur Standardbib
 | `tools/generate_data.py` | `data/*.tres`, `scripts/i18n/names_en.gd` |
 | `tools/generate_sprites.py` | Schreibt Sprites, Animationsstreifen (`assets/sprites/anim/`), Arena, Dorf und Oberflächenbilder (`assets/sprites/tiles/`) |
 | `tools/sprite_dcss.py` | Zuordnung Einheit/Gegner zu Dungeon-Crawl-Kachel oder Puppenfigur, eigenes Pferd und Ei, 4+4 Animationsbilder |
-| `tools/tiles_dcss.py` | Arena, Dorf, Hindernisse, Knöpfe und Leisten aus Kacheln (Maße passend zu `world.gd` und `village.gd`) |
+| `tools/arena_dcss.py` | Arenen (Kreuz in fünf Stilen, Bossarenen) und ihre Grundrisse `LAYOUTS`; schreibt `scripts/arena_layouts.gd` |
+| `tools/tiles_dcss.py` | Dorf, Hindernisse, Knöpfe und Leisten aus Kacheln (Maße passend zu `village.gd`), holt die Arenen aus `arena_dcss.py` |
 | `tools/pixel_image.py` | PNG lesen und schreiben, Bilder zusammensetzen (nur Standardbibliothek) |
 | `tools/dcss/` | Verwendete Kacheln aus Dungeon Crawl Stone Soup (CC0). Neue Kacheln holt `tools/import_dcss.py <Paketordner>` (einmalig, braucht Pillow) |
 | `tools/sprite_kits.py`, `tools/sprite_clonk.py`, `tools/sprite_styles.py` | Früherer Clonk-Stil (`generate_sprites.py --figures clonk`, `--classic`); nutzt noch `generate_icon.py` |
@@ -32,7 +33,7 @@ Nach Änderungen: `python3 tools/generate_data.py` und/oder `python3 tools/gener
 - Kampf: `scripts/combatant.gd`. Fähigkeiten: `scripts/abilities.gd` (Daten) plus `_cast_ability` im Combatant.
 - Oberfläche: `scripts/hud.gd`, `recipe_book.gd`, `shop.gd`, `village.gd`, `ui_theme.gd` (im Code gezeichnet, Farben aus `art_style.gd`).
 - Bildstil: `scripts/art_style.gd` (Oberflächenfarben und -bilder, Logo, Auswahl) plus `shaders/art_style.gdshader` (Nachbearbeitung über das ganze Bild, von `Game` eingehängt). Standard ist `ArtStyle.DEFAULT` (`dungeon`), er muss zu den erzeugten Sprites passen.
-- Spielfeld: `scripts/world.gd` (Kreuz aus zwei Armen, Hindernisse, Kollision); Boden und Mauern sind das Bild `assets/sprites/tiles/arena.png`.
+- Spielfeld: `scripts/world.gd` (Grundriss der Runde, Hindernisse, Kollision). Normale Runden: Kreuz, Bossrunden: eigene Arena. Begehbare Rechtecke und Tore stehen im erzeugten `scripts/arena_layouts.gd`, Boden und Mauern sind die Bilder `assets/sprites/tiles/arena*.png` (`arena.png` ist auch der Menü-Hintergrund).
 - Animation: `Combatant` zeichnet aus dem Streifen `assets/sprites/anim/<ordner>/<id>.png` (4 Bilder Stehen, 4 Laufen); `Combatant.frames_texture` liefert dieselben Bilder für Oberflächen.
 - Texte: deutsche Strings stehen im Code in `tr()` (statisch: `TranslationServer.translate`). Die englische Übersetzung steht in `scripts/i18n/ui_en.gd`. **Jeder neue deutsche Text braucht dort einen Eintrag**, der Schlüssel muss exakt dem deutschen Text entsprechen.
 
@@ -54,7 +55,7 @@ godot --headless res://scenes/dev/anim_test.tscn    # Angriffe, alle Fähigkeite
 godot --headless res://scenes/dev/events_test.tscn  # Boss-/Bonusrunden, Erfolge, Gelände, Version
 ```
 
-Ausgabe prüfen auf `... OK`, keine Zeilen mit `FAIL`, `SCRIPT ERROR` oder `ERROR`. Die CI (`.github/workflows/android.yml`) führt alle vier aus. Screenshots: `scenes/dev/shot.tscn` (braucht ein Fenster oder Xvfb).
+Ausgabe prüfen auf `... OK`, keine Zeilen mit `FAIL`, `SCRIPT ERROR` oder `ERROR`. Die CI (`.github/workflows/android.yml`) führt alle vier aus. Screenshots: `scenes/dev/shot.tscn` (braucht ein Fenster oder Xvfb), z.B. `SHOT_ROUND=15 godot res://scenes/dev/shot.tscn -- <Ordner> arena` für die Arena einer Runde.
 
 ## Release
 
