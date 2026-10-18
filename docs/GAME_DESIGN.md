@@ -248,9 +248,10 @@ Offen:
 
 ## Sound und Musik (umgesetzt)
 
-- Alle Klänge sind selbst synthetisiert (`tools/generate_audio.py`, nur Standardbibliothek):
-  14 Effekte (Schwert, Pfeil, Feuerball, Treffer, Explosion, Tod, Gold, Kauf, Verbinden, Klick,
-  Fehler, Kampfbeginn, Runde geschafft, Game Over) und zwei Musikstücke als nahtlose Schleifen
+- 16 Effekte (Schwert, Pfeil, Feuerball, Heilen, Blättern, Treffer, Explosion, Tod, Gold, Kauf,
+  Verbinden, Klick, Fehler, Kampfbeginn, Runde geschafft, Game Over). 15 davon sind CC0-Aufnahmen von
+  Kenney und Juhani Junkala (per Hörprobe ausgesucht, `CC0_SFX` in `tools/generate_audio.py`), der
+  Kampfbeginn ist synthetisiert. Die zwei Musikstücke sind selbst erzeugt, nahtlose Schleifen
   (ruhig für die Bauphase, treibend für den Kampf), Überblendung beim Phasenwechsel.
 - Autoload `Sound`: Mindestabstand pro Effekt, damit viele Angriffe nicht zu Lärm werden; jeder
   Knopf klickt automatisch. Oben rechts schaltet "Ton an/aus" alles stumm (wird gespeichert).

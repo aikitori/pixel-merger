@@ -68,8 +68,11 @@ Release-APKs bei Tags `v*`.
 ## Lizenz
 
 GNU General Public License v3.0 (GPL-3.0-or-later), siehe [LICENSE](LICENSE).
-Copyright (C) 2026 aikitori. Das gilt für Code und Sounds.
+Copyright (C) 2026 aikitori. Das gilt für Code, Musik und die selbst erzeugten Sounds.
 
 Die Grafiken beruhen auf den Kacheln von [Dungeon Crawl Stone Soup](https://opengameart.org/content/dungeon-crawl-32x32-tiles-supplemental)
 (CC0, gemeinfrei; Dank an die Zeichnerinnen und Zeichner von Crawl, siehe `tools/dcss/README.txt`).
+Die meisten Soundeffekte stammen von [Kenney](https://kenney.nl) und aus der
+[Retro-Sammlung von Juhani Junkala](https://opengameart.org/content/512-sound-effects-8-bit-style)
+(beide CC0, siehe `tools/sfx_cc0/README.txt`).
 Frühere Versionen (bis Alpha 0.1.8) wurden unter der MIT-Lizenz veröffentlicht.

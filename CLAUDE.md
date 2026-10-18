@@ -21,7 +21,8 @@ Einheiten, Sprites, Sounds und Namen kommen aus Python-Skripten (nur Standardbib
 | `tools/sprite_kits.py`, `tools/sprite_clonk.py`, `tools/sprite_styles.py` | Früherer Clonk-Stil (`generate_sprites.py --figures clonk`, `--classic`); nutzt noch `generate_icon.py` |
 | `tools/generate_logo.py` | Titel-Logo `assets/logo/logo_doom.png` |
 | `tools/generate_icon.py` | App-Icons (mit denselben Grundfiguren) |
-| `tools/generate_audio.py` | Sound-Effekte |
+| `tools/generate_audio.py` | Sound-Effekte und Musik: CC0-Aufnahmen laut `CC0_SFX`, der Rest und die Musik synthetisch |
+| `tools/sfx_cc0/` | Verwendete CC0-Effekte (Kenney, Juhani Junkala) als WAV. Neue holt `tools/import_sfx.py <Paketordner>` (einmalig, braucht ffmpeg) |
 | `tools/i18n_names.py` | Deutsch-Englisch-Wörterbuch aller Namen (jeder Name muss drinstehen, sonst bricht der Generator ab) |
 
 Nach Änderungen: `python3 tools/generate_data.py` und/oder `python3 tools/generate_sprites.py`, dann `godot --headless --path . --import`.

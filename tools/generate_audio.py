@@ -1,8 +1,9 @@
 #!/usr/bin/env python3
-"""Erzeugt Soundeffekte und Musik (WAV, mono, 22,05 kHz) per Synthese, nur Standardbibliothek.
+"""Schreibt Soundeffekte und Musik (WAV, mono, 22,05 kHz), nur Standardbibliothek.
 
-Alles ist selbst erzeugt (Rechteck-, Dreieck-, Sägezahn-Wellen und Rauschen), es gibt keine
-fremden Audiodateien und damit keine Lizenzfragen.
+Die meisten Effekte sind CC0-Aufnahmen von Kenney und Juhani Junkala (CC0_SFX, Dateien in tools/sfx_cc0/,
+geholt mit tools/import_sfx.py). Der Rest und die Musik sind selbst erzeugt (Rechteck-, Dreieck-,
+Sägezahn-Wellen und Rauschen).
 
 Aufruf (aus dem Projektordner):  python3 tools/generate_audio.py
 Schreibt nach assets/audio/sfx/ und assets/audio/music/. Die Musik ist als nahtlose Schleife
@@ -255,6 +256,46 @@ def sfx_game_over():
     return normalize(concat(parts), 0.85)
 
 
+# Effekt -> (Quelle, Dateiname ohne Endung in tools/sfx_cc0/). Ersetzt die erzeugte Fassung.
+CC0_DIR = ROOT / 'tools/sfx_cc0'
+CC0_SFX = {
+    'swing': ('Kenney RPG Audio', 'knifeSlice'),
+    'hit': ('Kenney Impact Sounds', 'impactPlate_light_001'),
+    'arrow': ('Kenney RPG Audio', 'drawKnife1'),
+    'fireball': ('Retro 512', 'sfx_wpn_missilelaunch'),
+    'explode': ('Retro 512', 'sfx_exp_short_soft5'),
+    'heal': ('Kenney Interface Sounds', 'maximize_006'),
+    'death': ('Retro 512', 'sfx_deathscream_human3'),
+    'merge': ('Retro 512', 'sfx_sounds_powerup3'),
+    'buy': ('Retro 512', 'sfx_coin_cluster3'),
+    'coin': ('Retro 512', 'sfx_coin_single3'),
+    'click': ('Kenney Interface Sounds', 'select_002'),
+    'error': ('Kenney Interface Sounds', 'error_004'),
+    'page': ('Kenney RPG Audio', 'bookFlip3'),
+    'round_win': ('Retro 512', 'sfx_sounds_fanfare1'),
+    'game_over': ('Kenney Music Jingles', 'jingles_SAX07'),
+}
+
+
+def read_wav(path):
+    with wave.open(str(path), 'rb') as w:
+        assert w.getnchannels() == 1 and w.getsampwidth() == 2 and w.getframerate() == RATE, path
+        raw = w.readframes(w.getnframes())
+    return [v / 32768 for v in struct.unpack(f'<{len(raw) // 2}h', raw)]
+
+
+def cc0_sound(name):
+    """Aufnahme laden, Stille am Anfang und Ende abschneiden, auf dieselbe Spitze bringen wie die erzeugten."""
+    buf = read_wav(CC0_DIR / f'{name}.wav')
+    loud = [i for i, v in enumerate(buf) if abs(v) > 0.01]
+    if loud:
+        buf = buf[max(0, loud[0] - 20):loud[-1] + 200]
+    fade = min(len(buf), 220)  # 10 ms ausblenden gegen Knacken
+    for i in range(fade):
+        buf[-1 - i] *= i / fade
+    return normalize(buf, 0.85)
+
+
 SFX = {
     'swing': sfx_swing, 'hit': sfx_hit, 'arrow': sfx_arrow, 'fireball': sfx_fireball,
     'heal': sfx_heal, 'page': sfx_page,
@@ -382,7 +423,8 @@ MUSIC = {'build': build_music, 'battle': build_battle}
 
 def main():
     for name, make in SFX.items():
-        write_wav(ROOT / 'assets/audio/sfx' / f'{name}.wav', make())
+        buf = cc0_sound(CC0_SFX[name][1]) if name in CC0_SFX else make()
+        write_wav(ROOT / 'assets/audio/sfx' / f'{name}.wav', buf)
     for name, make in MUSIC.items():
         write_wav(ROOT / 'assets/audio/music' / f'{name}.wav', make())
     print(f'{len(SFX)} Soundeffekte und {len(MUSIC)} Musikstücke geschrieben.')
