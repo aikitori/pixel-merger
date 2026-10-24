@@ -69,6 +69,11 @@ signal blessings_changed
 var house_levels: Dictionary = {}
 var _house_factors: Dictionary = {}  # UnitData -> Faktor (Kombinationen sind teuer zu berechnen)
 signal houses_changed
+## Auswertung des Laufs für den Verloren-Bildschirm (wird mit dem Lauf gespeichert).
+## best_unit: Id der wertvollsten Einheit, die man hatte (gemessen am Preis ihrer Grundeinheiten).
+var stats: Dictionary = {}
+## Das Menü setzt das vor dem Szenenwechsel: Die Arena lädt dann den gespeicherten Lauf (RunSave).
+var resume_requested := false
 
 
 var _art_overlay: CanvasLayer
@@ -95,6 +100,7 @@ func reset() -> void:
 	blessings = {}
 	house_levels = {}
 	_reset_house_cache()
+	stats = {"kills": 0, "gold": 0, "merges": 0, "best_unit": "", "best_value": 0}
 	phase = Phase.BUILD
 	round_changed.emit(round_number)
 	gold_changed.emit(gold)
@@ -131,6 +137,18 @@ func cycle_battle_speed() -> void:
 	var index := BATTLE_SPEEDS.find(battle_speed)
 	battle_speed = BATTLE_SPEEDS[(index + 1) % BATTLE_SPEEDS.size()]
 	speed_changed.emit(battle_speed)
+
+
+## Für die Auswertung: merkt sich die wertvollste Einheit des Laufs.
+func note_unit(data: UnitData) -> void:
+	var value := Registry.bundle_price(Registry.base_units(data))
+	if value > int(stats.get("best_value", 0)):
+		stats["best_value"] = value
+		stats["best_unit"] = String(data.id)
+
+
+func count_stat(key: String, amount := 1) -> void:
+	stats[key] = int(stats.get(key, 0)) + amount
 
 
 ## Zeitschritt für Kampflogik mit eingerechnetem Kampftempo.

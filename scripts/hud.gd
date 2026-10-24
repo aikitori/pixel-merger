@@ -76,6 +76,7 @@ const HINT_ROWS := 4
 var _last_back_msec := -10000
 var _game_over: Control
 var _game_over_label: Label
+var _game_over_stats: Label
 var _time_left := 0.0
 var _shown_seconds := -1
 
@@ -709,8 +710,18 @@ func shop_blocked_rect() -> Rect2:
 	return _village.blocked_rect()
 
 
-func show_game_over(reached_round: int) -> void:
+## Verloren-Bildschirm mit Auswertung des Laufs (`stats` aus Game.stats) und Rekord.
+func show_game_over(reached_round: int, stats: Dictionary = {}, best_round := 0, new_record := false) -> void:
 	_game_over_label.text = tr("Verloren!\nRunde %d erreicht") % reached_round
+	var best: UnitData = Registry.units.get(StringName(stats.get("best_unit", "")))
+	var lines := [
+		tr("Besiegte Gegner: %d") % int(stats.get("kills", 0)),
+		tr("Gold erbeutet: %d") % int(stats.get("gold", 0)),
+		tr("Verbindungen: %d") % int(stats.get("merges", 0)),
+		tr("Stärkste Einheit: %s") % (best.display_name if best != null else "-"),
+		tr("Neuer Rekord!") if new_record else tr("Rekord: Runde %d") % best_round,
+	]
+	_game_over_stats.text = "\n".join(lines)
 	_game_over.visible = true
 
 
@@ -774,7 +785,10 @@ func _back_to_menu() -> void:
 		menu_pressed.emit()
 		return
 	_last_back_msec = now
-	toast(tr("Nochmal zurück: Hauptmenü (die Runde geht verloren)"))
+	if Game.phase == Game.Phase.BATTLE:
+		toast(tr("Nochmal zurück: Hauptmenü (später geht es vor diesem Kampf weiter)"))
+	else:
+		toast(tr("Nochmal zurück: Hauptmenü (der Lauf wird gespeichert)"))
 
 
 ## Zurück-Taste (Android) bzw. Esc: erst offene Fenster schließen, dann die App beenden.
@@ -955,22 +969,24 @@ func _build_game_over(parent: Control) -> void:
 	_game_over.visible = false
 	parent.add_child(_game_over)
 	var board := Panel.new()
-	board.position = Vector2(200, 100)
-	board.size = Vector2(240, 160)
+	board.position = Vector2(190, 70)
+	board.size = Vector2(260, 220)
 	_game_over.add_child(board)
-	_game_over_label = _add_label(board, Rect2(0, 22, 240, 70), HORIZONTAL_ALIGNMENT_CENTER)
+	_game_over_label = _add_label(board, Rect2(0, 14, 260, 56), HORIZONTAL_ALIGNMENT_CENTER)
 	_game_over_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	_game_over_label.add_theme_font_size_override("font_size", 18)
 	_game_over_label.add_theme_color_override("font_color", UiTheme.GOLD_LIGHT)
+	_game_over_stats = _add_label(board, Rect2(20, 76, 220, 90), HORIZONTAL_ALIGNMENT_LEFT)
+	_game_over_stats.add_theme_font_size_override("font_size", 11)
 	var again := Button.new()
 	again.text = tr("Neustart")
-	again.position = Vector2(20, 112)
+	again.position = Vector2(30, 174)
 	again.size = Vector2(95, 30)
 	again.pressed.connect(func() -> void: restart_pressed.emit())
 	board.add_child(again)
 	var to_menu := Button.new()
 	to_menu.text = tr("Hauptmenü")
-	to_menu.position = Vector2(125, 112)
+	to_menu.position = Vector2(135, 174)
 	to_menu.size = Vector2(95, 30)
 	to_menu.pressed.connect(func() -> void: menu_pressed.emit())
 	board.add_child(to_menu)

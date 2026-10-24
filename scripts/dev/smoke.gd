@@ -2,6 +2,8 @@ extends Node
 ## Entwickler-Test: spielt automatisch Runden durch und gibt den Verlauf aus.
 ## Start: godot --headless res://scenes/dev/smoke.tscn [-- --rounds=20]
 ## Mit mehr Runden dient er zum Abstimmen: je Runde Armee (Summe Leben x Stärke) und Gegnerfaktor.
+## Prüft dabei Regeln, die unabhängig vom Zufall gelten (Gold nie negativ, Einheitenlimit, Auswertung),
+## und endet mit "SMOKE-TEST OK" oder Zeilen mit "FAIL".
 
 const DEFAULT_ROUNDS := 12
 const TIME_SCALE := 10.0
@@ -10,6 +12,9 @@ var _arena: Node2D
 ## Wie ein Mensch: auf wenige Linien konzentrieren, damit Paare zum Mergen entstehen.
 var _focus: Array[UnitData] = []
 var _max_rounds := DEFAULT_ROUNDS
+var _failed := false
+var _min_gold := 0
+var _rounds_played := 0
 
 
 func _ready() -> void:
@@ -20,10 +25,33 @@ func _ready() -> void:
 	_arena = load("res://scenes/main.tscn").instantiate()
 	add_child(_arena)
 	await get_tree().process_frame
+	Game.gold_changed.connect(func(gold: int) -> void: _min_gold = mini(_min_gold, gold))
 	_check_recipe_book()
 	await _play()
+	await get_tree().process_frame  # _end_round läuft nach dem Phasenwechsel noch zu Ende (Rekord)
+	_check_result()
 	Engine.time_scale = 1.0
-	get_tree().quit()
+	print("SMOKE-TEST FAIL" if _failed else "SMOKE-TEST OK")
+	get_tree().quit(1 if _failed else 0)
+
+
+func _check(condition: bool, label: String) -> void:
+	if not condition:
+		_failed = true
+		print("FAIL: " + label)
+
+
+## Nach dem Lauf: Regeln, die bei jedem Verlauf gelten müssen.
+func _check_result() -> void:
+	_check(_rounds_played > 0, "Mindestens ein Kampf wurde gespielt")
+	_check(_min_gold >= 0, "Gold war nie negativ (Minimum %d)" % _min_gold)
+	_check(Game.phase == Game.Phase.GAME_OVER or Game.round_number > _max_rounds, "Lauf endet mit Niederlage oder nach allen Runden")
+	_check(Game.round_number == _rounds_played + (0 if Game.phase == Game.Phase.GAME_OVER else 1),
+			"Rundenzähler passt zu den gespielten Kämpfen")
+	var stats := Game.stats
+	_check(int(stats["kills"]) >= 0 and int(stats["gold"]) >= int(stats["kills"]), "Auswertung: Gold mindestens so groß wie die Zahl der Gegner")
+	_check(Registry.units.has(StringName(stats["best_unit"])), "Auswertung kennt die stärkste Einheit (%s)" % stats["best_unit"])
+	_check(Progress.best_round >= Game.round_number, "Rekord mindestens die erreichte Runde")
 
 
 func _play() -> void:
@@ -38,9 +66,11 @@ func _play() -> void:
 			power += unit.max_health * unit.attack
 		print("Runde %d: %d Einheiten, %d Gold übrig, Armee %d, Gegner x%.2f LP x%.2f Schaden, Häuser %s" % [
 			Game.round_number, units.size(), Game.gold, roundi(power), Game.health_scale(), Game.damage_scale(), Game.house_levels])
+		_check(units.size() <= Game.MAX_UNITS, "Höchstens %d Einheiten im Kampf" % Game.MAX_UNITS)
 		if not _arena.start_battle():
-			print("Kampf konnte nicht starten")
+			_check(false, "Kampf konnte nicht starten")
 			return
+		_rounds_played += 1
 		await Game.phase_changed
 		if Game.phase == Game.Phase.GAME_OVER:
 			print("Verloren in Runde %d" % Game.round_number)
@@ -100,5 +130,6 @@ func _check_recipe_book() -> void:
 	book.set_query("golem")
 	print("Rezeptbuch: %d Rezepte, %d Linien, bei 'golem' %d Rezepte auf %d Seiten" % [
 		book.entry_count(0), book.entry_count(1), book.match_count(0), book.page_count()])
+	_check(book.entry_count(0) > 0 and book.entry_count(1) > 0 and book.match_count(0) > 0, "Rezeptbuch zeigt Rezepte und Linien")
 	book.set_query("")
 	book.close_book()

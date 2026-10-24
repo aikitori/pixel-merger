@@ -1,8 +1,10 @@
 class_name Menu
 extends Control
-## Hauptmenü: Titel, Starten, Erfolge und Ton. Hinter dem Menü wuselt ein kleines Dorf mit Helden.
+## Hauptmenü: Titel, Starten oder Fortsetzen (gespeicherter Lauf, RunSave), Erfolge und Ton.
+## Hinter dem Menü wuselt ein kleines Dorf mit Helden.
 
 const GAME_SCENE := "res://scenes/main.tscn"
+const BUTTON_STEP := 36.0
 const HEROES := ["knight", "mage", "archer", "healer", "wolf", "horse", "dwarf_warrior", "elf_scout"]
 
 var _achievements: AchievementsPanel
@@ -11,6 +13,9 @@ var _sound_button: Button
 var _fullscreen_button: Button
 var _language_button: Button
 var _quit_button: Button
+var _new_game_button: Button
+## Neues Spiel über einem gespeicherten Lauf braucht einen zweiten Tipp.
+var _new_game_armed_msec := -10000
 
 
 func _ready() -> void:
@@ -42,7 +47,25 @@ func _unhandled_input(event: InputEvent) -> void:
 
 
 func start_game() -> void:
+	Game.resume_requested = false
 	get_tree().change_scene_to_file(GAME_SCENE)
+
+
+func continue_game() -> void:
+	Game.resume_requested = true
+	get_tree().change_scene_to_file(GAME_SCENE)
+
+
+func _on_new_game() -> void:
+	var now := Time.get_ticks_msec()
+	if now - _new_game_armed_msec < 2500:
+		start_game()
+		return
+	_new_game_armed_msec = now
+	_new_game_button.text = tr("Nochmal tippen: Lauf verwerfen")
+	get_tree().create_timer(2.5).timeout.connect(func() -> void:
+		if is_instance_valid(_new_game_button):
+			_new_game_button.text = tr("Neues Spiel"))
 
 
 # --- Aufbau -------------------------------------------------------------------
@@ -114,17 +137,29 @@ func _build_title() -> void:
 
 
 func _build_buttons() -> void:
-	var start := _menu_button("Starten", 100)
-	start.pressed.connect(start_game)
-	_achievements_button = _menu_button("Erfolge", 140)
+	var next_y := 100.0
+	var saved := RunSave.read()
+	if saved.is_empty():
+		_menu_button("Starten", next_y).pressed.connect(start_game)
+	else:
+		var resume := _menu_button("", next_y)
+		resume.text = tr("Fortsetzen (Runde %d)") % int(saved["round"])
+		resume.pressed.connect(continue_game)
+		next_y += BUTTON_STEP
+		_new_game_button = _menu_button("Neues Spiel", next_y)
+		_new_game_button.pressed.connect(_on_new_game)
+	next_y += BUTTON_STEP
+	_achievements_button = _menu_button("Erfolge", next_y)
 	_achievements_button.pressed.connect(func() -> void: _achievements.open_panel())
-	_language_button = _menu_button("", 180)
+	next_y += BUTTON_STEP
+	_language_button = _menu_button("", next_y)
 	_language_button.pressed.connect(func() -> void:
 		Loc.set_language(Loc.next_language())
 		get_tree().reload_current_scene())
-	_sound_button = _menu_button("Ton an", 220)
+	next_y += BUTTON_STEP
+	_sound_button = _menu_button("Ton an", next_y)
 	_sound_button.pressed.connect(func() -> void: Sound.muted = not Sound.muted)
-	var next_y := 260.0
+	next_y += BUTTON_STEP
 	if Fullscreen.available():
 		_fullscreen_button = _menu_button("Vollbild", next_y)
 		_fullscreen_button.pressed.connect(func() -> void:
@@ -134,7 +169,7 @@ func _build_buttons() -> void:
 				await get_tree().create_timer(delay, true, false, true).timeout
 				_refresh())
 		get_viewport().size_changed.connect(_refresh)
-		next_y += 40.0
+		next_y += BUTTON_STEP
 	_quit_button = _menu_button("Beenden", next_y)
 	_quit_button.pressed.connect(func() -> void: get_tree().quit())
 	_quit_button.visible = not OS.has_feature("web")  # im Browser gibt es nichts zu beenden
@@ -146,6 +181,16 @@ func _build_buttons() -> void:
 	version.modulate.a = 0.8
 	version.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	add_child(version)
+	if Progress.best_round > 0:
+		var record := Label.new()
+		record.text = tr("Rekord: Runde %d") % Progress.best_round
+		record.position = Vector2(432, 340)
+		record.size = Vector2(200, 16)
+		record.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+		record.add_theme_font_size_override("font_size", 10)
+		record.modulate.a = 0.8
+		record.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		add_child(record)
 
 
 func _menu_button(text: String, y: float) -> Button:

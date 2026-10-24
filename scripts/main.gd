@@ -61,13 +61,23 @@ func _ready() -> void:
 	y_sort_enabled = true
 	add_to_group(&"arena")
 	Game.reset()
+	# Fortsetzen aus dem Menü: gespeicherten Lauf laden, sonst beginnt ein neuer (alter Stand verfällt).
+	var saved := RunSave.read() if Game.resume_requested else {}
+	Game.resume_requested = false
+	if saved.is_empty():
+		RunSave.clear()
+		Game.stats["record_before"] = Progress.best_round
+	else:
+		RunSave.apply_game(saved)
 	World.set_round(Game.round_number)
 	_hud = Hud.new()
 	add_child(_hud)
 	_hud.shop_pressed.connect(buy_unit)
 	_hud.start_pressed.connect(start_battle)
 	_hud.quick_buy_pressed.connect(buy_bundle)
-	_hud.menu_pressed.connect(func() -> void: get_tree().change_scene_to_file("res://scenes/menu.tscn"))
+	_hud.menu_pressed.connect(func() -> void:
+		save_run()  # nicht erst in _exit_tree: Dann sind die Einheiten schon aus dem Baum
+		get_tree().change_scene_to_file("res://scenes/menu.tscn"))
 	_hud.order_pressed.connect(cycle_order)
 	_hud.ability_pressed.connect(cast_selected)
 	_hud.select_all_pressed.connect(select_all)
@@ -84,6 +94,38 @@ func _ready() -> void:
 			unit.refresh_blessings())
 	_build_obstacles()
 	add_child(Weather.new())
+	if not saved.is_empty():
+		_resume(saved)
+
+
+## Gespeicherten Lauf fortsetzen: Einheiten aufstellen, Anzeige auf den geladenen Stand bringen.
+func _resume(saved: Dictionary) -> void:
+	for entry in RunSave.units(saved):
+		_spawn_player(entry["data"], World.clamp_point(entry["position"])).set_xp(entry["xp"])
+	_rounds_without_event = int(saved.get("rounds_without_event", 0))
+	Game.round_changed.emit(Game.round_number)
+	Game.gold_changed.emit(Game.gold)
+	Game.modifier_changed.emit(Game.modifier)
+	Game.speed_changed.emit(Game.battle_speed)
+	Game.blessings_changed.emit()
+	Game.houses_changed.emit()
+	Game.phase_changed.emit(Game.phase)
+	_hud.toast(tr("Lauf fortgesetzt: Runde %d") % Game.round_number)
+	if bool(saved.get("event_pending", false)) and events_enabled:
+		var offers := RoundEvents.offers(self)
+		if not offers.is_empty():
+			_hud.show_event(offers)
+
+
+## Lauf speichern, aber nur aus der Bauphase: Im Kampf bleibt der Stand vom Kampfbeginn stehen.
+func save_run() -> void:
+	if Game.phase == Game.Phase.BUILD and is_instance_valid(_hud):
+		RunSave.write(RunSave.capture(self, _hud.event_open()))
+
+
+func _notification(what: int) -> void:
+	if what in [NOTIFICATION_APPLICATION_PAUSED, NOTIFICATION_APPLICATION_FOCUS_OUT, NOTIFICATION_WM_CLOSE_REQUEST]:
+		save_run()
 
 
 ## Bossrunden spielen in einer eigenen Arena. Nach einem Boss ändert sich das Gelände: neuer Mauerstil,
@@ -244,6 +286,7 @@ func try_merge(a: Combatant, b: Combatant, quiet := false) -> bool:
 	a.discard()
 	b.discard()
 	_spawn_player(recipe.result, pos).set_xp(experience)
+	Game.count_stat("merges")
 	Achievements.report(&"merge")
 	if recipe.ingredient_a != recipe.ingredient_b:
 		Achievements.report(&"combo")
@@ -333,6 +376,7 @@ func _spawn_player(data: UnitData, pos: Vector2) -> Combatant:
 	unit.setup_player(data)
 	unit.died.connect(_on_died)
 	add_child(unit)
+	Game.note_unit(data)
 	Achievements.report_max(&"army", get_player_units().size())
 	if data.upgrade == null:
 		Achievements.report(&"level5" if data.category != "Kombination" else &"combo_max")
@@ -777,6 +821,7 @@ func start_battle() -> bool:
 		_hud.toast(tr("Zu viele Einheiten: im Kampf nur %d, schicke %d zurück") % [Game.MAX_UNITS, units.size() - Game.MAX_UNITS])
 		Sound.play(&"error")
 		return false
+	save_run()  # Stand vor dem Kampf: Wird die App im Kampf geschlossen, geht es hier weiter
 	for unit in units:
 		unit.home_position = unit.position
 		unit.clear_order()
@@ -862,6 +907,8 @@ func _spawn_enemy() -> void:
 func _on_died(combatant: Combatant) -> void:
 	if combatant.team == Combatant.Team.ENEMY:
 		Game.add_gold(combatant.gold_reward)
+		Game.count_stat("kills")
+		Game.count_stat("gold", combatant.gold_reward)
 		if Game.modifier == &"gold_rain" and Effect.can_spawn_ambient():
 			var coin := Effect.new()
 			coin.setup(&"text", combatant.position + Vector2(0, -combatant.body_size), 0.0, UiTheme.GOLD_LIGHT, "+%dg" % combatant.gold_reward)
@@ -907,6 +954,7 @@ func _end_round() -> void:
 	if kind == Game.RoundKind.BONUS:
 		var prize := Game.bonus_prize()
 		Game.add_gold(prize)
+		Game.count_stat("gold", prize)
 		Achievements.report(&"bonus")
 		message = tr("Bonusrunde geschafft! +%d Gold Prämie") % prize
 	elif kind == Game.RoundKind.BOSS:
@@ -926,9 +974,11 @@ func _end_round() -> void:
 		unit.position = unit.home_position
 	Game.next_round()
 	Achievements.report_max(&"round", Game.round_number)
+	Progress.record_round(Game.round_number)
 	_hud.toast(message)
 	Sound.play(&"round_win", 0.0)
 	_maybe_offer_event()
+	save_run()
 
 
 func _maybe_offer_event() -> void:
@@ -953,10 +1003,14 @@ func _on_event_chosen(offer: Dictionary) -> void:
 	Achievements.report(&"event")
 	_hud.toast(message)
 	Sound.play(&"merge", 0.0)
+	save_run()
 
 
 func _game_over() -> void:
 	Game.set_phase(Game.Phase.GAME_OVER)
+	RunSave.clear()
+	Progress.record_round(Game.round_number)
 	_clear_enemies()
 	_select(null)
-	_hud.show_game_over(Game.round_number)
+	_hud.show_game_over(Game.round_number, Game.stats, Progress.best_round,
+			Game.round_number > int(Game.stats.get("record_before", 0)))

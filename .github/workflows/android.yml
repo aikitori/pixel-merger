@@ -37,11 +37,12 @@ jobs:
       - name: Spiellogik testen (Smoke-Test)
         run: |
           godot --headless res://scenes/dev/smoke.tscn 2>&1 | tee smoke.log
+          test "${PIPESTATUS[0]}" -eq 0
           if grep -E "SCRIPT ERROR|^ERROR" smoke.log; then
             echo "::error::Fehler im Smoke-Test"
             exit 1
           fi
-          grep -q "Rezeptbuch:" smoke.log
+          grep -q "SMOKE-TEST OK" smoke.log
 
       - name: Eingabe testen (Shop, Ziehen, Merge, Befehle, Kreuz)
         run: |

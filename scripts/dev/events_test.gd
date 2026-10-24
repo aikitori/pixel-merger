@@ -185,6 +185,7 @@ func _ready() -> void:
 	_check(get_tree().get_nodes_in_group(&"obstacle").size() == 18, "Hindernisse erscheinen als Bilder im Spiel")
 	World.set_stage(0)
 	_test_arenas()
+	await _test_run_save()
 
 	Engine.time_scale = 1.0
 	print("EVENTS-TEST ", "FEHLGESCHLAGEN" if _failed else "OK")
@@ -570,3 +571,74 @@ func _check(ok: bool, text: String) -> void:
 	print(("ok:   " if ok else "FAIL: ") + text)
 	if not ok:
 		_failed = true
+
+
+## Spielstand: Lauf speichern, in eine Testdatei schreiben, zurücklesen und wieder herstellen; dazu der Rekord.
+func _test_run_save() -> void:
+	for unit in _arena.get_player_units():
+		unit.discard()
+	await get_tree().process_frame
+	Game.round_number = 7
+	Game.gold = 123
+	Game.set_modifier(&"blood_moon")
+	Game.blessings = {}
+	Game.add_blessing(&"melee", "hp", 1.25)
+	Game.house_levels = {"Klassisch": 2}
+	Game.stats["kills"] = 42
+	Game.auto_abilities = false
+	_arena.set("_rounds_without_event", 2)
+	var knight: Combatant = _arena.call("_spawn_player", Registry.units["knight"], Vector2(300, 180))
+	knight.set_xp(20)
+	_arena.call("_spawn_player", Registry.units["mage"], Vector2(320, 190))
+	var data := RunSave.capture(_arena, true)
+	var old_path := RunSave.path
+	RunSave.path = "user://test_run.cfg"
+	RunSave.enabled = true
+	RunSave.write(data)
+	var loaded := RunSave.read()
+	_check(RunSave.exists() and loaded.get("round") == 7 and loaded.get("gold") == 123 and loaded.get("event_pending") == true,
+			"Spielstand wird geschrieben und gelesen")
+	Game.reset()
+	RunSave.apply_game(loaded)
+	_check(Game.round_number == 7 and Game.gold == 123 and Game.modifier == &"blood_moon" and not Game.auto_abilities,
+			"Runde, Gold, Modifikator und Automatik kommen zurück")
+	_check(is_equal_approx(Game.blessing(&"melee", "hp"), 1.25) and Game.house_level("Klassisch") == 2 and int(Game.stats["kills"]) == 42,
+			"Segen, Hausausbau und Auswertung kommen zurück")
+	var units := RunSave.units(loaded)
+	_check(units.size() == 2 and units[0]["data"] == Registry.units["knight"] and units[0]["xp"] == 20 \
+			and units[0]["position"] == Vector2(300, 180), "Einheiten mit Ort und Erfahrung kommen zurück")
+	loaded["units"].append({"id": "gibt_es_nicht", "x": 0.0, "y": 0.0, "xp": 0})
+	_check(RunSave.units(loaded).size() == 2, "Unbekannte Einheiten im Spielstand fallen weg")
+	# Wie "Fortsetzen" im Menü: neue Arena lädt den Stand und stellt die Einheiten auf.
+	_arena.queue_free()
+	await get_tree().process_frame
+	RunSave.write(data)
+	Game.resume_requested = true
+	_arena = load("res://scenes/main.tscn").instantiate()
+	add_child(_arena)
+	await get_tree().process_frame
+	var resumed: Array[Combatant] = _arena.get_player_units()
+	_check(not Game.resume_requested and Game.round_number == 7 and Game.gold == 123 and resumed.size() == 2 \
+			and resumed.any(func(u: Combatant) -> bool: return u.unit_data.id == &"knight" and u.xp == 20),
+			"Fortsetzen stellt Runde, Gold und Einheiten wieder her")
+	_check(int(_arena.get("_rounds_without_event")) == 2 and (_arena.get("_hud") as Hud).event_open(),
+			"Fortsetzen bietet das offene Ereignis wieder an")
+	_arena.save_run()
+	_check(RunSave.read().get("units", []).size() == 2, "Arena speichert den Lauf mit allen Einheiten")
+	_arena.call("_game_over")
+	_check(not RunSave.exists(), "Niederlage löscht den Spielstand")
+	RunSave.write(data)
+	loaded["format"] = RunSave.FORMAT + 1
+	RunSave.write(loaded)
+	_check(RunSave.read().is_empty(), "Spielstand in fremdem Format wird ignoriert")
+	RunSave.clear()
+	_check(not RunSave.exists(), "Spielstand lässt sich löschen")
+	RunSave.path = old_path
+	RunSave.enabled = false
+	Game.auto_abilities = true
+	Game.set_modifier(&"")
+
+	var best := Progress.best_round
+	_check(Progress.record_round(best + 1) and not Progress.record_round(best + 1) and Progress.best_round == best + 1,
+			"Rekord steigt nur bei einer höheren Runde")
+	Progress.best_round = best

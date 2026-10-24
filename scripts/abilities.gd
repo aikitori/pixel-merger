@@ -1,7 +1,7 @@
 class_name Abilities
 extends RefCounted
 ## Fähigkeiten der Einheiten: Name, Kurzbeschreibung, aktiv/passiv und Abklingzeit.
-## Die Wirkung steckt in Combatant. Welche Einheit welche Fähigkeit hat, steht in tools/content.py.
+## Die Wirkung steckt in AbilityCasts. Welche Einheit welche Fähigkeit hat, steht in tools/content.py.
 ## Aktive Fähigkeiten lösen im Kampf von selbst aus (Bedingung erfüllt, Abklingzeit vorbei),
 ## passive wirken dauerhaft. Die Stärke wächst mit der Stufe der Einheit (siehe power).
 

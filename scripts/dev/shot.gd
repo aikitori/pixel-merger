@@ -1,13 +1,15 @@
 extends Node
 ## Entwickler-Werkzeug: speichert Screenshots der Oberfläche (braucht ein Fenster, z.B. Xvfb).
 ## Start: godot res://scenes/dev/shot.tscn -- <Ordner> [ansicht ...]
-## Ansichten: bau, dorf, haus, buch, buch2, linien, kampf, arena (Runde aus SHOT_ROUND, Datei arena_<runde>.png)
+## Ansichten: bau, dorf, haus, buch, buch2, linien, kampf, verloren, menue (mit gespeichertem Lauf),
+## arena (Runde aus SHOT_ROUND, Datei arena_<runde>.png)
 
 func _ready() -> void:
 	var args := OS.get_cmdline_user_args()
 	var folder: String = args[0] if args.size() > 0 else "user://"
 	var views: Array = args.slice(1, 2) if args.size() > 2 else args.slice(1) if args.size() > 1 else ["bau", "dorf", "haus", "buch", "linien", "kampf"]
 	var original_language := Loc.language
+	RunSave.path = "user://shot_run.cfg"  # den echten Spielstand nicht anfassen
 	if OS.get_environment("SHOT_LANG") != "":
 		Loc.set_language(OS.get_environment("SHOT_LANG"))
 	if OS.get_environment("SHOT_STYLE") != "":
@@ -115,7 +117,10 @@ func _ready() -> void:
 				add_child(gallery)
 			"erfolge":
 				hud._achievements.open_panel()
+			"verloren":
+				hud.show_game_over(14, {"kills": 312, "gold": 1874, "merges": 41, "best_unit": "crusader"}, 17, false)
 			"menue":
+				arena.call("save_run")
 				arena.queue_free()
 				var menu: Node = load("res://scenes/menu.tscn").instantiate()
 				add_child(menu)
@@ -141,6 +146,7 @@ func _ready() -> void:
 		image.save_png("%s/%s.png" % [folder, file])
 		print("Screenshot: ", file)
 	Loc.set_language(original_language)
+	RunSave.clear()
 	get_tree().quit()
 
 

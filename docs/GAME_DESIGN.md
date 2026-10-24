@@ -84,7 +84,17 @@ Mehrere Runden, jede Runde besteht aus zwei Phasen:
   (Oberfläche) und `scripts/i18n/names_en.gd` (Namen, erzeugt aus `tools/i18n_names.py`). Neue Texte
   brauchen dort einen Eintrag, sonst bleiben sie deutsch. Die Wahl wird gespeichert, die Standardsprache
   richtet sich nach dem Gerät.
-- **Niederlage:** Sind in der Kampfphase alle eigenen Einheiten tot, ist das Spiel verloren.
+- **Niederlage:** Sind in der Kampfphase alle eigenen Einheiten tot, ist das Spiel verloren. Der Bildschirm zeigt
+  eine Auswertung des Laufs (besiegte Gegner, erbeutetes Gold, Verbindungen, stärkste Einheit nach dem Preis ihrer
+  Grundeinheiten, `Game.stats`) und den Rekord.
+- **Spielstand:** Der laufende Lauf wird gespeichert (`scripts/run_save.gd`, `user://run.cfg`): zu Beginn jeder Bauphase,
+  nach einem Ereignis, beim Kampfstart (Stand vor dem Kampf), beim Verlassen und wenn die App in den Hintergrund geht.
+  Gespeichert werden Runde, Gold, Modifikator, Segen, Hausausbau, Auswertung, Einheiten mit Ort und Erfahrung und ob
+  ein Ereignis offen war (es wird dann neu gezogen). Im Menü steht dann "Fortsetzen (Runde X)" und "Neues Spiel"
+  (verwirft den Lauf erst beim zweiten Tipp). Nach einer Niederlage wird der Stand gelöscht. Wer im Kampf
+  aufhört, macht beim Kampfbeginn weiter.
+- **Rekord:** Die höchste erreichte Runde aller Läufe (`Progress.best_round`, in `user://progress.cfg`) steht im Menü
+  unten rechts und auf dem Verloren-Bildschirm ("Neuer Rekord!", wenn der Lauf ihn verbessert hat).
 - **Einheitenlimit:** Im Kampf treten höchstens 20 Einheiten an (`Game.MAX_UNITS`). In der Bauphase dürfen bis zu 40
   stehen (`Game.BUILD_MAX_UNITS`), weil man für Rezepte viele Grundeinheiten braucht. Der Kampf startet erst, wenn
   höchstens 20 übrig sind. Überzählige schickt man per Knopf "Zurückschicken" zurück und bekommt 50 % des

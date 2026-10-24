@@ -29,9 +29,10 @@ Nach Änderungen: `python3 tools/generate_data.py` und/oder `python3 tools/gener
 
 ## Aufbau
 
-- Autoloads (Reihenfolge): `Game`, `Registry`, `Loc`, `Sound`, `Achievements` (`scripts/autoload/`).
+- Autoloads (Reihenfolge): `Game`, `Registry`, `Loc`, `Sound`, `Achievements`, `Progress` (`scripts/autoload/`).
 - Hauptszene ist das Menü (`scenes/menu.tscn`), das Spiel `scenes/main.tscn` (`scripts/main.gd`, y-sortiert).
-- Kampf: `scripts/combatant.gd`. Fähigkeiten: `scripts/abilities.gd` (Daten) plus `_cast_ability` im Combatant.
+- Kampf: `scripts/combatant.gd`. Fähigkeiten: `scripts/abilities.gd` (Daten) plus `scripts/ability_casts.gd` (Wirkung, `AbilityCasts.cast`).
+- Spielstand: `scripts/run_save.gd` speichert den laufenden Lauf (`user://run.cfg`), `Progress` Geheimrezepte und Rekord.
 - Oberfläche: `scripts/hud.gd`, `recipe_book.gd`, `shop.gd`, `village.gd`, `ui_theme.gd` (im Code gezeichnet, Farben aus `art_style.gd`).
 - Bildstil: `scripts/art_style.gd` (Oberflächenfarben und -bilder, Logo, Auswahl) plus `shaders/art_style.gdshader` (Nachbearbeitung über das ganze Bild, von `Game` eingehängt). Standard ist `ArtStyle.DEFAULT` (`dungeon`), er muss zu den erzeugten Sprites passen.
 - Spielfeld: `scripts/world.gd` (Grundriss der Runde, Hindernisse, Kollision). Normale Runden: Kreuz, Bossrunden: eigene Arena. Begehbare Rechtecke und Tore stehen im erzeugten `scripts/arena_layouts.gd`, Boden und Mauern sind die Bilder `assets/sprites/tiles/arena*.png` (`arena.png` ist auch der Menü-Hintergrund).
@@ -42,7 +43,7 @@ Nach Änderungen: `python3 tools/generate_data.py` und/oder `python3 tools/gener
 
 - **Browser hat keine Systemschrift.** Nur Zeichen aus Latein-1 plus Gedankenstrich und Mittelpunkt verwenden. Keine Symbole wie ★, ✕, ▼, Pfeile oder Emoji (erscheinen dort als Kästchen). Auf Android und Desktop fällt es nicht auf.
 - **Web-Export ohne Threads** (läuft auf GitHub Pages). Beenden-Knopf ist im Browser ausgeblendet, Vollbild nur außerhalb von Android.
-- **Headless-Läufe** bleiben Deutsch und speichern keine Erfolge.
+- **Headless-Läufe** bleiben Deutsch und speichern weder Erfolge noch Fortschritt noch den Lauf (`RunSave.enabled`).
 - Dev-Tests setzen oft Positionen und Gold selbst. Startfiguren und Gegner sind zufällig verteilt: Tests dürfen nicht von Zufall abhängen (die CI war deshalb schon zweimal rot).
 - Beim Löschen von Einheiten `discard()` verwenden, ein freigegebenes Objekt gilt in Godot 4 nicht als `null`: `is_instance_valid` prüfen.
 - Versionsnummer: `project.godot` (`config/version`) und `export_presets.cfg` (`version/name`, `version/code`) müssen übereinstimmen, der Events-Test prüft das.
@@ -56,7 +57,7 @@ godot --headless res://scenes/dev/anim_test.tscn    # Angriffe, alle Fähigkeite
 godot --headless res://scenes/dev/events_test.tscn  # Boss-/Bonusrunden, Erfolge, Gelände, Version
 ```
 
-Ausgabe prüfen auf `... OK`, keine Zeilen mit `FAIL`, `SCRIPT ERROR` oder `ERROR`. Die CI (`.github/workflows/android.yml`) führt alle vier aus. Screenshots: `scenes/dev/shot.tscn` (braucht ein Fenster oder Xvfb), z.B. `SHOT_ROUND=15 godot res://scenes/dev/shot.tscn -- <Ordner> arena` für die Arena einer Runde.
+Ausgabe prüfen auf `... OK` (auch `SMOKE-TEST OK`), keine Zeilen mit `FAIL`, `SCRIPT ERROR` oder `ERROR`. Die CI (`.github/workflows/android.yml`) führt alle vier aus. Screenshots: `scenes/dev/shot.tscn` (braucht ein Fenster oder Xvfb), z.B. `SHOT_ROUND=15 godot res://scenes/dev/shot.tscn -- <Ordner> arena` für die Arena einer Runde.
 
 ## Release
 
