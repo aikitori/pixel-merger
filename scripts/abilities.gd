@@ -24,6 +24,8 @@ const INFO := {
 		"text": "Zwingt nahe Gegner kurz, diese Einheit anzugreifen."},
 	&"war_cry": {"name": "Kriegsruf", "active": true, "cooldown": 14.0,
 		"text": "Verbündete in der Nähe machen kurz mehr Schaden."},
+	&"tailwind": {"name": "Rückenwind", "active": true, "cooldown": 12.0,
+		"text": "Verbündete in der Nähe greifen kurz schneller an und laufen flinker."},
 	&"chain_lightning": {"name": "Kettenblitz", "active": true, "cooldown": 9.0,
 		"text": "Ein Blitz springt vom Ziel zu weiteren Gegnern in der Nähe."},
 	&"petrify": {"name": "Versteinern", "active": true, "cooldown": 14.0,

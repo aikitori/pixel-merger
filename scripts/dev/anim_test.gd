@@ -107,13 +107,25 @@ func _check_abilities(arena: Node2D) -> void:
 	flame.discard()
 	foe_m.discard()
 
-	var mage := _player(arena, "mage", Vector2(300, 170))
+	# Frostnova (Eis-Linie) an einem Magier geprüft: dessen Arkankugel bremst selbst nicht
+	var mage := _with(arena, "mage", &"frost_nova", Vector2(300, 170))
 	var foe_f := _dummy(Vector2(330, 170))
 	arena.add_child(foe_f)
 	ok = await _watch(700, func() -> bool: return foe_f.has_effect(&"slow"))
 	_ability_result(&"frost_nova", ok, mage)
 	mage.discard()
 	foe_f.discard()
+
+	var wind := _with(arena, "breeze", &"tailwind", Vector2(300, 170))
+	var buddy := _player(arena, "knight", Vector2(320, 175))
+	buddy.move_speed = 0.0
+	var foe_tw := _dummy(Vector2(380, 170))
+	arena.add_child(foe_tw)
+	ok = await _watch(900, func() -> bool: return buddy.has_effect(&"haste"))
+	_ability_result(&"tailwind", ok, wind)
+	wind.discard()
+	buddy.discard()
+	foe_tw.discard()
 
 	var horse := _player(arena, "horse", Vector2(30, 170))
 	var foe_s := _dummy(Vector2(610, 170))

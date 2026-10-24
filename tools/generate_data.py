@@ -19,26 +19,29 @@ def color(hex_value):
     return f'Color({r:.3f}, {g:.3f}, {b:.3f}, 1)'
 
 
-# Kampfanimation: Nahkampf (Schwert) bis Reichweite 30, darüber Pfeil oder Feuerball.
-ARROW_LINES = {'ranged', 'elf', 'centaur'}
-ARROW_COMBOS = {'robin_hood', 'mounted_archer', 'storm_archer', 'dwarf_gunner', 'mercenary', 'wild_hunter',
-                'beast_master', 'dark_elf', 'red_hood', 'arcane_archer'}
+def gd_keys(path):
+    """Schlüssel der INFO-Tabelle eines GDScripts (z.B. scripts/traits.gd), um Ids zu prüfen."""
+    import re
+    text = (ROOT / path).read_text(encoding='utf-8')
+    return set(re.findall(r'^\t&"(\w+)": \{', text, re.M))
 
 
-HEAL_LINES = {'healer', 'monk'}
-
-
-def attack_style(rng, arrows, heals=False):
-    if heals:
-        return 'heal'
-    if rng <= 30:
-        return 'melee'
-    return 'arrow' if arrows else 'magic'
+def check_profiles():
+    """Charakter der Einheiten: alles einzigartig (content.check_unique) und in den Skripten vorhanden."""
+    traits = content.check_unique()
+    for path, wanted in (('scripts/traits.gd', set(traits)),
+                         ('scripts/behaviors.gd', {p['behavior'] for p in content.UNIT_PROFILE.values()}),
+                         ('scripts/attack_kinds.gd', {p['attack'] for p in content.UNIT_PROFILE.values()}),
+                         ('scripts/abilities.gd', set(content.UNIT_ABILITY.values()))):
+        missing = sorted(wanted - gd_keys(path))
+        assert not missing, f'In {path} fehlen: {missing}'
 
 
 def write_unit(uid, name, line_name, level, hex_color, stats, intel, shop_order=0, price=0, category='',
-               unlock_round=1, upgrade=None, upgrade_cost=0, arrows=False, heals=False, ability='', house_level=0):
+               unlock_round=1, upgrade=None, upgrade_cost=0, ability='', house_level=0):
     hp, atk, rng, cd, spd = stats
+    profile = content.UNIT_PROFILE[uid]
+    traits = ', '.join(f'&"{t}"' for t in profile['traits'])
     exts = [('Script', 'res://scripts/data/unit_data.gd'),
             ('Texture2D', f'res://assets/sprites/units/{uid}.png')]
     if upgrade:
@@ -50,8 +53,9 @@ def write_unit(uid, name, line_name, level, hex_color, stats, intel, shop_order=
              ('category', f'"{category}"'), ('color', color(hex_color)), ('level', level),
              ('shop_order', shop_order), ('price', price), ('house_level', house_level),
              ('unlock_round', unlock_round),
-             ('max_health', float(hp)), ('attack', float(atk)), ('attack_range', float(rng)), ('attack_style', f'&"{attack_style(rng, arrows, heals)}"'),
-             ('ability', f'&"{ability}"'), ('attack_cooldown', float(cd)), ('move_speed', float(spd)), ('intelligence', float(intel))]
+             ('max_health', float(hp)), ('attack', float(atk)), ('attack_range', float(rng)), ('attack_style', f'&"{content.attack_style(uid)}"'),
+             ('ability', f'&"{ability}"'), ('behavior', f'&"{profile["behavior"]}"'),
+             ('attack_kind', f'&"{profile["attack"]}"'), ('traits', f'Array[StringName]([{traits}])'), ('attack_cooldown', float(cd)), ('move_speed', float(spd)), ('intelligence', float(intel))]
     if upgrade:
         props += [('upgrade', 'ExtResource("3")'), ('upgrade_cost', upgrade_cost)]
     lines += ['', '[resource]'] + [f'{k} = {v}' for k, v in props]
@@ -122,6 +126,7 @@ def write_english_names():
 
 
 def main():
+    check_profiles()
     for folder in ('units', 'recipes'):
         path = ROOT / 'data' / folder
         path.mkdir(parents=True, exist_ok=True)
@@ -138,8 +143,7 @@ def main():
                 shop_order=line['order'] if i == 0 else 0,
                 price=line['price'] if i == 0 else 0, category=line['category'],
                 house_level=line['house_level'] if i == 0 else 0,
-                unlock_round=content.LEVEL_UNLOCK_ROUND[i],
-                arrows=key in ARROW_LINES, heals=key in HEAL_LINES, ability=content.UNIT_ABILITY[uid],
+                unlock_round=content.LEVEL_UNLOCK_ROUND[i], ability=content.UNIT_ABILITY[uid],
                 upgrade=None if last else line['ids'][i + 1],
                 upgrade_cost=0 if last else content.UPGRADE_COST[i])
 
@@ -153,7 +157,7 @@ def main():
                 uid, combo['names'][level], 'Kombination', level + 1, combo['color'],
                 (round(hp * mult), round(atk * mult, 1), rng, cd, spd),
                 round(combo['int'] * content.COMBO_INT_MULT[level]),
-                category='Kombination', arrows=base in ARROW_COMBOS, heals=base in content.HEAL_COMBOS, ability=content.UNIT_ABILITY[uid],
+                category='Kombination', ability=content.UNIT_ABILITY[uid],
                 unlock_round=combo['unlock'] + content.COMBO_UNLOCK_STEP * level,
                 upgrade=None if last else ids[level + 1],
                 upgrade_cost=0 if last else round(combo['cost'] * content.COMBO_UPGRADE_MULT[level]))

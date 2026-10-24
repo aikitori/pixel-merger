@@ -691,43 +691,197 @@ def build():
 
 
 # --- Animation -------------------------------------------------------------------------
-# Wie bei 0x72: je 4 Bilder Stehen (Atmen) und Laufen (Wippen, Beine schwingen), nebeneinander in einem
-# Streifen. Aus der Einzelkachel abgeleitet: der Oberkörper bewegt sich gegen die Beine.
+# Ein Streifen je Figur mit 16 Bildern: 4 Stehen, 4 Laufen, 4 Angriff, 4 Tod. Wie sich die Figur bewegt,
+# hängt vom Körperbau ab (content.BODIES): Zweibeiner schreiten, Vierbeiner galoppieren, Schlangen winden
+# sich, Flieger schlagen mit den Flügeln, Schweber treiben, Hüpfer springen, Kolosse stampfen, Schleime
+# wabern. Alles wird aus der Einzelkachel abgeleitet (der Schatten am Boden bleibt liegen).
+# Werte je Bild: lift (hoch), dx (vor), breathe (Oberkörper tiefer), sway (Oberkörper vor), shear (Beine
+# schräg, Vierbeiner: Vorder- und Hinterbeine gegenläufig), wave (Schlange), flap (Flügel angelegt),
+# squash/stretch (Höhe/Breite), rotate (Grad, Fallen), alpha, crumble (Anteil zerbröselt).
 
-ANIM_FRAMES = 8
-IDLE = [(0, 0, 0), (1, 0, 0), (1, 0, 0), (0, 0, 0)]      # (Oberkörper tiefer, Beine schräg, ganze Figur höher)
-RUN = [(0, 2, 0), (0, 0, 1), (0, -2, 0), (0, 0, 1)]
+ANIM_FRAMES = 16
+TOP = 8          # Platz nach oben für Sprünge und Flügelschläge
+SIDE = 6         # Platz zur Seite für Ausfallschritte und Fallen
 LEG_SHARE = 0.36
+
+
+def _fr(**kw):
+    return kw
+
+
+def _seq(**lists):
+    """Vier Bilder aus Listen je Wert: _seq(lift=[0, 1, 2, 1])."""
+    return [{k: v[i] for k, v in lists.items()} for i in range(4)]
+
+
+FALL = _seq(rotate=[-15, -40, -62, -72], squash=[1.0, 0.95, 0.85, 0.8], alpha=[1, 1, 0.75, 0.4])
+COLLAPSE = _seq(squash=[0.85, 0.65, 0.45, 0.3], stretch=[1.05, 1.1, 1.15, 1.2], alpha=[1, 1, 0.8, 0.5])
+DISSOLVE = _seq(squash=[0.85, 0.6, 0.38, 0.18], stretch=[0.85, 0.6, 0.38, 0.18], alpha=[0.9, 0.7, 0.5, 0.3],
+                lift=[2, 3, 4, 5])
+MELEE_SWING = _seq(sway=[-1, 3, 2, 0], dx=[-1, 1, 1, 0])
+RANGED_DRAW = _seq(sway=[-1, -2, 1, 0], dx=[0, -1, 0, 0])
+
+BODY_FRAMES = {
+    'biped': {
+        'idle': _seq(breathe=[0, 1, 1, 0]),
+        'run': _seq(shear=[2, 0, -2, 0], lift=[0, 1, 0, 1]),
+        'melee': MELEE_SWING, 'ranged': RANGED_DRAW, 'death': FALL,
+    },
+    'quadruped': {
+        'idle': _seq(breathe=[0, 1, 1, 0]),
+        'run': _seq(gallop=[2, 0, -2, 0], lift=[0, 1, 2, 1]),
+        'melee': _seq(dx=[-2, 3, 2, 0], lift=[1, 0, 0, 0]), 'ranged': RANGED_DRAW, 'death': COLLAPSE,
+    },
+    'rider': {
+        'idle': _seq(breathe=[0, 1, 1, 0]),
+        'run': _seq(gallop=[2, 0, -2, 0], lift=[0, 1, 2, 1], breathe=[1, 0, 1, 0]),
+        'melee': MELEE_SWING, 'ranged': RANGED_DRAW, 'death': COLLAPSE,
+    },
+    'serpent': {
+        'idle': _seq(wave=[(1, 0), (1, 1), (1, 2), (1, 3)]),
+        'run': _seq(wave=[(2, 0), (2, 1), (2, 2), (2, 3)]),
+        'melee': _seq(stretch=[0.95, 1.15, 1.1, 1.0], dx=[-1, 2, 1, 0]),
+        'ranged': _seq(stretch=[0.95, 1.1, 1.0, 1.0], sway=[-1, 1, 0, 0]),
+        'death': _seq(squash=[0.8, 0.6, 0.4, 0.25], stretch=[1.05, 1.1, 1.15, 1.2], alpha=[1, 0.9, 0.7, 0.4]),
+    },
+    'flyer': {
+        'idle': _seq(lift=[1, 2, 3, 2], flap=[0, 1, 0, 1]),
+        'run': _seq(lift=[2, 4, 3, 1], flap=[1, 0, 1, 0]),
+        'melee': _seq(dx=[-1, 3, 2, 0], lift=[3, 1, 1, 2]), 'ranged': _seq(lift=[2, 3, 2, 2], sway=[-1, -2, 1, 0]),
+        'death': _seq(lift=[3, 1, 0, 0], rotate=[15, 40, 58, 65], squash=[1.0, 0.92, 0.8, 0.75], alpha=[1, 1, 0.7, 0.4]),
+    },
+    'floater': {
+        'idle': _seq(lift=[1, 2, 3, 2]),
+        'run': _seq(lift=[2, 3, 2, 1], sway=[1, 0, -1, 0]),
+        'melee': _seq(squash=[1.0, 1.12, 1.05, 1.0], dx=[0, 2, 1, 0], lift=[2, 2, 2, 2]),
+        'ranged': _seq(squash=[0.95, 1.12, 1.05, 1.0], lift=[2, 3, 2, 2]),
+        'death': DISSOLVE,
+    },
+    'hopper': {
+        'idle': _seq(squash=[1.0, 0.95, 1.0, 0.95]),
+        'run': [_fr(squash=0.85, stretch=1.1), _fr(squash=1.1, stretch=0.92, lift=4), _fr(lift=6),
+                _fr(squash=0.85, stretch=1.1)],
+        'melee': _seq(stretch=[0.9, 1.2, 1.1, 1.0], dx=[-1, 3, 2, 0]), 'ranged': RANGED_DRAW,
+        'death': _seq(squash=[0.7, 0.45, 0.3, 0.2], stretch=[1.1, 1.2, 1.3, 1.35], alpha=[1, 1, 0.7, 0.4]),
+    },
+    'colossus': {
+        'idle': _seq(breathe=[0, 1, 1, 0]),
+        'run': _seq(sway=[-1, 0, 1, 0], shear=[1, 0, -1, 0]),
+        'melee': _seq(lift=[1, 2, 0, 0], squash=[1.0, 1.04, 0.94, 1.0], dx=[0, 0, 2, 0]), 'ranged': RANGED_DRAW,
+        'death': _seq(crumble=[0.15, 0.35, 0.6, 0.85], alpha=[1, 1, 0.8, 0.5]),
+    },
+    'blob': {
+        'idle': _seq(squash=[1.0, 0.94, 0.9, 0.94], stretch=[1.0, 1.04, 1.08, 1.04]),
+        'run': _seq(squash=[0.85, 1.08, 1.0, 0.9], stretch=[1.12, 0.94, 1.0, 1.08], lift=[0, 2, 1, 0]),
+        'melee': _seq(squash=[0.8, 1.15, 1.05, 1.0], dx=[0, 2, 1, 0]),
+        'ranged': _seq(squash=[0.85, 1.12, 1.0, 1.0]),
+        'death': _seq(squash=[0.7, 0.45, 0.25, 0.12], stretch=[1.15, 1.3, 1.4, 1.5], alpha=[1, 0.9, 0.7, 0.4]),
+    },
+}
 
 
 def _is_shadow(c):
     return c[3] <= 130 and max(c[:3]) < 24
 
 
-def _frame(img, breathe, shear, lift):
-    out = Img(img.w + 4, img.h + 1)
-    split = img.h - round(img.h * LEG_SHARE)
-    legs = max(1, img.h - split)
-    for y in range(img.h):
-        for x in range(img.w):
-            c = img.px[y * img.w + x]
+def _hash(x, y):
+    return ((x * 73856093) ^ (y * 19349663)) & 0xffff
+
+
+def _pose(img, f):
+    """Erster Schritt: Teile der Figur gegeneinander verschieben (Oberkörper, Beine, Welle, Flügel)."""
+    w, h = img.w, img.h
+    body = Img(w + 2 * SIDE, h)
+    shadow = Img(w + 2 * SIDE, h)
+    split = h - round(h * LEG_SHARE)
+    legs = max(1, h - split)
+    wing_rows = round(h * 0.4)
+    breathe, sway = f.get('breathe', 0), f.get('sway', 0)
+    shear, gallop = f.get('shear', 0), f.get('gallop', 0)
+    wave = f.get('wave')
+    flap = f.get('flap', 0)
+    crumble = f.get('crumble', 0)
+    for y in range(h):
+        for x in range(w):
+            c = img.px[y * w + x]
             if not c[3]:
                 continue
             if _is_shadow(c):
-                out.set(x + 2, y + 1, pi.over(out.get(x + 2, y + 1), c))
+                shadow.set(x + SIDE, y, c)
                 continue
-            dx, dy = 0, 1 - lift
+            dx, dy = 0, 0
             if y < split:
                 dy += breathe
+                dx += sway
             else:
-                dx = round(shear * (y - split + 1) / legs)
-            out.set(x + 2 + dx, y + dy, pi.over(out.get(x + 2 + dx, y + dy), c))
+                depth = (y - split + 1) / legs
+                if shear:
+                    dx += round(shear * depth)
+                if gallop:  # Vorderbeine (rechts) und Hinterbeine gegenläufig
+                    dx += round((gallop if x >= w // 2 else -gallop) * depth)
+            if wave:
+                amp, phase = wave
+                dy += round(amp * __import__('math').sin((x / max(w, 1)) * 6.283 + phase * 1.571))
+            if flap and y < wing_rows and (x < w * 0.3 or x > w * 0.7):
+                dy += 1 if y < wing_rows // 2 else 0
+            if crumble:
+                if _hash(x, y) / 0xffff < crumble:
+                    continue
+                dy += round(crumble * 6 * (_hash(y, x) / 0xffff))
+            body.set(x + SIDE + dx, y + dy, pi.over(body.get(x + SIDE + dx, y + dy), c))
+    return body, shadow
+
+
+def _frame(img, f):
+    """Ein Bild: Pose, dann Höhe/Breite, Drehung, Verschiebung und Deckkraft um den Fußpunkt."""
+    import math
+    body, shadow = _pose(img, f)
+    w, h = body.w, body.h
+    out = Img(w, h + TOP + 1)
+    squash, stretch = f.get('squash', 1.0), f.get('stretch', 1.0)
+    angle = math.radians(f.get('rotate', 0))
+    cos_a, sin_a = math.cos(angle), math.sin(angle)
+    lift, dx = f.get('lift', 0), f.get('dx', 0)
+    alpha = f.get('alpha', 1.0)
+    foot_x, foot_y = w / 2.0, float(h)
+    base_y = TOP + 1
+    # Schatten bleibt am Boden, wird beim Abheben etwas kleiner
+    for y in range(h):
+        for x in range(w):
+            c = shadow.px[y * w + x]
+            if c[3]:
+                out.set(x, y + base_y - 1, (c[0], c[1], c[2], round(c[3] * alpha)) if alpha < 1.0 else c)
+    for oy in range(out.h):
+        for ox in range(w):
+            # Rückwärts abbilden: Zielpunkt -> Punkt im Körperbild
+            px = ox - dx - foot_x
+            py = oy - base_y + 1 + lift - foot_y
+            rx = px * cos_a + py * sin_a
+            ry = -px * sin_a + py * cos_a
+            sx = rx / stretch + foot_x
+            sy = ry / squash + foot_y
+            ix, iy = int(math.floor(sx)), int(math.floor(sy))
+            if 0 <= ix < w and 0 <= iy < h:
+                c = body.px[iy * w + ix]
+                if c[3]:
+                    if alpha < 1.0:
+                        c = (c[0], c[1], c[2], round(c[3] * alpha))
+                    out.set(ox, oy, pi.over(out.get(ox, oy), c))
     return out
 
 
-def animate(img):
-    frames = [_frame(img, *f) for f in IDLE + RUN]
+def animate(img, body='biped', ranged=False):
+    """Streifen mit 16 Bildern (Stehen, Laufen, Angriff, Tod) für den Körperbau `body`."""
+    frames_for = BODY_FRAMES.get(body, BODY_FRAMES['biped'])
+    plan = frames_for['idle'] + frames_for['run'] + frames_for['ranged' if ranged else 'melee'] + frames_for['death']
+    frames = [_frame(img, f) for f in plan]
     strip = Img(frames[0].w * len(frames), frames[0].h)
     for i, frame in enumerate(frames):
         pi.paste(strip, frame, i * frame.w, 0)
     return strip
+
+
+# Körperbau der Gegner (Einheiten: content.UNIT_PROFILE).
+ENEMY_BODY = {'slime': 'blob', 'goblin': 'biped', 'bone_archer': 'biped', 'orc': 'biped', 'ogre': 'colossus',
+              'boss_ogre': 'colossus', 'boss_dragon': 'flyer', 'boss_bones': 'floater', 'boss_golem': 'colossus'}
+ENEMY_RANGED = {'bone_archer', 'boss_dragon', 'boss_bones'}

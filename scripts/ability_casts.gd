@@ -35,6 +35,14 @@ static func cast(caster: Combatant, id: StringName) -> bool:
 				ally.apply_effect(&"buff", 5.0, 1.0 + minf(0.8, 0.15 + 0.1 * power))
 			caster._spawn_effect(&"ring", caster.position, 80.0, Color("#ff5a4a"))
 			Sound.play(&"swing")
+		&"tailwind":
+			if caster._opponents_near(caster.position, 120.0).is_empty():
+				return false
+			for ally in caster._allies_near(caster.position, 70.0):
+				ally.apply_effect(&"haste", 4.0, 1.0 + minf(0.6, 0.2 + 0.08 * power))
+				ally.apply_effect(&"sprint", 4.0, 1.3)
+			caster._spawn_effect(&"ring", caster.position, 70.0, Color("#dff6ff"))
+			Sound.play(&"swing")
 		&"mass_heal":
 			var hurt := false
 			var allies := caster._allies_near(caster.position, 90.0)

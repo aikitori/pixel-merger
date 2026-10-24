@@ -96,7 +96,8 @@ func refresh() -> void:
 		button.visible = unit.shop_order > 0 or Game.round_number >= Game.DIRECT_BUY_ROUND
 		button.disabled = not building or blocked != "" or Game.gold < Registry.shop_price(unit)
 		var tip := tr("%s (%s)\n%s\nReichweite %d\n%s: %s") % [unit.display_name, unit.line_name,
-				unit.stats_text(), roundi(unit.attack_range), Abilities.label(unit.ability), Abilities.description(unit.ability)]
+				unit.stats_text(), roundi(unit.attack_range), Abilities.label(unit.ability), Abilities.description(unit.ability)] \
+				+ "\n" + unit.character_text() + ("\n" + unit.traits_text() if unit.traits_text() != "" else "")
 		button.tooltip_text = tip + ("\n" + blocked if blocked != "" else "")
 		if unit.shop_order > 0:
 			var locked := Game.house_level(unit.category) < unit.house_level

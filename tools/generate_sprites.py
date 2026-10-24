@@ -763,10 +763,18 @@ def main():
     for folder in ('units', 'enemies', 'anim/units', 'anim/enemies'):
         for old in (ROOT / 'assets/sprites' / folder).glob('*.png'):
             old.unlink()
+    import content
     for folder, images in (('units', units), ('enemies', enemies)):
         for name, img in images.items():
             pixel_image.write_png(ROOT / 'assets/sprites' / folder / f'{name}.png', img)
-            pixel_image.write_png(ROOT / 'assets/sprites/anim' / folder / f'{name}.png', sprite_dcss.animate(img))
+            if folder == 'units':
+                body = content.UNIT_PROFILE[name]['body']
+                ranged = content.attack_style(name) != 'melee'
+            else:
+                body = sprite_dcss.ENEMY_BODY.get(name, 'biped')
+                ranged = name in sprite_dcss.ENEMY_RANGED
+            pixel_image.write_png(ROOT / 'assets/sprites/anim' / folder / f'{name}.png',
+                                  sprite_dcss.animate(img, body, ranged))
     import tiles_dcss
     for name, img in tiles_dcss.build().items():
         pixel_image.write_png(ROOT / 'assets/sprites/tiles' / f'{name}.png', img)

@@ -62,6 +62,15 @@ jobs:
             exit 1
           fi
 
+      - name: Eigenart der Einheiten testen (Verhalten, Angriffsformen, Merkmale)
+        run: |
+          godot --headless res://scenes/dev/units_test.tscn 2>&1 | tee units.log
+          test "${PIPESTATUS[0]}" -eq 0
+          if grep -E "SCRIPT ERROR|^ERROR" units.log; then
+            echo "::error::Fehler im Einheiten-Test"
+            exit 1
+          fi
+
       - name: Boss-/Bonusrunden und Erfolge testen
         run: |
           godot --headless res://scenes/dev/events_test.tscn 2>&1 | tee events.log

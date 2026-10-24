@@ -22,9 +22,24 @@ Mehrere Runden, jede Runde besteht aus zwei Phasen:
   Ab Runde 11 kommt ein aufeinander aufbauender Zuwachs dazu (Leben x1,08, Schaden x1,05 je Runde,
   `Game.LATE_*`), weil Stufen, Veteranen und Hausausbau die eigene Armee schneller als linear stärken.
 - **Kampfphase:** Während des Zeitfensters (x Sekunden bis Minuten) spawnen laufend neue Monster.
-- **Kampfanimationen:** Nahkämpfer (Reichweite bis 30) schwingen das Schwert, Fernkämpfer schießen Pfeile (Linien Fernkampf, Elfen, Waldwesen und Schützen-Kombinationen), alle anderen Fernkämpfer werfen Feuerbälle. Der Stil steht pro Einheit in `attack_style` (erzeugt von `tools/generate_data.py`). Der Schaden wird beim Einschlag verteilt. Beim Laufen wippen die Figuren, bei Zielwechsel drehen sie sich weich (Spiegelung läuft über die Zeit, die Laufrichtung folgt dem Ziel mit Beschleunigung).
   Überleben bis zum Ende des Zeitfensters = Runde überstanden. Noch lebende Gegner bleiben
   folgenlos, es gibt keine Strafe.
+- **Kampfanimationen:** Jede Figur hat einen Streifen mit 16 Bildern (4 Stehen, 4 Laufen, 4 Angriff, 4 Tod), erzeugt
+  nach ihrem Körperbau (siehe Eigenart). Nahkampf zeigt die Waffe der Angriffsform (Schwert, Axt, Keule, Krallen, Biss,
+  Totengriff, Zunge, Speer), Fernkampf ein eigenes Geschoss (Pfeil, Wurfspeer, Arkankugel, Glut, Fluch, Feuerball,
+  Wasser, Giftspucke, Eissplitter), Blitz und Segensstrahl treffen sofort. Der Schaden wird beim Einschlag verteilt.
+  Beim Tod spielt `DeathAnim` die Todesbilder ab (fallen, zusammensinken, verwehen, zerbröseln).
+- **Eigenart der Einheiten:** Jede der 23 Linien hat einen eigenen Charakter (`LINE_PROFILE` in `tools/content.py`):
+  **Verhalten** (`scripts/behaviors.gd`: Frontkämpfer, Wächter, Plänkler, Flankierer, Stürmer, Meuchler, Artillerie,
+  Hüpfer, Schweber, Unterstützer), **Angriffsform** (`scripts/attack_kinds.gd`, 22 Formen mit Zusatzwirkung, z.B.
+  Speerstich durchbohrt, Keule schleudert weg, Biss lässt bluten), **Körperbau** für die Animation (Zweibeiner,
+  Vierbeiner, Reiter, Schlange, Flieger, Schweber, Hüpfer, Koloss, Schleim), eine **eigene Fähigkeit** (keine zwei
+  Linien teilen eine), ab Stufe 3 ein **Merkmal** und auf Stufe 5 einen **Meisterzug**. Jede der 100 Kombinationen
+  hat eine eigene **Signatur** (`COMBO_SIGNATURE`), Körperbau und Verhalten kommen von der Zutat, die ihr Aussehen
+  bestimmt, die Angriffsform passend zur Reichweite. Merkmale und Signaturen bestehen aus Bausteinen
+  (`scripts/traits.gd`: Brand, Rückstoß, Fläche, Überspringen, Ausweichen, Abwehr, Auren, Wiederaufstehen ...).
+  Der Generator bricht ab, wenn zwei Linien gleich wären oder eine Signatur doppelt ist; `units_test.tscn` prüft
+  jede Form, jeden Baustein und die Verhaltensweisen. Karte, Kaufliste und Rezeptbuch zeigen alles an.
 - **Steuerung:** Einheiten kaufen und platzieren sich frei in der Arena (Bauphase: ziehen,
   auf eine andere Einheit ziehen = verbinden). Im Kampf handeln sie automatisch, können aber
   taktisch befehligt werden: Einheit antippen, dann Befehl wählen (Knopf "Befehl" unten):

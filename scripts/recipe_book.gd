@@ -489,7 +489,8 @@ func _recipe_entry(recipe: RecipeData) -> Dictionary:
 	return {
 		"node": column, "weight": 1, "marks": [[column, recipe.unlock_round]],
 		"text": ("%s %s %s %s %s" % [recipe.ingredient_a.display_name, recipe.ingredient_b.display_name,
-				_stage_names(recipe.result), Abilities.display_name(recipe.result.ability), recipe.result.line_name]).to_lower(),
+				_stage_names(recipe.result), Abilities.display_name(recipe.result.ability), recipe.result.line_name]
+				+ " " + " ".join(recipe.result.traits.map(func(id: StringName) -> String: return Traits.display_name(id)))).to_lower(),
 	}
 
 
@@ -498,6 +499,9 @@ func _recipe_tooltip(recipe: RecipeData) -> String:
 			recipe.result.display_name, _stage_names(recipe.result).replace(" ", " > ")]
 	if recipe.result.ability != &"":
 		text += "\n%s: %s" % [Abilities.label(recipe.result.ability), Abilities.description(recipe.result.ability)]
+	text += "\n" + recipe.result.character_text()
+	if recipe.result.traits_text() != "":
+		text += "\n" + recipe.result.traits_text()
 	return text
 
 
@@ -537,7 +541,8 @@ func _line_entry(start: UnitData) -> Dictionary:
 		else:
 			last_row.queue_free()
 		row.add_child(info)
-		row.tooltip_text = "%s\n%s" % [Abilities.label(unit.ability), Abilities.description(unit.ability)]
+		row.tooltip_text = "%s\n%s\n%s" % [Abilities.label(unit.ability), Abilities.description(unit.ability), unit.character_text()] \
+				+ ("\n" + unit.traits_text() if unit.traits_text() != "" else "")
 		column.add_child(row)
 		marks.append([row, unit.unlock_round if unit.level > 1 else 0])
 		names.append(unit.display_name)

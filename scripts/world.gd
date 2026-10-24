@@ -192,6 +192,11 @@ static func clamp_point(point: Vector2) -> Vector2:
 	return result
 
 
+## Nur den Boden beachten, Hindernisse nicht (Schweber).
+static func clamp_to_floor(point: Vector2) -> Vector2:
+	return _clamp_to_floor(point)
+
+
 static func _clamp_to_floor(point: Vector2) -> Vector2:
 	if contains(point):
 		return point

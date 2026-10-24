@@ -36,12 +36,31 @@ extends Resource
 @export var attack_style: StringName = &"melee"
 ## Fähigkeit (siehe Abilities), &"" = keine.
 @export var ability: StringName = &""
+## Verhalten im Kampf (siehe Behaviors).
+@export var behavior: StringName = &"frontline"
+## Angriffsform (siehe AttackKinds), bestimmt Geschoss, Animation und Zusatzwirkung.
+@export var attack_kind: StringName = &"slash"
+## Merkmale (siehe Traits): Stufen-Merkmal und Meisterzug der Linie bzw. Signatur der Kombination.
+@export var traits: Array[StringName] = []
 @export var attack_cooldown: float = 1.0
 @export var move_speed: float = 40.0
 
 
 static func format_number(value: float) -> String:
 	return "%d" % roundi(value) if is_equal_approx(value, roundf(value)) else "%.1f" % value
+
+
+## Verhalten und Angriffsform, z.B. "Plänkler · Pfeil".
+func character_text() -> String:
+	return "%s  ·  %s" % [Behaviors.display_name(behavior), AttackKinds.display_name(attack_kind)]
+
+
+## Merkmale als Zeilen "+ Name: Wirkung" (leer, wenn keine).
+func traits_text() -> String:
+	var lines: Array[String] = []
+	for id in traits:
+		lines.append("+ %s: %s" % [Traits.display_name(id), Traits.description(id)])
+	return "\n".join(lines)
 
 
 ## Kurztext der vier Hauptwerte, z.B. "LP 40  Stä 5  Bew 40  Int 12".

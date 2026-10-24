@@ -137,7 +137,7 @@ func _resume(saved: Dictionary) -> void:
 
 ## Lauf speichern, aber nur aus der Bauphase: Im Kampf bleibt der Stand vom Kampfbeginn stehen.
 func save_run() -> void:
-	if Game.phase == Game.Phase.BUILD and is_instance_valid(_hud):
+	if Game.phase == Game.Phase.BUILD and is_instance_valid(_hud) and RunSave.enabled:
 		RunSave.write(RunSave.capture(self, _hud.event_offers()))
 
 

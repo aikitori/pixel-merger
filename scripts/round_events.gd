@@ -208,10 +208,13 @@ static func apply(offer: Dictionary, arena: Node) -> String:
 static func to_save(offer: Dictionary, arena: Node) -> Dictionary:
 	var entry := {"id": String(offer["id"])}
 	var data: Dictionary = offer["data"]
-	if data.get("unit") is UnitData:
-		entry["unit_id"] = String((data["unit"] as UnitData).id)
-	elif data.get("unit") is Combatant:
-		entry["unit_index"] = arena.get_player_units().find(data["unit"])
+	var unit = data.get("unit")
+	if not is_instance_valid(unit):
+		pass  # Einheit inzwischen gefallen oder verbunden: das Angebot wird beim Fortsetzen neu gebaut
+	elif unit is UnitData:
+		entry["unit_id"] = String((unit as UnitData).id)
+	elif unit is Combatant:
+		entry["unit_index"] = arena.get_player_units().find(unit)
 	if data.has("group"):
 		entry["group"] = String(data["group"])
 	return entry

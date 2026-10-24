@@ -97,6 +97,9 @@ func show_unit(unit: Combatant, extra := 0) -> void:
 		ability_text = "* %s: %s" % [Abilities.label(unit.ability), Abilities.description(unit.ability)]
 	if unit.veteran_ability != &"":
 		ability_text += "\n" + tr("* Veteran: %s: %s") % [Abilities.display_name(unit.veteran_ability), Abilities.description(unit.veteran_ability)]
+	var traits := data.traits_text()
+	if traits != "":
+		ability_text += ("\n" if ability_text != "" else "") + traits
 	var key := "%s|%d|%d|%d|%s|%s|%d|%d" % [data.id, unit.level, ceili(unit.health), ceili(unit.max_health), unit.order_text(), Loc.language, extra, unit.xp]
 	if key == _key and visible:
 		return
@@ -117,7 +120,8 @@ func show_unit(unit: Combatant, extra := 0) -> void:
 		xp_fill.size.x = 138.0 * progress[0] / progress[1]
 		xp_text.text = tr("Veteran %d  ·  %d/%d EP") % [unit.veteran_level, progress[0], progress[1]]
 	stats.text = tr("Stä %s  Bew %s  Int %s") % [UnitData.format_number(unit.attack),
-			UnitData.format_number(unit.move_speed), UnitData.format_number(unit.intelligence)]
+			UnitData.format_number(unit.move_speed), UnitData.format_number(unit.intelligence)] \
+			+ "\n" + data.character_text()
 	ability_label.text = ability_text
 	ability_label.visible = ability_text != ""
 	size = Vector2(150, 10)

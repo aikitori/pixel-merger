@@ -402,6 +402,8 @@ func show_merge_preview(a: UnitData, b: UnitData, result: UnitData, cost_text: S
 		var ability_text := ""
 		if unit.ability != &"":
 			ability_text = "* %s: %s" % [Abilities.label(unit.ability), Abilities.description(unit.ability)]
+		if unit.traits_text() != "":
+			ability_text += ("\n" if ability_text != "" else "") + unit.traits_text()
 		card["ability"].text = ability_text
 		card["ability"].visible = ability_text != ""
 		if hidden and index == 2:

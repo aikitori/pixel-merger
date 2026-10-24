@@ -494,11 +494,12 @@ for _base, _combo in COMBOS.items():
 # Jede Einheit hat genau eine Fähigkeit (Namen und Wirkung: scripts/abilities.gd). Aktive lösen im Kampf
 # von selbst aus, sobald ihre Bedingung erfüllt und die Abklingzeit vorbei ist, passive wirken dauerhaft.
 # Eine Linie hat eine Fähigkeit, einzelne Stufen können abweichen (Index = Stufe - 1).
+# Jede Linie hat ihre eigene Fähigkeit (keine zwei Linien teilen eine, siehe check_unique).
 LINE_ABILITY = {
-    'melee': 'shield', 'ranged': 'arrow_rain', 'magic': 'frost_nova', 'cavalry': 'sprint',
-    'dwarf': 'armor', 'elf': 'evasion', 'undead': 'lifesteal', 'dragon': 'meteor',
+    'melee': 'shield', 'ranged': 'arrow_rain', 'magic': 'chain_lightning', 'cavalry': 'sprint',
+    'dwarf': 'armor', 'elf': 'evasion', 'undead': 'lifesteal', 'dragon': 'fire_breath',
     'witch': 'slow_aura', 'wolf': 'war_cry', 'giant': 'taunt', 'centaur': 'war_aura',
-    'fire': 'meteor', 'water': 'regen', 'earth': 'shield', 'air': 'evasion',
+    'fire': 'meteor', 'water': 'regen', 'earth': 'earthquake', 'air': 'tailwind',
     'healer': ['mass_heal', 'mass_heal', 'mass_heal', 'revive', 'revive'],
     'spear': 'whirlwind', 'naga': 'poison_cloud', 'frog': 'charm', 'griffin': 'charge', 'ice': 'frost_nova',
     'monk': 'holy_light',
@@ -559,3 +560,200 @@ for _base, _combo in COMBOS.items():
         _ability = 'mass_heal'
     for _uid in combo_ids(_base):
         UNIT_ABILITY[_uid] = _ability
+
+
+# --- Eigenart der Einheiten ----------------------------------------------------------
+# Jede Linie hat einen eigenen Charakter: Verhalten im Kampf (scripts/behaviors.gd), Angriffsform
+# (scripts/attack_kinds.gd), Körperbau für die Animation (tools/sprite_dcss.py), dazu ein Merkmal ab
+# Stufe 3 und einen Meisterzug auf Stufe 5 (beide scripts/traits.gd). Kombinationen erben Körperbau und
+# Verhalten von der Zutat, die ihr Aussehen bestimmt, die Angriffsform passend zur Reichweite und haben
+# jede eine eigene Signatur (ebenfalls scripts/traits.gd).
+
+BEHAVIORS = ('frontline', 'guardian', 'skirmisher', 'flanker', 'charger', 'assassin', 'artillery', 'hopper',
+             'floater', 'support')
+BODIES = ('biped', 'quadruped', 'rider', 'serpent', 'flyer', 'floater', 'hopper', 'colossus', 'blob')
+MELEE_KINDS = ('slash', 'axe', 'club', 'stomp', 'kick', 'claw', 'bite', 'grasp', 'tongue', 'thrust')
+RANGED_KINDS = ('arrow', 'javelin', 'arcane', 'ember', 'curse', 'fireball', 'water_jet', 'lightning', 'spit',
+                'ice_shard')
+HEAL_KINDS = ('heal', 'blessing')
+# Fernkampf-Formen mit Pfeil oder Wurfwaffe (Kampfstil "arrow"), die übrigen zaubern (Stil "magic").
+ARROW_KINDS = ('arrow', 'javelin')
+
+# Linie: (Verhalten, Angriffsform, Körperbau, Merkmal ab Stufe 3, Meisterzug auf Stufe 5)
+LINE_PROFILE = {
+    'melee': ('frontline', 'slash', 'biped', 'parry', 'last_stand'),
+    'ranged': ('artillery', 'arrow', 'biped', 'keen_eye', 'headshot'),
+    'magic': ('artillery', 'arcane', 'biped', 'mana_flow', 'arcane_burst'),
+    'cavalry': ('charger', 'kick', 'quadruped', 'trample', 'thunder_charge'),
+    'dwarf': ('frontline', 'axe', 'biped', 'stubborn', 'ancestors'),
+    'elf': ('skirmisher', 'arrow', 'biped', 'ranger', 'moon_arrow'),
+    'undead': ('flanker', 'grasp', 'biped', 'plague', 'soul_hunger'),
+    'dragon': ('floater', 'ember', 'flyer', 'hoard', 'ember_heart'),
+    'witch': ('skirmisher', 'curse', 'biped', 'evil_eye', 'coven'),
+    'wolf': ('assassin', 'bite', 'quadruped', 'hunt', 'blood_frenzy'),
+    'giant': ('guardian', 'club', 'colossus', 'thick_hide', 'primal_force'),
+    'centaur': ('skirmisher', 'javelin', 'quadruped', 'double_throw', 'chiron_teaching'),
+    'fire': ('floater', 'fireball', 'floater', 'embers', 'conflagration'),
+    'water': ('artillery', 'water_jet', 'blob', 'current', 'wellspring'),
+    'earth': ('guardian', 'stomp', 'colossus', 'stone_skin', 'bedrock'),
+    'air': ('floater', 'lightning', 'floater', 'gust', 'tempest'),
+    'healer': ('support', 'heal', 'biped', 'apothecary', 'blessing_ward'),
+    'spear': ('frontline', 'thrust', 'biped', 'long_reach', 'spear_wall'),
+    'naga': ('flanker', 'spit', 'serpent', 'scale_mail', 'basilisk_gaze'),
+    'frog': ('hopper', 'tongue', 'hopper', 'leap', 'royal_kiss'),
+    'griffin': ('charger', 'claw', 'flyer', 'dive', 'sky_lord'),
+    'ice': ('artillery', 'ice_shard', 'biped', 'freeze', 'eternal_winter'),
+    'monk': ('support', 'blessing', 'biped', 'inner_calm', 'holy_wrath'),
+}
+# Einzelne Stufen mit anderem Körperbau als ihre Linie.
+UNIT_BODY = {
+    'dragon_egg': 'blob', 'werewolf': 'biped', 'gnome': 'biped', 'satyr': 'biped', 'faun': 'biped',
+    'leviathan': 'serpent', 'pebble': 'quadruped', 'wind_spirit': 'flyer', 'snowflake': 'floater',
+    'polar_bear': 'quadruped',
+}
+# Kombinationen, deren Körperbau nicht der Zutat folgt, die ihr Aussehen bestimmt.
+COMBO_BODY = {
+    'mounted_knight': 'rider', 'mounted_archer': 'rider', 'holy_rider': 'rider', 'legend': 'rider',
+    'paladin': 'biped', 'hydromancer': 'serpent', 'frost_spirit': 'floater', 'lava': 'colossus',
+    'dragon_rider': 'biped', 'dragon_mage': 'biped', 'hydra': 'serpent', 'basilisk': 'serpent',
+    'phoenix': 'flyer', 'ghost': 'floater', 'treant': 'colossus', 'beast_master': 'biped',
+    'broom_witch': 'floater', 'medusa': 'serpent', 'gnome_rider': 'rider', 'mage_rider': 'rider',
+    'fairy': 'flyer', 'angel': 'flyer', 'lancer': 'rider', 'newt': 'quadruped', 'apis': 'quadruped',
+}
+# Kombinationen mit eigenem Verhalten statt dem der Zutat, die ihr Aussehen bestimmt.
+COMBO_BEHAVIOR = {
+    'vampire': 'assassin', 'dark_elf': 'assassin', 'loki': 'assassin', 'anubis': 'assassin',
+    'ghost': 'floater', 'phoenix': 'floater', 'hercules': 'guardian', 'king_arthur': 'guardian',
+    'stone_guard': 'guardian', 'achilles': 'charger', 'pegasus': 'charger', 'robin_hood': 'skirmisher',
+    'kraken': 'artillery', 'medusa': 'artillery', 'mounted_archer': 'skirmisher', 'necromancer': 'artillery',
+    'red_hood': 'flanker', 'minotaur': 'charger',
+}
+# Kombinationen mit eigener Angriffsform.
+COMBO_ATTACK = {
+    'fire_wolf': 'bite', 'fire_golem': 'stomp', 'water_golem': 'stomp', 'sand_golem': 'stomp',
+    'thor': 'lightning', 'hercules': 'club', 'minotaur': 'club', 'vampire': 'bite', 'medusa': 'curse',
+    'siren': 'curse', 'kraken': 'water_jet', 'dwarf_gunner': 'arrow', 'lightning': 'lightning',
+    'thunderbird': 'lightning', 'shock_serpent': 'lightning', 'snow_queen': 'ice_shard', 'ice_mage': 'ice_shard',
+    'ice_dragon': 'ice_shard', 'fire_dragon': 'ember', 'phoenix': 'fireball', 'lamia': 'spit', 'hydra': 'spit',
+}
+
+# Signatur jeder Kombination (gilt für alle drei Stufen). Jede Kombination hat ihre eigene.
+COMBO_SIGNATURE = {
+    'mounted_knight': 'lance_charge', 'mounted_archer': 'parthian_shot', 'paladin': 'aura_of_light',
+    'holy_rider': 'heavenly_charge', 'legend': 'legendary_presence', 'fire_golem': 'magma_core',
+    'water_golem': 'tidal_body', 'sand_golem': 'sand_veil', 'fire_knight': 'flame_blade',
+    'pyromancer': 'pyroclasm', 'hydromancer': 'undertow', 'fire_wolf': 'hellfire_bite',
+    'storm_archer': 'storm_arrows', 'frost_spirit': 'frost_touch', 'steam': 'scalding_steam',
+    'lightning': 'static_charge', 'lava': 'lava_flow', 'sandstorm': 'blinding_sand',
+    'fire_dragon': 'dragonfire', 'ice_dragon': 'frost_breath', 'dragon_rider': 'dragon_lance',
+    'dragon_mage': 'draconic_lore', 'bone_dragon': 'bone_armor', 'hydra': 'regrowth',
+    'basilisk': 'stone_gaze', 'chimera': 'three_heads', 'phoenix': 'rebirth', 'thunderbird': 'thunderclap',
+    'necromancer': 'soul_harvest', 'skeleton_knight': 'grave_guard', 'vampire': 'blood_thirst',
+    'zombie_giant': 'rotting_stench', 'mummy': 'ancient_curse', 'ghost': 'ethereal', 'anubis': 'weighing_hearts',
+    'rune_master': 'runic_ward', 'stone_guard': 'unbreakable', 'fire_dwarf': 'forge_heat',
+    'dwarf_knight': 'iron_bulwark', 'dwarf_gunner': 'black_powder', 'thor': 'mjolnir',
+    'fire_elf': 'sunfire', 'treant': 'deep_roots', 'dark_elf': 'shadow_blade', 'elf_mage': 'starlight',
+    'beast_master': 'pack_leader', 'red_hood': 'basket_of_tricks', 'broom_witch': 'storm_ride',
+    'snow_queen': 'frozen_heart', 'medusa': 'serpent_hair', 'siren': 'lure', 'loki': 'trickery',
+    'gnome_rider': 'wolf_mount', 'fire_giant': 'muspel_fire', 'ice_giant': 'glacier', 'stone_giant': 'mountain',
+    'minotaur': 'bull_rush', 'hercules': 'twelve_labors', 'achilles': 'heel', 'pegasus': 'winged_hooves',
+    'unicorn': 'pure_horn', 'nightmare': 'nightmare_hooves', 'sleipnir': 'eight_legs', 'kelpie': 'drowning',
+    'valkyrie': 'chooser_of_slain', 'wolf_knight': 'alpha', 'mercenary': 'paid_in_gold',
+    'arcane_archer': 'arcane_arrows', 'wild_hunter': 'tracker', 'mage_rider': 'battle_magic',
+    'field_medic': 'triage', 'fairy': 'fairy_dust', 'priest': 'sanctuary', 'druid': 'natures_gift',
+    'nymph': 'healing_spring', 'dryad': 'bark_shield', 'plague_doctor': 'quarantine', 'witch_doctor': 'voodoo',
+    'silver_unicorn': 'silver_light', 'angel': 'guardian_angel', 'asclepius': 'rod_of_asclepius',
+    'lancer': 'impale', 'triton': 'trident', 'lamia': 'venom_kiss', 'shock_serpent': 'shock_coil',
+    'frog_prince': 'enchanted_prince', 'newt': 'regenerate', 'griffin_rider': 'sky_charge', 'apis': 'sacred_bull',
+    'ice_griffin': 'frost_wings', 'frost_knight': 'frost_armor', 'ice_mage': 'shatter', 'templar': 'crusade',
+    'exorcist': 'banish', 'king_arthur': 'excalibur', 'merlin': 'archwizard', 'baba_yaga': 'chicken_hut',
+    'kraken': 'tentacles', 'robin_hood': 'rob_the_rich', 'st_george': 'dragonslayer',
+}
+
+
+def _family(kind):
+    if kind in HEAL_KINDS:
+        return 'heal'
+    return 'melee' if kind in MELEE_KINDS else 'ranged'
+
+
+def _line_of(uid):
+    for key, line in LINES.items():
+        if uid in line['ids']:
+            return key
+    return None
+
+
+def _build_profiles():
+    """Profil je Einheiten-Id: behavior, attack, body, traits (Liste der Merkmal-Ids)."""
+    profiles = {}
+    for key, line in LINES.items():
+        behavior, attack, body, trait, master = LINE_PROFILE[key]
+        for i, uid in enumerate(line['ids']):
+            traits = ([trait] if i >= 2 else []) + ([master] if i >= 4 else [])
+            profiles[uid] = {'behavior': behavior, 'attack': attack, 'body': UNIT_BODY.get(uid, body),
+                             'traits': traits}
+    for base, combo in COMBOS.items():
+        a, b = profiles[combo['a']], profiles[combo['b']]
+        look = combo.get('sprite_from', combo['a'])
+        look_profile = profiles[look] if look in profiles else a
+        other = b if look_profile is a else a
+        rng = combo['stats'][2]
+        heals = base in HEAL_COMBOS
+        if base in COMBO_ATTACK:
+            attack = COMBO_ATTACK[base]
+        elif heals:
+            attack = next(p['attack'] for p in (look_profile, other) if p['attack'] in HEAL_KINDS) \
+                if any(p['attack'] in HEAL_KINDS for p in (look_profile, other)) else 'heal'
+        else:
+            wanted = 'melee' if rng <= 30 else 'ranged'
+            matching = [p['attack'] for p in (look_profile, other) if _family(p['attack']) == wanted]
+            attack = matching[0] if matching else ('slash' if wanted == 'melee' else 'arcane')
+        behavior = COMBO_BEHAVIOR.get(base, look_profile['behavior'])
+        if heals:
+            behavior = 'support'
+        elif behavior == 'support' or (behavior in ('skirmisher', 'artillery') and rng <= 30):
+            behavior = 'frontline'
+        profile = {'behavior': behavior, 'attack': attack, 'body': COMBO_BODY.get(base, look_profile['body']),
+                   'traits': [COMBO_SIGNATURE[base]]}
+        for uid in combo_ids(base):
+            profiles[uid] = profile
+    return profiles
+
+
+UNIT_PROFILE = _build_profiles()
+
+
+def attack_style(uid):
+    """Kampfstil für bestehende Regeln (Segen, Dornen, Veteranen): melee, arrow, magic oder heal."""
+    kind = UNIT_PROFILE[uid]['attack']
+    if kind in HEAL_KINDS:
+        return 'heal'
+    if kind in MELEE_KINDS:
+        return 'melee'
+    return 'arrow' if kind in ARROW_KINDS else 'magic'
+
+
+def check_unique():
+    """Bricht ab, wenn zwei Linien denselben Charakter haben oder eine Kombination keine eigene Signatur."""
+    seen = {}
+    for key in LINES:
+        profile = LINE_PROFILE[key]
+        fingerprint = (profile[0], profile[1], profile[2], str(LINE_ABILITY[key]))
+        assert fingerprint not in seen, f'Linien {seen.get(fingerprint)} und {key} sind gleich: {fingerprint}'
+        seen[fingerprint] = key
+        assert profile[0] in BEHAVIORS, f'{key}: unbekanntes Verhalten {profile[0]}'
+        assert profile[1] in MELEE_KINDS + RANGED_KINDS + HEAL_KINDS, f'{key}: unbekannte Angriffsform {profile[1]}'
+        assert profile[2] in BODIES, f'{key}: unbekannter Körperbau {profile[2]}'
+    abilities = [str(LINE_ABILITY[key]) for key in LINES]
+    doubled = sorted({a for a in abilities if abilities.count(a) > 1})
+    assert not doubled, f'Fähigkeiten mehrerer Linien: {doubled}'
+    traits = [t for p in LINE_PROFILE.values() for t in p[3:]] + list(COMBO_SIGNATURE.values())
+    doubled = sorted({t for t in traits if traits.count(t) > 1})
+    assert not doubled, f'Merkmale oder Signaturen doppelt: {doubled}'
+    missing = sorted(set(COMBOS) - set(COMBO_SIGNATURE))
+    assert not missing, f'Kombinationen ohne Signatur: {missing}'
+    for uid, profile in UNIT_PROFILE.items():
+        assert profile['body'] in BODIES, f'{uid}: unbekannter Körperbau {profile["body"]}'
+        assert profile['behavior'] in BEHAVIORS, f'{uid}: unbekanntes Verhalten {profile["behavior"]}'
+    return traits
