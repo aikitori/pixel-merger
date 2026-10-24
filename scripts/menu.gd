@@ -158,7 +158,7 @@ func _build_buttons() -> void:
 		get_tree().reload_current_scene())
 	next_y += BUTTON_STEP
 	_sound_button = _menu_button("Ton an", next_y)
-	_sound_button.pressed.connect(func() -> void: Sound.muted = not Sound.muted)
+	_sound_button.pressed.connect(Sound.cycle_mode)
 	next_y += BUTTON_STEP
 	if Fullscreen.available():
 		_fullscreen_button = _menu_button("Vollbild", next_y)
@@ -205,7 +205,7 @@ func _menu_button(text: String, y: float) -> Button:
 
 func _refresh() -> void:
 	_achievements_button.text = tr("Erfolge  %d / %d") % [Achievements.unlocked_count(), Achievements.LIST.size()]
-	_sound_button.text = tr("Ton aus") if Sound.muted else tr("Ton an")
+	_sound_button.text = Sound.mode_label()
 	if _fullscreen_button != null:
 		_fullscreen_button.text = Fullscreen.label()
 	# Die Sprache steht immer in ihrer eigenen Sprache, damit man sie auch im Fremdtext findet.

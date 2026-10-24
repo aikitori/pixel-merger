@@ -33,7 +33,7 @@ Nach Änderungen: `python3 tools/generate_data.py` und/oder `python3 tools/gener
 - Hauptszene ist das Menü (`scenes/menu.tscn`), das Spiel `scenes/main.tscn` (`scripts/main.gd`, y-sortiert).
 - Kampf: `scripts/combatant.gd`. Fähigkeiten: `scripts/abilities.gd` (Daten) plus `scripts/ability_casts.gd` (Wirkung, `AbilityCasts.cast`).
 - Spielstand: `scripts/run_save.gd` speichert den laufenden Lauf (`user://run.cfg`), `Progress` Geheimrezepte und Rekord.
-- Oberfläche: `scripts/hud.gd`, `recipe_book.gd`, `shop.gd`, `village.gd`, `ui_theme.gd` (im Code gezeichnet, Farben aus `art_style.gd`).
+- Oberfläche: `scripts/hud.gd`, `recipe_book.gd`, `shop.gd`, `village.gd`, `unit_card.gd`, `game_over_panel.gd`, `pause_panel.gd`, `tutorial.gd`, `ui_theme.gd` (im Code gezeichnet, Farben aus `art_style.gd`).
 - Bildstil: `scripts/art_style.gd` (Oberflächenfarben und -bilder, Logo, Auswahl) plus `shaders/art_style.gdshader` (Nachbearbeitung über das ganze Bild, von `Game` eingehängt). Standard ist `ArtStyle.DEFAULT` (`dungeon`), er muss zu den erzeugten Sprites passen.
 - Spielfeld: `scripts/world.gd` (Grundriss der Runde, Hindernisse, Kollision). Normale Runden: Kreuz, Bossrunden: eigene Arena. Begehbare Rechtecke und Tore stehen im erzeugten `scripts/arena_layouts.gd`, Boden und Mauern sind die Bilder `assets/sprites/tiles/arena*.png` (`arena.png` ist auch der Menü-Hintergrund).
 - Animation: `Combatant` zeichnet aus dem Streifen `assets/sprites/anim/<ordner>/<id>.png` (4 Bilder Stehen, 4 Laufen); `Combatant.frames_texture` liefert dieselben Bilder für Oberflächen.

@@ -1,5 +1,6 @@
 extends Node
 ## Soundeffekte und Musik (Autoload "Sound"). Die WAV-Dateien erzeugt tools/generate_audio.py.
+## Ton-Knopf: alles an -> nur Effekte (Musik auf eigenem Bus stumm) -> alles aus.
 ## Die Musik wechselt mit der Spielphase, Effekte haben ein Limit pro Sekunde, damit viele
 ## gleichzeitige Angriffe nicht zu Lärm werden.
 
@@ -10,6 +11,7 @@ const VOICES := 12
 const MUSIC_DB := -9.0
 const SILENT_DB := -60.0
 const FADE_SECONDS := 0.8
+const MUSIC_BUS := &"Music"
 ## Lautstärke (dB) und Mindestabstand (Sekunden) pro Effekt.
 const SFX_SETTINGS := {
 	&"swing": [-8.0, 0.07], &"hit": [-6.0, 0.05], &"arrow": [-9.0, 0.07], &"fireball": [-8.0, 0.12], &"heal": [-9.0, 0.12], &"page": [-9.0, 0.05],
@@ -22,6 +24,12 @@ var muted := false:
 	set(value):
 		muted = value
 		AudioServer.set_bus_mute(0, muted)
+		_save_settings()
+		muted_changed.emit(muted)
+var music_muted := false:
+	set(value):
+		music_muted = value
+		_apply_music_mute()
 		_save_settings()
 		muted_changed.emit(muted)
 
@@ -53,11 +61,15 @@ func _ready() -> void:
 		var voice := AudioStreamPlayer.new()
 		add_child(voice)
 		_voices.append(voice)
+	AudioServer.add_bus()
+	AudioServer.set_bus_name(AudioServer.bus_count - 1, MUSIC_BUS)
 	_music_player = AudioStreamPlayer.new()
+	_music_player.bus = MUSIC_BUS
 	_music_player.volume_db = SILENT_DB
 	add_child(_music_player)
 	_load_settings()
 	AudioServer.set_bus_mute(0, muted)
+	_apply_music_mute()
 	# Jeder Knopf im Spiel klickt, ohne dass die Oberfläche etwas davon wissen muss.
 	get_tree().node_added.connect(_on_node_added)
 	Game.phase_changed.connect(_on_phase_changed)
@@ -95,6 +107,29 @@ func play(id: StringName, pitch_jitter := 0.06) -> void:
 			voice.pitch_scale = 1.0 + randf_range(-pitch_jitter, pitch_jitter)
 			voice.play()
 			return
+
+
+## Ton-Knopf: an -> nur Effekte -> aus -> an.
+func cycle_mode() -> void:
+	if muted:
+		music_muted = false
+		muted = false
+	elif music_muted:
+		muted = true
+	else:
+		music_muted = true
+
+
+func mode_label() -> String:
+	if muted:
+		return tr("Ton aus")
+	return tr("Nur Effekte") if music_muted else tr("Ton an")
+
+
+func _apply_music_mute() -> void:
+	var bus := AudioServer.get_bus_index(MUSIC_BUS)
+	if bus >= 0:
+		AudioServer.set_bus_mute(bus, music_muted)
 
 
 ## Wechselt die Musik mit Überblendung. &"" = Stille.
@@ -158,12 +193,14 @@ func _load_settings() -> void:
 	var config := ConfigFile.new()
 	if config.load(SETTINGS_PATH) == OK:
 		muted = bool(config.get_value("audio", "muted", false))
+		music_muted = bool(config.get_value("audio", "music_muted", false))
 
 
 func _save_settings() -> void:
 	var config := ConfigFile.new()
 	config.load(SETTINGS_PATH)
 	config.set_value("audio", "muted", muted)
+	config.set_value("audio", "music_muted", music_muted)
 	config.save(SETTINGS_PATH)
 
 

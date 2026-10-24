@@ -180,7 +180,7 @@ func _test_merge_preview_and_book() -> void:
 	await get_tree().process_frame
 	_check(not hud._merge_panel.visible, "Vorschau ist beim Anfassen noch zu")
 	_check(hud._hint_panel.visible and hud._hint_rows[0]["row"].visible, "Beim Anfassen erscheinen mögliche Rezepte")
-	_check(hud._card.visible and hud._card_title.text.begins_with("Bauer"), "Beim Anfassen zeigt die Karte Porträt und Werte (%s)" % hud._card_title.text)
+	_check(hud._card.visible and hud._card.title.text.begins_with("Bauer"), "Beim Anfassen zeigt die Karte Porträt und Werte (%s)" % hud._card.title.text)
 	_event_motion(to)
 	await get_tree().process_frame
 	await get_tree().process_frame
@@ -401,7 +401,7 @@ func _test_multi_select() -> void:
 	var hud: Hud = _arena.get("_hud")
 	await get_tree().process_frame
 	_check(hud._ability_button.text.begins_with("Fähigkeiten") or hud._ability_button.disabled, "Fähigkeitsknopf zählt die Gruppe")
-	_check(hud._card_title.text.contains("+2"), "Einheitenkarte nennt die weiteren gewählten Einheiten (%s)" % hud._card_title.text)
+	_check(hud._card.title.text.contains("+2"), "Einheitenkarte nennt die weiteren gewählten Einheiten (%s)" % hud._card.title.text)
 	# Gruppenbefehl: alle laufen los, Abstände bleiben ungefähr erhalten
 	await _tap(Vector2(480, 150))
 	_check(cluster.all(func(u: Combatant) -> bool: return u.has_order), "Tipp aufs Feld schickt die ganze Gruppe los")

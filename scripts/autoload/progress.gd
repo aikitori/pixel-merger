@@ -1,5 +1,6 @@
 extends Node
-## Spielübergreifender Fortschritt (Autoload "Progress"): entdeckte Geheimrezepte und die beste erreichte Runde.
+## Spielübergreifender Fortschritt (Autoload "Progress"): entdeckte Geheimrezepte, die beste erreichte Runde
+## und ob der Einstieg (Tutorial) schon gezeigt wurde.
 ## Gespeichert in user://progress.cfg, nur mit Fenster (Tests ohne Fenster ändern keinen echten Spielstand).
 
 signal secret_discovered(result: UnitData)
@@ -10,6 +11,7 @@ const SAVE_PATH := "user://progress.cfg"
 var discovered: Dictionary = {}
 ## Rekord: höchste erreichte Runde über alle Läufe.
 var best_round := 0
+var tutorial_done := false
 var persist := DisplayServer.get_name() != "headless"
 
 
@@ -21,6 +23,7 @@ func _ready() -> void:
 		for id: String in file.get_value("secrets", "discovered", PackedStringArray()):
 			discovered[StringName(id)] = true
 		best_round = int(file.get_value("records", "best_round", 0))
+		tutorial_done = bool(file.get_value("tutorial", "done", false))
 
 
 ## Geheimrezept, das noch nicht entdeckt wurde: Name und Zutaten bleiben verborgen.
@@ -47,6 +50,12 @@ func record_round(round_number: int) -> bool:
 	return true
 
 
+func finish_tutorial() -> void:
+	if not tutorial_done:
+		tutorial_done = true
+		_save()
+
+
 func secret_count() -> int:
 	var total := 0
 	for recipe in Registry.recipes:
@@ -70,4 +79,5 @@ func _save() -> void:
 		ids.append(String(id))
 	file.set_value("secrets", "discovered", ids)
 	file.set_value("records", "best_round", best_round)
+	file.set_value("tutorial", "done", tutorial_done)
 	file.save(SAVE_PATH)

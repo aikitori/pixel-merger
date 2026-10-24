@@ -48,7 +48,8 @@ static func offers(arena: Node) -> Array[Dictionary]:
 
 
 ## Ein Angebot bauen, leer wenn es gerade nicht passt (z.B. Arena voll, keine passende Einheit).
-static func build(id: StringName, arena: Node) -> Dictionary:
+## `pick` legt die sonst zufällige Wahl fest ("unit": UnitData oder Combatant, "group"), siehe from_save.
+static func build(id: StringName, arena: Node, pick := {}) -> Dictionary:
 	var round_number := Game.round_number
 	var units: Array[Combatant] = arena.get_player_units()
 	var room: bool = units.size() < Game.BUILD_MAX_UNITS
@@ -76,7 +77,7 @@ static func build(id: StringName, arena: Node) -> Dictionary:
 					candidates.append(recipe.result)
 			if candidates.is_empty():
 				return {}
-			var unit: UnitData = candidates.pick_random()
+			var unit: UnitData = _choose(pick, "unit", candidates)
 			var price := maxi(8, roundi(Registry.bundle_price(Registry.base_units(unit)) * 0.6))
 			offer["title"] = tr_("Wanderhändler")
 			offer["text"] = tr_("Bietet an: %s, zum Freundschaftspreis.") % unit.display_name
@@ -88,7 +89,7 @@ static func build(id: StringName, arena: Node) -> Dictionary:
 				return {}
 			var recruits := Registry.shop_units().filter(func(u: UnitData) -> bool:
 				return Registry.buy_block_reason(u) == "")
-			var unit: UnitData = recruits.pick_random()
+			var unit: UnitData = _choose(pick, "unit", recruits)
 			offer["title"] = tr_("Rekrut")
 			offer["text"] = tr_("%s möchte sich dir anschließen, umsonst.") % unit.display_name
 			offer["icon"] = unit.sprite
@@ -99,7 +100,7 @@ static func build(id: StringName, arena: Node) -> Dictionary:
 				groups[unit.style_group()] = true
 			if groups.is_empty():
 				return {}
-			var group: StringName = groups.keys().pick_random()
+			var group: StringName = _choose(pick, "group", groups.keys())
 			var smith := id == &"smith"
 			offer["title"] = tr_("Schmied") if smith else tr_("Rüstmeister")
 			offer["text"] = (tr_("%s: dauerhaft +20 %% Stärke.") if smith else tr_("%s: dauerhaft +25 %% Lebenspunkte.")) \
@@ -114,7 +115,7 @@ static func build(id: StringName, arena: Node) -> Dictionary:
 					candidates.append(unit)
 			if candidates.is_empty():
 				return {}
-			var unit: Combatant = candidates.pick_random()
+			var unit: Combatant = _choose(pick, "unit", candidates)
 			offer["title"] = tr_("Ausbilder")
 			offer["text"] = tr_("Bildet %s aus: wird ohne zweite Einheit zu %s.") % [unit.display_name, unit.unit_data.upgrade.display_name]
 			offer["cost"] = unit.unit_data.upgrade_cost
@@ -200,6 +201,46 @@ static func apply(offer: Dictionary, arena: Node) -> String:
 			Game.set_modifier(&"giants")
 			return tr_("Der Pakt ist geschlossen. Riesen nahen ...")
 	return ""
+
+
+## Angebot als speicherbare Werte (für RunSave): Id und die zufällige Wahl. Einheiten auf dem Feld zählen
+## nach ihrer Reihenfolge in get_player_units, die beim Fortsetzen gleich bleibt.
+static func to_save(offer: Dictionary, arena: Node) -> Dictionary:
+	var entry := {"id": String(offer["id"])}
+	var data: Dictionary = offer["data"]
+	if data.get("unit") is UnitData:
+		entry["unit_id"] = String((data["unit"] as UnitData).id)
+	elif data.get("unit") is Combatant:
+		entry["unit_index"] = arena.get_player_units().find(data["unit"])
+	if data.has("group"):
+		entry["group"] = String(data["group"])
+	return entry
+
+
+## Gespeichertes Angebot neu bauen. Leer, wenn es nicht mehr passt.
+static func from_save(entry: Dictionary, arena: Node) -> Dictionary:
+	var pick := {}
+	if entry.has("unit_id"):
+		var unit: UnitData = Registry.units.get(StringName(entry["unit_id"]))
+		if unit == null:
+			return {}
+		pick["unit"] = unit
+	elif entry.has("unit_index"):
+		var units: Array[Combatant] = arena.get_player_units()
+		var index := int(entry["unit_index"])
+		if index < 0 or index >= units.size():
+			return {}
+		pick["unit"] = units[index]
+	if entry.has("group"):
+		pick["group"] = StringName(entry["group"])
+	return build(StringName(entry.get("id", "")), arena, pick)
+
+
+## Vorgabe aus `pick`, wenn sie unter den Möglichkeiten ist, sonst zufällig.
+static func _choose(pick: Dictionary, key: String, options: Array) -> Variant:
+	if pick.has(key) and options.has(pick[key]):
+		return pick[key]
+	return options.pick_random()
 
 
 static func _refresh_blessings(arena: Node) -> void:

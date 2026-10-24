@@ -30,6 +30,8 @@ var _shop_button: Button
 var _village: Village
 var _shop: Shop
 var _speed_button: Button
+var _pause_button: Button
+var _pause: PausePanel
 var _order_button: Button
 var _ability_button: Button
 var _auto_button: Button
@@ -57,31 +59,20 @@ var _merge_panel: PanelContainer
 var _merge_cards: Array[Dictionary] = []
 var _merge_cost: Label
 var _merge_key := ""
-var _card: PanelContainer
-var _card_unit: Combatant
-var _card_icon: TextureRect
-var _card_title: Label
-var _card_hp_fill: ColorRect
-var _card_hp_text: Label
-var _card_xp_fill: ColorRect
-var _card_xp_text: Label
-var _card_stats: Label
-var _card_ability: Label
-var _card_key := ""
+var _card: UnitCard
 var _hint_panel: PanelContainer
 var _hint_title: Label
 var _hint_rows: Array[Dictionary] = []
 var _hint_more: Label
 const HINT_ROWS := 4
 var _last_back_msec := -10000
-var _game_over: Control
-var _game_over_label: Label
-var _game_over_stats: Label
+var _game_over: GameOverPanel
 var _time_left := 0.0
 var _shown_seconds := -1
 
 
 func _ready() -> void:
+	process_mode = Node.PROCESS_MODE_ALWAYS  # bleibt bedienbar, während der Kampf pausiert
 	var root := Control.new()
 	root.set_anchors_preset(Control.PRESET_FULL_RECT)
 	root.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -159,6 +150,14 @@ func _ready() -> void:
 	_start_button.pressed.connect(func() -> void: start_pressed.emit())
 	root.add_child(_start_button)
 
+	_pause_button = Button.new()
+	_pause_button.text = tr("Pause")
+	_pause_button.position = Vector2(236, 2)
+	_pause_button.size = Vector2(52, 20)
+	_pause_button.add_theme_font_size_override("font_size", 10)
+	_pause_button.pressed.connect(func() -> void: set_paused(true))
+	root.add_child(_pause_button)
+
 	if Fullscreen.available():
 		_fullscreen_button = Button.new()
 		_fullscreen_button.text = Fullscreen.label()
@@ -198,7 +197,7 @@ func _ready() -> void:
 	_sound_button.position = Vector2(574, 2)
 	_sound_button.size = Vector2(62, 20)
 	_sound_button.add_theme_font_size_override("font_size", 10)
-	_sound_button.pressed.connect(func() -> void: Sound.muted = not Sound.muted)
+	_sound_button.pressed.connect(Sound.cycle_mode)
 	root.add_child(_sound_button)
 	Sound.muted_changed.connect(func(_muted: bool) -> void: _refresh())
 
@@ -209,7 +208,8 @@ func _ready() -> void:
 	root.move_child(_village, 0)
 	_shop = _village.shop
 	_build_merge_panel(root)
-	_build_unit_card(root)
+	_card = UnitCard.new()
+	root.add_child(_card)
 	_build_hint_panel(root)
 	_build_group_buttons(root)
 	# Bauphase: alle gleichen Paare auf einmal verbinden, über "Kampf starten" (nur wenn etwas geht).
@@ -233,7 +233,12 @@ func _ready() -> void:
 	_achievements = AchievementsPanel.new()
 	root.add_child(_achievements)
 	_build_banner_and_boss_bar(root)
-	_build_game_over(root)
+	_game_over = GameOverPanel.new()
+	_game_over.restart_pressed.connect(func() -> void: restart_pressed.emit())
+	_game_over.menu_pressed.connect(func() -> void: menu_pressed.emit())
+	root.add_child(_game_over)
+	_pause = PausePanel.new()
+	root.add_child(_pause)
 	_book.visibility_changed.connect(_refresh)
 	Game.gold_changed.connect(func(_gold: int) -> void: _refresh())
 	Game.round_changed.connect(func(_round: int) -> void: _refresh())
@@ -417,117 +422,9 @@ func hide_merge_preview() -> void:
 
 
 ## Porträt mit Werten der gewählten (oder gerade gezogenen) Einheit, links neben dem Feld.
-func _build_unit_card(root: Control) -> void:
-	_card = PanelContainer.new()
-	_card.position = Vector2(4, 28)
-	_card.size = Vector2(150, 10)
-	_card.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	_card.visible = false
-	var style := UiTheme.sign_style()
-	style.modulate_color = Color(1, 1, 1, 0.94)
-	style.content_margin_left = 5
-	style.content_margin_right = 5
-	style.content_margin_top = 4
-	style.content_margin_bottom = 4
-	_card.add_theme_stylebox_override("panel", style)
-	root.add_child(_card)
-	var column := VBoxContainer.new()
-	column.add_theme_constant_override("separation", 2)
-	column.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	_card.add_child(column)
-	_card_icon = TextureRect.new()
-	_card_icon.custom_minimum_size = Vector2(140, 64)
-	_card_icon.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
-	_card_icon.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
-	_card_icon.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
-	column.add_child(_card_icon)
-	_card_title = Label.new()
-	_card_title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	_card_title.clip_text = true
-	_card_title.add_theme_font_size_override("font_size", 10)
-	_card_title.add_theme_color_override("font_color", UiTheme.GOLD_LIGHT)
-	column.add_child(_card_title)
-	var bar := ColorRect.new()
-	bar.color = Color(0.1, 0.04, 0.02, 0.9)
-	bar.custom_minimum_size = Vector2(140, 10)
-	column.add_child(bar)
-	_card_hp_fill = ColorRect.new()
-	_card_hp_fill.color = Color("#4fbf4a")
-	_card_hp_fill.position = Vector2(1, 1)
-	_card_hp_fill.size = Vector2(138, 8)
-	bar.add_child(_card_hp_fill)
-	_card_hp_text = Label.new()
-	_card_hp_text.set_anchors_preset(Control.PRESET_FULL_RECT)
-	_card_hp_text.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	_card_hp_text.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-	_card_hp_text.add_theme_font_size_override("font_size", 8)
-	bar.add_child(_card_hp_text)
-	# Erfahrungsleiste der Veteranenstufe
-	var xp_bar := ColorRect.new()
-	xp_bar.color = Color(0.1, 0.04, 0.02, 0.9)
-	xp_bar.custom_minimum_size = Vector2(140, 8)
-	column.add_child(xp_bar)
-	_card_xp_fill = ColorRect.new()
-	_card_xp_fill.color = Color("#5fb8ff")
-	_card_xp_fill.position = Vector2(1, 1)
-	_card_xp_fill.size = Vector2(0, 6)
-	xp_bar.add_child(_card_xp_fill)
-	_card_xp_text = Label.new()
-	_card_xp_text.set_anchors_preset(Control.PRESET_FULL_RECT)
-	_card_xp_text.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	_card_xp_text.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-	_card_xp_text.add_theme_font_size_override("font_size", 7)
-	xp_bar.add_child(_card_xp_text)
-	_card_stats = Label.new()
-	_card_stats.add_theme_font_size_override("font_size", 9)
-	column.add_child(_card_stats)
-	_card_ability = Label.new()
-	_card_ability.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	_card_ability.custom_minimum_size = Vector2(140, 0)
-	_card_ability.add_theme_font_size_override("font_size", 8)
-	_card_ability.add_theme_constant_override("line_spacing", -2)
-	_card_ability.add_theme_color_override("font_color", Color("#d8c8a0"))
-	column.add_child(_card_ability)
-
-
-## `unit` null blendet die Karte aus. Wird jeden Frame aufgerufen, setzt daher nur Änderungen.
+## `unit` null blendet die Karte aus. Wird jeden Frame aufgerufen, die Karte setzt nur Änderungen.
 func show_unit_card(unit: Combatant, extra := 0) -> void:
-	if unit == null or not is_instance_valid(unit) or unit.unit_data == null:
-		if _card.visible:
-			_card.visible = false
-			_card_key = ""
-		return
-	var data := unit.unit_data
-	var ability_text := ""
-	if unit.ability != &"":
-		ability_text = "* %s: %s" % [Abilities.label(unit.ability), Abilities.description(unit.ability)]
-	if unit.veteran_ability != &"":
-		ability_text += "\n" + tr("* Veteran: %s: %s") % [Abilities.display_name(unit.veteran_ability), Abilities.description(unit.veteran_ability)]
-	var key := "%s|%d|%d|%d|%s|%s|%d|%d" % [data.id, unit.level, ceili(unit.health), ceili(unit.max_health), unit.order_text(), Loc.language, extra, unit.xp]
-	if key == _card_key and _card.visible:
-		return
-	_card_key = key
-	_card_icon.texture = data.sprite
-	_card_title.text = "%s (%s %d)%s" % [unit.display_name, tr("Stufe"), unit.level, unit.order_text()]
-	if extra > 0:
-		_card_title.text += "  +%d" % extra
-	var share := clampf(unit.health / maxf(unit.max_health, 1.0), 0.0, 1.0)
-	_card_hp_fill.size.x = 138.0 * share
-	_card_hp_fill.color = Color("#4fbf4a") if share > 0.5 else (Color("#e0b030") if share > 0.25 else Color("#d04a3a"))
-	_card_hp_text.text = "%d / %d" % [ceili(unit.health), ceili(unit.max_health)]
-	var progress := unit.veteran_progress()
-	if progress[1] == 0:
-		_card_xp_fill.size.x = 138.0
-		_card_xp_text.text = tr("Veteran %d (höchste Stufe)") % unit.veteran_level
-	else:
-		_card_xp_fill.size.x = 138.0 * progress[0] / progress[1]
-		_card_xp_text.text = tr("Veteran %d  ·  %d/%d EP") % [unit.veteran_level, progress[0], progress[1]]
-	_card_stats.text = tr("Stä %s  Bew %s  Int %s") % [UnitData.format_number(unit.attack),
-			UnitData.format_number(unit.move_speed), UnitData.format_number(unit.intelligence)]
-	_card_ability.text = ability_text
-	_card_ability.visible = ability_text != ""
-	_card.size = Vector2(150, 10)
-	_card.visible = true
+	_card.show_unit(unit, extra)
 
 
 ## Mögliche Rezepte der gehaltenen Einheit, links unter der Karte.
@@ -712,17 +609,7 @@ func shop_blocked_rect() -> Rect2:
 
 ## Verloren-Bildschirm mit Auswertung des Laufs (`stats` aus Game.stats) und Rekord.
 func show_game_over(reached_round: int, stats: Dictionary = {}, best_round := 0, new_record := false) -> void:
-	_game_over_label.text = tr("Verloren!\nRunde %d erreicht") % reached_round
-	var best: UnitData = Registry.units.get(StringName(stats.get("best_unit", "")))
-	var lines := [
-		tr("Besiegte Gegner: %d") % int(stats.get("kills", 0)),
-		tr("Gold erbeutet: %d") % int(stats.get("gold", 0)),
-		tr("Verbindungen: %d") % int(stats.get("merges", 0)),
-		tr("Stärkste Einheit: %s") % (best.display_name if best != null else "-"),
-		tr("Neuer Rekord!") if new_record else tr("Rekord: Runde %d") % best_round,
-	]
-	_game_over_stats.text = "\n".join(lines)
-	_game_over.visible = true
+	_game_over.show_result(reached_round, stats, best_round, new_record)
 
 
 func _refresh() -> void:
@@ -754,6 +641,9 @@ func _refresh() -> void:
 			or (is_instance_valid(_events) and _events.visible)
 	_start_button.visible = building
 	_ability_button.visible = Game.phase == Game.Phase.BATTLE
+	_pause_button.visible = Game.phase == Game.Phase.BATTLE
+	if Game.phase != Game.Phase.BATTLE and _pause != null and _pause.is_paused():
+		set_paused(false)
 	_auto_button.text = tr("Auto-Fähigk.: an") if Game.auto_abilities else tr("Auto-Fähigk.: aus")
 	if _fullscreen_button != null:
 		_fullscreen_button.text = Fullscreen.label()
@@ -770,7 +660,7 @@ func _refresh() -> void:
 	_info.size = Vector2(218, 36)
 	_order_button.visible = Game.phase == Game.Phase.BATTLE
 	_speed_button.text = tr("Tempo %dx") % roundi(Game.battle_speed)
-	_sound_button.text = tr("Ton aus") if Sound.muted else tr("Ton an")
+	_sound_button.text = Sound.mode_label()
 	if not building:
 		_village.visible = false
 		_shop.close_panel()
@@ -813,7 +703,32 @@ func event_open() -> bool:
 	return _events.visible
 
 
+## Ein Fenster über der Arena ist offen (Kaufliste, Rezeptbuch, Ereignis, Erfolge, Verloren).
+func panel_open() -> bool:
+	return _shop.visible or _book.visible or _events.visible or _achievements.visible or _game_over.visible \
+			or _pause.is_paused()
+
+
+## Kampf anhalten oder fortsetzen (Knopf, Zurück-Taste, App im Hintergrund).
+func set_paused(on: bool) -> void:
+	if on and Game.phase != Game.Phase.BATTLE:
+		return
+	_pause.set_paused(on)
+
+
+func is_paused() -> bool:
+	return _pause.is_paused()
+
+
+## Angebote des offenen Ereignisses, leer wenn keins offen ist.
+func event_offers() -> Array[Dictionary]:
+	return _events.offers if _events.visible else ([] as Array[Dictionary])
+
+
 func handle_back() -> bool:
+	if _pause.is_paused():
+		set_paused(false)
+		return true
 	if _events.visible:
 		_events.close_panel()
 		_refresh()
@@ -960,33 +875,3 @@ func announce(text: String) -> void:
 	_banner_tween.tween_interval(3.0)
 	_banner_tween.tween_property(_banner, "modulate:a", 0.0, 0.5)
 	Sound.play(&"merge", 0.0)
-
-
-func _build_game_over(parent: Control) -> void:
-	_game_over = ColorRect.new()
-	(_game_over as ColorRect).color = Color(0.05, 0.0, 0.08, 0.75)
-	_game_over.size = Vector2(640, 360)
-	_game_over.visible = false
-	parent.add_child(_game_over)
-	var board := Panel.new()
-	board.position = Vector2(190, 70)
-	board.size = Vector2(260, 220)
-	_game_over.add_child(board)
-	_game_over_label = _add_label(board, Rect2(0, 14, 260, 56), HORIZONTAL_ALIGNMENT_CENTER)
-	_game_over_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-	_game_over_label.add_theme_font_size_override("font_size", 18)
-	_game_over_label.add_theme_color_override("font_color", UiTheme.GOLD_LIGHT)
-	_game_over_stats = _add_label(board, Rect2(20, 76, 220, 90), HORIZONTAL_ALIGNMENT_LEFT)
-	_game_over_stats.add_theme_font_size_override("font_size", 11)
-	var again := Button.new()
-	again.text = tr("Neustart")
-	again.position = Vector2(30, 174)
-	again.size = Vector2(95, 30)
-	again.pressed.connect(func() -> void: restart_pressed.emit())
-	board.add_child(again)
-	var to_menu := Button.new()
-	to_menu.text = tr("Hauptmenü")
-	to_menu.position = Vector2(135, 174)
-	to_menu.size = Vector2(95, 30)
-	to_menu.pressed.connect(func() -> void: menu_pressed.emit())
-	board.add_child(to_menu)

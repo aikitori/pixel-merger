@@ -76,6 +76,7 @@ func _ready() -> void:
 	_hud.start_pressed.connect(start_battle)
 	_hud.quick_buy_pressed.connect(buy_bundle)
 	_hud.menu_pressed.connect(func() -> void:
+		get_tree().paused = false
 		save_run()  # nicht erst in _exit_tree: Dann sind die Einheiten schon aus dem Baum
 		get_tree().change_scene_to_file("res://scenes/menu.tscn"))
 	_hud.order_pressed.connect(cycle_order)
@@ -96,6 +97,16 @@ func _ready() -> void:
 	add_child(Weather.new())
 	if not saved.is_empty():
 		_resume(saved)
+	# Einstieg beim ersten Lauf (Tests ohne Fenster prüfen ihn gezielt, siehe events_test)
+	if Progress.persist and not Progress.tutorial_done:
+		start_tutorial()
+
+
+func start_tutorial() -> Tutorial:
+	var tutorial := Tutorial.new()
+	tutorial.setup(self, _hud)
+	_hud.add_child(tutorial)
+	return tutorial
 
 
 ## Gespeicherten Lauf fortsetzen: Einheiten aufstellen, Anzeige auf den geladenen Stand bringen.
@@ -112,7 +123,14 @@ func _resume(saved: Dictionary) -> void:
 	Game.phase_changed.emit(Game.phase)
 	_hud.toast(tr("Lauf fortgesetzt: Runde %d") % Game.round_number)
 	if bool(saved.get("event_pending", false)) and events_enabled:
-		var offers := RoundEvents.offers(self)
+		# Dieselben Angebote wie vor dem Schließen, sonst ließe sich neu ziehen.
+		var offers: Array[Dictionary] = []
+		for entry: Dictionary in saved.get("event_offers", []):
+			var offer := RoundEvents.from_save(entry, self)
+			if not offer.is_empty():
+				offers.append(offer)
+		if offers.is_empty():
+			offers = RoundEvents.offers(self)
 		if not offers.is_empty():
 			_hud.show_event(offers)
 
@@ -120,12 +138,14 @@ func _resume(saved: Dictionary) -> void:
 ## Lauf speichern, aber nur aus der Bauphase: Im Kampf bleibt der Stand vom Kampfbeginn stehen.
 func save_run() -> void:
 	if Game.phase == Game.Phase.BUILD and is_instance_valid(_hud):
-		RunSave.write(RunSave.capture(self, _hud.event_open()))
+		RunSave.write(RunSave.capture(self, _hud.event_offers()))
 
 
 func _notification(what: int) -> void:
 	if what in [NOTIFICATION_APPLICATION_PAUSED, NOTIFICATION_APPLICATION_FOCUS_OUT, NOTIFICATION_WM_CLOSE_REQUEST]:
 		save_run()
+		if is_instance_valid(_hud) and what != NOTIFICATION_WM_CLOSE_REQUEST:
+			_hud.set_paused(true)  # im Kampf: Anruf oder App-Wechsel hält das Spiel an
 
 
 ## Bossrunden spielen in einer eigenen Arena. Nach einem Boss ändert sich das Gelände: neuer Mauerstil,

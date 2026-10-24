@@ -89,8 +89,8 @@ Mehrere Runden, jede Runde besteht aus zwei Phasen:
   Grundeinheiten, `Game.stats`) und den Rekord.
 - **Spielstand:** Der laufende Lauf wird gespeichert (`scripts/run_save.gd`, `user://run.cfg`): zu Beginn jeder Bauphase,
   nach einem Ereignis, beim Kampfstart (Stand vor dem Kampf), beim Verlassen und wenn die App in den Hintergrund geht.
-  Gespeichert werden Runde, Gold, Modifikator, Segen, Hausausbau, Auswertung, Einheiten mit Ort und Erfahrung und ob
-  ein Ereignis offen war (es wird dann neu gezogen). Im Menü steht dann "Fortsetzen (Runde X)" und "Neues Spiel"
+  Gespeichert werden Runde, Gold, Modifikator, Segen, Hausausbau, Auswertung, Einheiten mit Ort und Erfahrung und die
+  Angebote eines offenen Ereignisses (`RoundEvents.to_save`, beim Fortsetzen stehen dieselben wieder zur Wahl). Im Menü steht dann "Fortsetzen (Runde X)" und "Neues Spiel"
   (verwirft den Lauf erst beim zweiten Tipp). Nach einer Niederlage wird der Stand gelöscht. Wer im Kampf
   aufhört, macht beim Kampfbeginn weiter.
 - **Rekord:** Die höchste erreichte Runde aller Läufe (`Progress.best_round`, in `user://progress.cfg`) steht im Menü
@@ -141,6 +141,17 @@ Mehrere Runden, jede Runde besteht aus zwei Phasen:
   Richtungen (reihum, jede Richtung gleich oft) und laufen zur Mitte. Figuren können das Kreuz
   nie verlassen (`scripts/world.gd`: Form, Spawnpunkte, Begrenzung).
 - **Kampftempo:** Im Kampf ersetzt ein Tempo-Knopf (1x/2x/3x) Shop und Rezeptbuch.
+- **Pause:** Im Kampf hält der Knopf "Pause" oben das Spiel an (`PausePanel`, der Szenenbaum pausiert, die Oberfläche
+  läuft weiter), "Weiter" oder die Zurück-Taste setzt fort. Geht die App im Kampf in den Hintergrund, pausiert sie
+  von selbst.
+- **Ton:** Der Ton-Knopf (Menü und Spiel) schaltet reihum: alles an, nur Effekte (Musik auf eigenem Bus stumm),
+  alles aus. Die Wahl steht in `user://settings.cfg`.
+- **Einstieg:** Beim ersten Lauf zeigt `Tutorial` oben rechts kurze Hinweise: im Dorf kaufen, zwei gleiche Einheiten
+  verbinden, Kampf starten, durchhalten. Jeder Hinweis verschwindet, sobald der Schritt gemacht ist, und versteckt
+  sich, solange ein Fenster offen ist. Danach oder mit "Ausblenden" merkt sich `Progress`, dass er gezeigt wurde.
+- **Leistung:** Figuren holen die Mitglieder ihrer Gruppe aus einer gemeinsamen Liste, die nur bei Änderungen neu
+  gebaut wird, das Abstandhalten prüft nur nahe Figuren (Raster), und `World` hält die Hindernisse kompakt für das
+  Herausschieben. Mit 20 eigenen Einheiten und 80 Gegnern rund ein Drittel weniger Rechenzeit je Schritt.
 - **Zurück-Taste (Android) / Esc:** schließt zuerst Rezeptbuch, dann die Kaufliste, dann das Dorf, erst danach die App.
 - **Abstellen:** Eine Einheit, die neben eine nicht verbindbare gezogen wird, bleibt einfach dort
   stehen. Zurückspringen gibt es nur, wenn ein Rezept existiert, aber gesperrt ist oder Gold fehlt.

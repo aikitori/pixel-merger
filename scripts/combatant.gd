@@ -72,6 +72,17 @@ const SUMMON_UNITS := {"necromancer": "skeleton"}
 const SUMMON_DEFAULT := "wolf_pup"
 const SUMMON_SECONDS := 10.0
 const BOSS_STUN_FACTOR := 0.4
+## Rasterweite für das Abstandhalten. Große Figuren (Abstand body_size / 2 ab dieser Weite)
+## prüfen weiter die ganze Gruppe.
+const GRID_CELL := 16.0
+
+## Mitglieder der Gruppen und Nachbarschaftsraster, gemeinsam für alle Figuren: get_nodes_in_group legt
+## bei jedem Aufruf ein neues Array an, und das Abstandhalten prüfte jede Figur gegen jede ihres Teams.
+## Die Listen werden neu gebaut, sobald eine Figur eine Gruppe betritt oder verlässt, das Raster
+## einmal je Physik-Schritt.
+static var _members: Dictionary = {}  # Gruppe -> Array (wie get_nodes_in_group)
+static var _grids: Dictionary = {}  # Gruppe -> {Vector2i: Array[Combatant]}
+static var _grid_frame := -1
 
 var team: Team = Team.PLAYER
 var unit_data: UnitData
@@ -170,6 +181,7 @@ func setup_player(data: UnitData) -> void:
 	attack *= _player_factor("atk")
 	health = max_health
 	add_to_group(GROUP_PLAYER)
+	_groups_changed()
 
 
 ## Gruppe für Segen: Nahkämpfer, Fernkämpfer (Pfeil oder Magie) oder Heiler.
@@ -280,6 +292,7 @@ func setup_enemy(data: EnemyData) -> void:
 	_facing_left = true
 	_flip = -1.0
 	add_to_group(GROUP_ENEMY)
+	_groups_changed()
 
 
 static func _load_anim(texture: Texture2D) -> Texture2D:
@@ -454,6 +467,49 @@ func discard() -> void:
 
 func _leave_group() -> void:
 	remove_from_group(GROUP_PLAYER if team == Team.PLAYER else GROUP_ENEMY)
+	_groups_changed()
+
+
+func _notification(what: int) -> void:
+	if what == NOTIFICATION_ENTER_TREE or what == NOTIFICATION_EXIT_TREE:
+		_groups_changed()
+
+
+static func _groups_changed() -> void:
+	_members.clear()
+	_grid_frame = -1
+
+
+## Alle Figuren der Gruppe, wie get_nodes_in_group, aber ohne jedes Mal ein neues Array.
+## Nicht verändern: das Array wird geteilt.
+func _group(group: StringName) -> Array:
+	if not _members.has(group):
+		_members[group] = get_tree().get_nodes_in_group(group)
+	return _members[group]
+
+
+## Figuren der Gruppe in den Rasterzellen um `point` (für kurze Abstände).
+func _nearby(group: StringName, point: Vector2) -> Array[Combatant]:
+	var frame := Engine.get_physics_frames()
+	if _grid_frame != frame:
+		_grid_frame = frame
+		_grids.clear()
+	if not _grids.has(group):
+		var grid := {}
+		for node in _group(group):
+			var cell := Vector2i(((node as Combatant).position / GRID_CELL).floor())
+			if not grid.has(cell):
+				grid[cell] = [] as Array[Combatant]
+			(grid[cell] as Array[Combatant]).append(node as Combatant)
+		_grids[group] = grid
+	var cells: Dictionary = _grids[group]
+	var center_cell := Vector2i((point / GRID_CELL).floor())
+	var result: Array[Combatant] = []
+	for x in range(-1, 2):
+		for y in range(-1, 2):
+			var cell: Array = cells.get(center_cell + Vector2i(x, y), [])
+			result.append_array(cell)
+	return result
 
 
 ## Bauphase: Eigene Einheiten hüpfen ab und zu und schauen mal in die andere Richtung.
@@ -612,7 +668,7 @@ func _guard(delta: float) -> void:
 func _find_threat() -> Combatant:
 	var best: Combatant = null
 	var best_dist := GUARD_ENGAGE * GUARD_ENGAGE
-	for node in get_tree().get_nodes_in_group(GROUP_ENEMY if team == Team.PLAYER else GROUP_PLAYER):
+	for node in _group(GROUP_ENEMY if team == Team.PLAYER else GROUP_PLAYER):
 		var dist := guard_target.position.distance_squared_to((node as Combatant).position)
 		if dist <= best_dist:
 			best_dist = dist
@@ -652,7 +708,7 @@ func _find_patient() -> Combatant:
 	var nearest_dist := INF
 	var neediest: Combatant = null
 	var lowest := INF
-	for node in get_tree().get_nodes_in_group(group):
+	for node in _group(group):
 		var other := node as Combatant
 		if other.health >= other.max_health:
 			continue
@@ -680,7 +736,7 @@ func _follow_allies(delta: float) -> void:
 	var group := GROUP_PLAYER if team == Team.PLAYER else GROUP_ENEMY
 	var nearest: Combatant = null
 	var nearest_dist := INF
-	for node in get_tree().get_nodes_in_group(group):
+	for node in _group(group):
 		var other := node as Combatant
 		if other == self or other.attack_style == &"heal":
 			continue
@@ -838,7 +894,7 @@ func _allies_near(point: Vector2, radius: float) -> Array[Combatant]:
 
 func _units_near(group: StringName, point: Vector2, radius: float) -> Array[Combatant]:
 	var result: Array[Combatant] = []
-	for node in get_tree().get_nodes_in_group(group):
+	for node in _group(group):
 		if (node as Combatant).position.distance_squared_to(point) <= radius * radius:
 			result.append(node as Combatant)
 	return result
@@ -929,7 +985,7 @@ func _find_target() -> Combatant:
 	var candidates: Array[Combatant] = []
 	var nearest: Combatant = null
 	var nearest_dist := INF
-	for node in get_tree().get_nodes_in_group(group):
+	for node in _group(group):
 		var other := node as Combatant
 		var dist := position.distance_squared_to(other.position)
 		if has_order and dist > attack_range * attack_range:
@@ -953,7 +1009,7 @@ func _separation() -> Vector2:
 	var push := Vector2.ZERO
 	var group := GROUP_PLAYER if team == Team.PLAYER else GROUP_ENEMY
 	var spacing := body_size * 0.5  # Abstand wie vor den größeren Sprites
-	for node in get_tree().get_nodes_in_group(group):
+	for node in (_nearby(group, position) if spacing < GRID_CELL else _group(group)):
 		if node == self:
 			continue
 		var offset := position - (node as Combatant).position

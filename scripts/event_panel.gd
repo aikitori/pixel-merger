@@ -8,6 +8,8 @@ signal skipped
 const CARD_SIZE := Vector2(176, 186)
 
 var _cards: HBoxContainer
+## Die angezeigten Angebote (für den Spielstand).
+var offers: Array[Dictionary] = []
 var _title: Label
 
 
@@ -45,7 +47,8 @@ func _ready() -> void:
 	add_child(skip)
 
 
-func open_panel(offers: Array[Dictionary]) -> void:
+func open_panel(new_offers: Array[Dictionary]) -> void:
+	offers = new_offers
 	for child in _cards.get_children():
 		child.queue_free()
 	_title.text = tr("Ein Fremder kreuzt deinen Weg")

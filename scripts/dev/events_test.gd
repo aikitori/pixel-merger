@@ -185,6 +185,7 @@ func _ready() -> void:
 	_check(get_tree().get_nodes_in_group(&"obstacle").size() == 18, "Hindernisse erscheinen als Bilder im Spiel")
 	World.set_stage(0)
 	_test_arenas()
+	await _test_tutorial()
 	await _test_run_save()
 
 	Engine.time_scale = 1.0
@@ -546,7 +547,7 @@ func _test_veterans() -> void:
 	_check(not knight.veteran_ready(), "Danach lädt die Veteranenfähigkeit")
 	var hud: Hud = _arena.get("_hud")
 	hud.show_unit_card(knight)
-	_check(hud._card_xp_text.text.contains("10") and hud._card_ability.text.contains("Veteran"), "Karte zeigt Veteranenstufe und Fähigkeit")
+	_check(hud._card.xp_text.text.contains("10") and hud._card.ability_label.text.contains("Veteran"), "Karte zeigt Veteranenstufe und Fähigkeit")
 	_arena._clear_enemies()
 	Game.set_phase(Game.Phase.BUILD)
 	# Überleben einer Runde bringt Erfahrung
@@ -590,7 +591,12 @@ func _test_run_save() -> void:
 	var knight: Combatant = _arena.call("_spawn_player", Registry.units["knight"], Vector2(300, 180))
 	knight.set_xp(20)
 	_arena.call("_spawn_player", Registry.units["mage"], Vector2(320, 190))
-	var data := RunSave.capture(_arena, true)
+	var group := knight.style_group()
+	var offers: Array[Dictionary] = [RoundEvents.build(&"recruit", _arena, {"unit": Registry.units["peasant"]}),
+			RoundEvents.build(&"smith", _arena, {"group": group}), RoundEvents.build(&"treasure", _arena)]
+	_check(offers[0]["data"]["unit"] == Registry.units["peasant"] and offers[1]["data"]["group"] == group,
+			"Ereignis-Angebote lassen sich mit fester Wahl bauen")
+	var data := RunSave.capture(_arena, offers)
 	var old_path := RunSave.path
 	RunSave.path = "user://test_run.cfg"
 	RunSave.enabled = true
@@ -621,8 +627,10 @@ func _test_run_save() -> void:
 	_check(not Game.resume_requested and Game.round_number == 7 and Game.gold == 123 and resumed.size() == 2 \
 			and resumed.any(func(u: Combatant) -> bool: return u.unit_data.id == &"knight" and u.xp == 20),
 			"Fortsetzen stellt Runde, Gold und Einheiten wieder her")
-	_check(int(_arena.get("_rounds_without_event")) == 2 and (_arena.get("_hud") as Hud).event_open(),
-			"Fortsetzen bietet das offene Ereignis wieder an")
+	var again: Array[Dictionary] = (_arena.get("_hud") as Hud).event_offers()
+	_check(int(_arena.get("_rounds_without_event")) == 2 and again.size() == 3 and again[0]["id"] == &"recruit" \
+			and again[0]["data"]["unit"] == Registry.units["peasant"] and again[1]["data"]["group"] == group \
+			and again[2]["id"] == &"treasure", "Fortsetzen bietet dieselben Ereignis-Angebote wieder an")
 	_arena.save_run()
 	_check(RunSave.read().get("units", []).size() == 2, "Arena speichert den Lauf mit allen Einheiten")
 	_arena.call("_game_over")
@@ -642,3 +650,49 @@ func _test_run_save() -> void:
 	_check(Progress.record_round(best + 1) and not Progress.record_round(best + 1) and Progress.best_round == best + 1,
 			"Rekord steigt nur bei einer höheren Runde")
 	Progress.best_round = best
+
+
+## Einstieg: Hinweise folgen den Schritten Kaufen, Verbinden, Kampf starten, Runde überstehen.
+func _test_tutorial() -> void:
+	for unit in _arena.get_player_units():
+		unit.discard()
+	Game.reset()
+	await get_tree().process_frame
+	await get_tree().process_frame  # _process des Hinweises läuft nach process_frame
+	Progress.tutorial_done = false
+	var tutorial: Tutorial = _arena.start_tutorial()
+	await get_tree().process_frame
+	await get_tree().process_frame  # _process des Hinweises läuft nach process_frame
+	_check(tutorial.step == 0 and tutorial.visible, "Einstieg beginnt mit dem Kaufen")
+	var peasant: UnitData = Registry.units["peasant"]
+	Game.gold = 100
+	_arena.buy_unit(peasant)
+	_arena.buy_unit(peasant)
+	await get_tree().process_frame
+	await get_tree().process_frame  # _process des Hinweises läuft nach process_frame
+	_check(tutorial.step == 1, "Nach dem Kauf folgt das Verbinden (Schritt %d)" % tutorial.step)
+	var units: Array[Combatant] = _arena.get_player_units()
+	_arena.try_merge(units[0], units[1])
+	await get_tree().process_frame
+	await get_tree().process_frame  # _process des Hinweises läuft nach process_frame
+	_check(tutorial.step == 2, "Nach dem Verbinden folgt der Kampfstart (Schritt %d)" % tutorial.step)
+	(_arena.get("_hud") as Hud).set_paused(false)
+	_arena.start_battle()
+	await get_tree().process_frame
+	await get_tree().process_frame  # _process des Hinweises läuft nach process_frame
+	_check(tutorial.step == 3, "Im Kampf folgt der letzte Hinweis (Schritt %d)" % tutorial.step)
+	var hud: Hud = _arena.get("_hud")
+	hud.set_paused(true)
+	await get_tree().process_frame
+	await get_tree().process_frame
+	_check(get_tree().paused and hud.is_paused() and not tutorial.visible, "Pause hält den Kampf an und verdeckt den Hinweis")
+	hud.handle_back()
+	_check(not get_tree().paused, "Zurück setzt den Kampf fort")
+	_arena.events_enabled = false
+	_arena.call("_end_round")
+	await get_tree().process_frame
+	await get_tree().process_frame  # _process des Hinweises läuft nach process_frame
+	_check(not is_instance_valid(tutorial) and Progress.tutorial_done, "Nach der ersten Runde ist der Einstieg vorbei")
+	hud.set_paused(true)
+	_check(not get_tree().paused, "In der Bauphase gibt es keine Pause")
+	_arena.events_enabled = true

@@ -39,6 +39,11 @@ const FOOT_RADIUS := 4.0
 static var stage := 0
 ## Einträge: {pos: Vector2 (Fußpunkt), radius: float, kind: String}
 static var obstacles: Array[Dictionary] = []
+## Dieselben Hindernisse kompakt für push_out_of_obstacles (läuft je Figur und Physik-Schritt):
+## Mittelpunkte, Reichweite (Radius + Fuß) und ein Rechteck, außerhalb dessen keins wirkt.
+static var _obstacle_pos := PackedVector2Array()
+static var _obstacle_reach := PackedFloat32Array()
+static var _obstacle_bounds := Rect2()
 ## Grundriss der aktuellen Runde (Schlüssel in ArenaLayouts.LAYOUTS) mit begehbaren Rechtecken und Bild.
 static var layout_name: StringName = &"cross"
 static var walk: Array = ArenaLayouts.LAYOUTS[&"cross"]["walk"]
@@ -64,6 +69,7 @@ static func set_round(round_number: int) -> void:
 	obstacles = []
 	for fixed: Dictionary in layout["obstacles"]:
 		obstacles.append({"pos": fixed["pos"], "radius": _kind_radius(fixed["kind"]), "kind": fixed["kind"]})
+	_index_obstacles()
 
 
 ## Geländestufe einer Runde: 0 bis Runde 5, danach +1 nach jedem Boss (Runde 6, 16, 26, ...).
@@ -92,6 +98,20 @@ static func set_stage(new_stage: int) -> void:
 			var kind: String = OBSTACLE_KINDS[obstacles.size() % OBSTACLE_KINDS.size()]
 			obstacles.append({"pos": point, "radius": _kind_radius(kind), "kind": kind})
 	obstacles.resize(mini(obstacles.size(), obstacle_count(new_stage)))
+	_index_obstacles()
+
+
+static func _index_obstacles() -> void:
+	_obstacle_pos = PackedVector2Array()
+	_obstacle_reach = PackedFloat32Array()
+	_obstacle_bounds = Rect2()
+	for obstacle in obstacles:
+		var pos: Vector2 = obstacle["pos"]
+		var reach: float = obstacle["radius"] + FOOT_RADIUS
+		_obstacle_pos.append(pos)
+		_obstacle_reach.append(reach)
+		var area := Rect2(pos, Vector2.ZERO).grow(reach)
+		_obstacle_bounds = area if _obstacle_pos.size() == 1 else _obstacle_bounds.merge(area)
 
 
 static func _kind_radius(kind: String) -> float:
@@ -127,14 +147,16 @@ static func _obstacle_fits(point: Vector2) -> bool:
 
 ## Schiebt einen Punkt aus Hindernissen heraus. Die Bewegung rutscht dadurch seitlich daran vorbei.
 static func push_out_of_obstacles(point: Vector2) -> Vector2:
-	for obstacle in obstacles:
-		var reach: float = obstacle["radius"] + FOOT_RADIUS
-		var offset: Vector2 = point - obstacle["pos"]
+	if not _obstacle_bounds.grow(1.0).has_point(point):
+		return point
+	for i in _obstacle_pos.size():
+		var reach := _obstacle_reach[i]
+		var offset := point - _obstacle_pos[i]
 		# Flache Ellipse, weil die Hindernisse auf dem Boden stehen und von oben flacher wirken.
 		var squashed := Vector2(offset.x, offset.y * 1.4)
 		if squashed.length_squared() < reach * reach:
 			var direction := squashed.normalized() if squashed.length_squared() > 0.0001 else Vector2.DOWN
-			point = obstacle["pos"] + Vector2(direction.x * reach, direction.y * reach / 1.4)
+			point = _obstacle_pos[i] + Vector2(direction.x * reach, direction.y * reach / 1.4)
 	return point
 
 
@@ -163,7 +185,10 @@ static func clamp_point(point: Vector2) -> Vector2:
 	if obstacles.is_empty():
 		return result
 	for i in 2:  # Herausschieben kann aus dem Kreuz führen, dann noch einmal zurück
-		result = _clamp_to_floor(push_out_of_obstacles(result))
+		var pushed := _clamp_to_floor(push_out_of_obstacles(result))
+		if pushed == result:
+			break  # nichts verschoben: der zweite Durchgang käme zum selben Ergebnis
+		result = pushed
 	return result
 
 

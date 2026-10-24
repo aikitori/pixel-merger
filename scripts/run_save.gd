@@ -42,7 +42,8 @@ static func clear() -> void:
 
 
 ## Stand von Game und den Einheiten der Arena als einfache Werte (nur Text- und Zahlenschlüssel).
-static func capture(arena: Node, event_pending := false) -> Dictionary:
+## `offers`: Angebote eines offenen Ereignisses, sie stehen beim Fortsetzen wieder zur Wahl.
+static func capture(arena: Node, offers: Array[Dictionary] = []) -> Dictionary:
 	var units: Array[Dictionary] = []
 	for unit: Combatant in arena.get_player_units():
 		var pos := unit.home_position if Game.phase == Game.Phase.BATTLE else unit.position
@@ -61,7 +62,8 @@ static func capture(arena: Node, event_pending := false) -> Dictionary:
 		"auto_abilities": Game.auto_abilities,
 		"battle_speed": Game.battle_speed,
 		"rounds_without_event": int(arena.get("_rounds_without_event")),
-		"event_pending": event_pending,
+		"event_pending": not offers.is_empty(),
+		"event_offers": offers.map(func(offer: Dictionary) -> Dictionary: return RoundEvents.to_save(offer, arena)),
 		"units": units,
 	}
 
