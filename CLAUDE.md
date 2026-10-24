@@ -62,7 +62,7 @@ Ausgabe prüfen auf `... OK` (auch `SMOKE-TEST OK`), keine Zeilen mit `FAIL`, `S
 ## Release
 
 1. Version in `project.godot` und `export_presets.cfg` erhöhen (Code +1), `docs/ANDROID.md` anpassen.
-2. Events-Test laufen lassen, APK bauen: `ANDROID_HOME=~/.local/opt/android-sdk JAVA_HOME=~/.local/opt/jdk-17 tools/build_android.sh`, mit `aapt2 dump badging` die Version prüfen.
+2. Events-Test laufen lassen, APK bauen: `ANDROID_HOME=~/.local/opt/android-sdk JAVA_HOME=/usr/lib/jvm/java-17-openjdk-amd64 tools/build_android.sh`, mit `aapt2 dump badging` die Version prüfen.
 3. Committen, pushen, Tag **`alpha-X.Y.Z`** setzen und als Prerelease mit der Debug-APK anlegen (`gh release create`).
 4. **Kein `v*`-Tag verwenden**: Der löst in der CI den signierten Release-Job aus, der Geheimnisse braucht.
 5. Die Web-Version baut `.github/workflows/pages.yml` bei jedem Push auf `main` selbst: https://aikitori.github.io/pixel-merger/
