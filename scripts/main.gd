@@ -3,8 +3,21 @@ extends Node2D
 ## verbinden) und automatische Kampfphase mit optionalen Positionsbefehlen.
 
 const PICK_RADIUS := 14.0
+## Finger sind ungenauer als die Maus: größerer Trefferradius beim Antippen.
+const PICK_RADIUS_TOUCH := 18.0
 ## Beim Loslassen reicht es, in der Nähe der Zieleinheit zu sein (Finger sind ungenau).
 const MERGE_RADIUS := 24.0
+## Ab dieser Strecke wird aus einem Druck ein Ziehen (Finger zittern mehr als die Maus).
+const DRAG_THRESHOLD := 4.0
+const DRAG_THRESHOLD_TOUCH := 8.0
+## Touch: Die gezogene Figur steht mit den Füßen knapp über dem Finger, sonst verdeckt er sie.
+const TOUCH_LIFT := 6.0
+## Touch: Langes Drücken ersetzt den Rechtsklick (Befehl an die Auswahl).
+const LONG_PRESS_MSEC := 450
+## Farben der Befehlsmarken: hinlaufen, angreifen, schützen.
+const MARK_MOVE := Color(0.55, 1.0, 0.5)
+const MARK_ATTACK := Color(1.0, 0.4, 0.3)
+const MARK_GUARD := Color(0.4, 0.9, 1.0)
 const MAX_ENEMIES := 80
 ## Gegner kommen in Rudeln (1 bis 3), dafür etwas seltener: mehr Gewusel bei ähnlicher Gesamtmenge.
 const PACK_INTERVAL_FACTOR := 1.35
@@ -18,10 +31,26 @@ var _selected: Combatant  # Hauptauswahl: erste Einheit der Auswahl (Anzeige, Be
 var _selection: Array[Combatant] = []
 ## Mehrfachauswahl-Modus (Knopf): Antippen fügt Einheiten hinzu oder nimmt sie heraus.
 var _multi_mode := false
-var _box_pending := false
+## Laufender Druck (linke Maustaste oder Finger): Ort, Einheit darunter, ob schon gezogen wurde.
+## Erst beim Loslassen entscheidet sich, ob es ein Klick, ein Ziehen oder ein Auswahlrahmen war.
+var _pressing := false
+var _press_start := Vector2.ZERO
+var _press_unit: Combatant
+var _press_msec := 0
+var _press_touch := false
+var _press_moved := false
+var _press_long := false
+var _press_shift := false
+var _press_ctrl := false
+## Der Druck hat die Einheit gerade erst gewählt (Bauphase): Das Loslassen wählt sie dann nicht wieder ab.
+var _press_selected := false
 var _box_active := false
-var _box_start := Vector2.ZERO
-const BOX_MIN_DRAG := 10.0
+## Steuergruppen 1-9 (Strg+Ziffer speichert, Ziffer wählt).
+var _groups := {}
+var _hovered: Combatant
+var _cursor := Input.CURSOR_ARROW
+## Die gezogene Einheit steht über einer, mit der sie sich jetzt verbinden würde.
+var _drop_ok := false
 ## Zweiter Tipp auf dieselbe Einheit innerhalb dieser Zeit wählt alle gleichen Einheiten.
 const DOUBLE_TAP_MSEC := 400
 var _last_tap_unit: Combatant
@@ -89,6 +118,7 @@ func _ready() -> void:
 	_hud.multi_toggled.connect(func(on: bool) -> void: _multi_mode = on)
 	_hud.restart_pressed.connect(func() -> void: get_tree().reload_current_scene())
 	Game.phase_changed.connect(_on_phase_changed)
+	Game.gold_changed.connect(func(_gold: int) -> void: _refresh_hints())
 	Game.round_changed.connect(_on_round_changed)
 	Game.houses_changed.connect(func() -> void:
 		for unit in get_player_units():
@@ -143,6 +173,7 @@ func save_run() -> void:
 
 func _notification(what: int) -> void:
 	if what in [NOTIFICATION_APPLICATION_PAUSED, NOTIFICATION_APPLICATION_FOCUS_OUT, NOTIFICATION_WM_CLOSE_REQUEST]:
+		_cancel_press()  # das Loslassen kommt nicht mehr an
 		save_run()
 		if is_instance_valid(_hud) and what != NOTIFICATION_WM_CLOSE_REQUEST:
 			_hud.set_paused(true)  # im Kampf: Anruf oder App-Wechsel hält das Spiel an
@@ -190,6 +221,7 @@ func _build_obstacles() -> void:
 
 func _on_phase_changed(_phase: int) -> void:
 	queue_redraw()
+	_refresh_hints()
 
 
 func _draw() -> void:
@@ -197,19 +229,32 @@ func _draw() -> void:
 	if Game.phase == Game.Phase.BUILD:
 		draw_rect(World.CENTER_SQUARE.grow(6.0), Color(1, 1, 1, 0.07))
 		draw_rect(World.CENTER_SQUARE.grow(6.0), Color(1, 1, 1, 0.25), false, 1.0)
-	elif Game.phase == Game.Phase.BATTLE:
-		if _box_active:
-			var box := Rect2(_box_start, _pointer - _box_start).abs()
-			draw_rect(box, Color(0.5, 0.9, 1.0, 0.15))
-			draw_rect(box, Color(0.7, 0.95, 1.0, 0.9), false, 1.0)
-		for unit in get_player_units():
-			if unit.has_order:
-				draw_line(unit.order_position - Vector2(3, 3), unit.order_position + Vector2(3, 3), Color.WHITE, 1.0)
-				draw_line(unit.order_position - Vector2(3, -3), unit.order_position + Vector2(3, -3), Color.WHITE, 1.0)
-			if unit.is_guarding():  # Schutzband zum Schützling
-				var shield := Color(0.4, 0.9, 1.0, 0.6)
-				draw_dashed_line(unit.center(), unit.guard_target.center(), shield, 1.0, 3.0)
-				draw_arc(unit.guard_target.position, 9.0, 0.0, TAU, 16, shield, 1.0)
+	if _box_active:
+		var box := Rect2(_press_start, _pointer - _press_start).abs()
+		draw_rect(box, Color(0.5, 0.9, 1.0, 0.15))
+		draw_rect(box, Color(0.7, 0.95, 1.0, 0.9), false, 1.0)
+	if Game.phase != Game.Phase.BATTLE:
+		return
+	for unit in get_player_units():
+		if unit.has_order:
+			if unit.highlighted:  # Weg der gewählten Einheiten zum Ziel
+				draw_dashed_line(unit.position, unit.order_position, Color(MARK_MOVE, 0.35), 1.0, 3.0)
+			draw_line(unit.order_position - Vector2(3, 3), unit.order_position + Vector2(3, 3), Color.WHITE, 1.0)
+			draw_line(unit.order_position - Vector2(3, -3), unit.order_position + Vector2(3, -3), Color.WHITE, 1.0)
+		if unit.is_guarding():  # Schutzband zum Schützling
+			var shield := Color(MARK_GUARD, 0.6)
+			draw_dashed_line(unit.center(), unit.guard_target.center(), shield, 1.0, 3.0)
+			draw_arc(unit.guard_target.position, 9.0, 0.0, TAU, 16, shield, 1.0)
+		if unit.is_attacking():
+			var aim := Color(MARK_ATTACK, 0.7)
+			if unit.highlighted:
+				draw_dashed_line(unit.center(), unit.attack_target.center(), Color(aim, 0.35), 1.0, 3.0)
+			draw_arc(unit.attack_target.position, 8.0, 0.0, TAU, 16, aim, 1.0)
+	# Touch: Ring um den Finger füllt sich bis zum Befehl durch langes Drücken.
+	if _pressing and _press_touch and not _press_moved and not _press_long and not _selection.is_empty():
+		var held := float(Time.get_ticks_msec() - _press_msec) / LONG_PRESS_MSEC
+		if held > 0.25:
+			draw_arc(_press_start, 12.0, -PI / 2.0, -PI / 2.0 + TAU * minf(held, 1.0), 24, Color(1, 1, 1, 0.8), 2.0)
 
 
 # --- Einheiten ---------------------------------------------------------------
@@ -419,45 +464,106 @@ func _unit_at(point: Vector2, exclude: Combatant = null, radius := PICK_RADIUS) 
 
 
 # --- Eingabe -------------------------------------------------------------------
+# Wie in Strategiespielen: Maus links wählt, rechts befiehlt. Touch: Tippen wählt und befiehlt,
+# langes Drücken ersetzt den Rechtsklick. Tastenkürzel siehe PlayerInput.
 
 func _unhandled_input(event: InputEvent) -> void:
-	# Rechtsklick (Desktop) hebt im Kampf die Auswahl auf.
-	if event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_RIGHT and event.pressed:
-		clear_selection()
+	PlayerInput.note(event)
+	if event is InputEventKey:
+		if event.pressed and not event.echo and _handle_key(event):
+			get_viewport().set_input_as_handled()
 		return
-	if not (event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_LEFT and event.pressed):
+	if not (event is InputEventMouseButton and event.pressed):
 		return
 	var point := _local_position(event)
-	if Game.phase == Game.Phase.BUILD:
-		_begin_drag(point)
-	elif Game.phase == Game.Phase.BATTLE:
-		# Ausgeführt wird erst beim Loslassen: Ziehen auf freiem Boden zieht einen Auswahlrahmen auf.
-		_box_pending = true
-		_box_active = false
-		_box_start = point
+	if event.button_index == MOUSE_BUTTON_RIGHT:
+		if _dragging != null:
+			return
+		_cancel_press()
+		_secondary(point)
+	elif event.button_index == MOUSE_BUTTON_LEFT and Game.phase in [Game.Phase.BUILD, Game.Phase.BATTLE]:
+		_pressing = true
+		_press_start = point
+		_press_touch = PlayerInput.is_touch(event)
+		_press_unit = _unit_at(point, null, _pick_radius())
+		_press_msec = Time.get_ticks_msec()
+		_press_moved = false
+		_press_long = false
+		_press_shift = event.shift_pressed
+		_press_ctrl = event.ctrl_pressed or event.meta_pressed
+		# Bauphase: sofort wählen, damit Karte und Rezepte schon beim Anfassen erscheinen.
+		_press_selected = Game.phase == Game.Phase.BUILD and _press_unit != null and not _press_shift \
+				and not _press_ctrl and not _selection.has(_press_unit)
+		if _press_selected:
+			_select(_press_unit)
 
 
 # _input läuft vor den Buttons, damit ein Ziehen über die Leisten hinweg sauber endet.
 func _input(event: InputEvent) -> void:
-	if event is InputEventMouse:
-		_pointer = _local_position(event)
-	if _box_pending:
-		_handle_box_input(event)
-	if _dragging == null:
+	if not event is InputEventMouse:
+		return
+	_pointer = _local_position(event)
+	if not _pressing:
 		return
 	if event is InputEventMouseMotion:
-		_dragging.position = World.clamp_point(_pointer + _grab_offset)
+		var threshold := DRAG_THRESHOLD_TOUCH if _press_touch else DRAG_THRESHOLD
+		if not _press_moved and _pointer.distance_to(_press_start) > threshold:
+			_press_moved = true
+			_start_drag_or_box()
+		if _dragging != null:
+			_dragging.position = World.clamp_point(_pointer + _grab_offset)
 	elif event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_LEFT and not event.pressed:
+		_release()
+
+
+## Aus dem Druck wird ein Ziehen: In der Bauphase nimmt es die Einheit mit, auf freiem Boden
+## (beide Phasen) zieht es einen Auswahlrahmen auf.
+func _start_drag_or_box() -> void:
+	if _press_unit == null:
+		_box_active = true
+	elif Game.phase == Game.Phase.BUILD and is_instance_valid(_press_unit):
+		_begin_drag(_press_unit)
+
+
+func _release() -> void:
+	_pressing = false
+	if _dragging != null:
 		_end_drag()
+	elif _box_active:
+		_box_active = false
+		queue_redraw()
+		if Game.phase in [Game.Phase.BUILD, Game.Phase.BATTLE]:
+			_select_in_rect(Rect2(_press_start, _pointer - _press_start).abs(), _press_shift or _press_ctrl or _multi_mode)
+	elif not _press_long and Game.phase in [Game.Phase.BUILD, Game.Phase.BATTLE]:
+		_tap(_press_start)
+
+
+## Druck abbrechen (Rechtsklick währenddessen, App im Hintergrund): Gezogenes bleibt stehen.
+func _cancel_press() -> void:
+	_pressing = false
+	if _box_active:
+		_box_active = false
+		queue_redraw()
+	if _dragging != null:
+		_end_drag()
+
+
+func _pick_radius() -> float:
+	return PICK_RADIUS_TOUCH if PlayerInput.touch else PICK_RADIUS
 
 
 func _process(_delta: float) -> void:
 	if Game.phase == Game.Phase.GAME_OVER:
+		_set_hovered(null)
+		_update_cursor()
 		return
+	_check_long_press()
 	if _dragging != null:
 		var text := _merge_preview(_dragging)
 		_hud.show_text(text, _preview_warning)
 		_hud.show_unit_card(null if _hud.merge_preview_visible() else _dragging)
+		_set_hovered(_unit_at(_dragging.center(), _dragging, MERGE_RADIUS))
+		_update_cursor()
 		return
 	# Im Kampf gestorben? Ein freigegebenes Objekt gilt in Godot 4 als "== null",
 	# ist aber kein gültiges Argument mehr, daher ausdrücklich zurücksetzen.
@@ -469,8 +575,52 @@ func _process(_delta: float) -> void:
 	_hud.show_unit_card(_selected, _selection.size() - 1)
 	_hud.set_ability_unit(_selected, _selection)
 	_hud.set_merge_all(merge_all_plan() if Game.phase == Game.Phase.BUILD else Vector2i.ZERO)
+	# Touch kennt kein Schweben: dort zeigt die Info die zuletzt angetippte Einheit.
 	var hovered := _unit_at(_pointer)
+	_set_hovered(null if PlayerInput.touch else hovered)
 	_hud.show_info(hovered if hovered != null else _selected)
+	_update_cursor()
+
+
+## Touch: Finger lange ruhig auf dem Feld gehalten gibt den Befehl wie ein Rechtsklick (mit Rütteln).
+func _check_long_press() -> void:
+	if not _pressing or not _press_touch or _press_moved or _press_long or Game.phase != Game.Phase.BATTLE:
+		return
+	if _selection.is_empty() or Time.get_ticks_msec() - _press_msec < LONG_PRESS_MSEC:
+		return
+	_press_long = true
+	Input.vibrate_handheld(30)
+	_secondary(_press_start)
+
+
+func _set_hovered(unit: Combatant) -> void:
+	if unit == _hovered:
+		return
+	if is_instance_valid(_hovered):
+		_hovered.hovered = false
+	_hovered = unit
+	if unit != null:
+		unit.hovered = true
+
+
+## Mauszeiger zeigt, was ein Klick bewirkt: greifen, ablegen, verbinden, angreifen.
+func _update_cursor() -> void:
+	var shape := Input.CURSOR_ARROW
+	if PlayerInput.touch:
+		pass
+	elif _dragging != null:
+		shape = Input.CURSOR_CAN_DROP if _drop_ok else (Input.CURSOR_FORBIDDEN if _preview_warning else Input.CURSOR_DRAG)
+	elif _hovered != null:
+		shape = Input.CURSOR_POINTING_HAND
+	elif Game.phase == Game.Phase.BATTLE and not _selection.is_empty() and _enemy_at(_pointer) != null:
+		shape = Input.CURSOR_CROSS
+	if shape != _cursor:
+		_cursor = shape
+		Input.set_default_cursor_shape(shape)
+
+
+func _exit_tree() -> void:
+	Input.set_default_cursor_shape(Input.CURSOR_ARROW)
 
 
 ## Position eines Mausereignisses in Arena-Koordinaten. Die Position kommt aus dem Ereignis
@@ -481,6 +631,7 @@ func _local_position(event: InputEvent) -> Vector2:
 
 func _merge_preview(unit: Combatant) -> String:
 	_preview_warning = false
+	_drop_ok = false
 	var target := _unit_at(unit.center(), unit, MERGE_RADIUS)
 	if target == null:
 		_hud.hide_merge_preview()
@@ -496,6 +647,7 @@ func _merge_preview(unit: Combatant) -> String:
 	elif Game.gold < recipe.merge_cost:
 		_preview_warning = true
 		cost_text = tr("Kosten: %dg (du hast %dg)") % [recipe.merge_cost, Game.gold]
+	_drop_ok = not _preview_warning
 	_hud.show_merge_preview(unit.unit_data, target.unit_data, recipe.result, cost_text, _preview_warning, Progress.is_hidden(recipe))
 	var result_name := _result_name(recipe)
 	if recipe.unlock_round > Game.round_number:
@@ -506,7 +658,19 @@ func _merge_preview(unit: Combatant) -> String:
 	return tr("%s verbinden: %dg") % [result_name, recipe.merge_cost]
 
 
-## Alle Rezepte der gehaltenen Einheit: zuerst die, die mit einer Figur auf dem Feld sofort gehen.
+## Bauphase: Rezepte der gehaltenen oder allein gewählten Einheit anzeigen, sonst ausblenden.
+func _refresh_hints() -> void:
+	if not is_instance_valid(_hud):
+		return
+	if _dragging != null:
+		_show_recipe_hints(_dragging)
+	elif Game.phase == Game.Phase.BUILD and _selection.size() == 1 and is_instance_valid(_selected):
+		_show_recipe_hints(_selected)
+	else:
+		_hud.hide_recipe_hints()
+
+
+## Alle Rezepte der Einheit: zuerst die, die mit einer Figur auf dem Feld sofort gehen.
 func _show_recipe_hints(unit: Combatant) -> void:
 	var on_field := {}
 	for other in get_player_units():
@@ -538,15 +702,15 @@ func _show_recipe_hints(unit: Combatant) -> void:
 	_hud.show_recipe_hints(unit.display_name, hints.slice(0, Hud.HINT_ROWS), hints.size())
 
 
-func _begin_drag(point: Vector2) -> void:
-	var unit := _unit_at(point)
-	if unit == null:
-		return
+## Bauphase: Einheit aufnehmen. Sie wird zur Auswahl (Karte, Rezepte, Zurückschicken).
+func _begin_drag(unit: Combatant) -> void:
+	_select(unit)
 	_dragging = unit
-	_show_recipe_hints(unit)
 	_drag_origin = unit.position
-	_grab_offset = unit.position - point
+	_grab_offset = Vector2(0, -TOUCH_LIFT) if _press_touch else unit.position - _press_start
 	unit.highlighted = true
+	unit.position = World.clamp_point(_pointer + _grab_offset)
+	_refresh_hints()
 
 
 func _end_drag() -> void:
@@ -554,77 +718,187 @@ func _end_drag() -> void:
 	_dragging = null
 	_hud.hide_merge_preview()
 	_hud.show_unit_card(null)
-	_hud.hide_recipe_hints()
-	unit.highlighted = false
+	_set_hovered(null)
+	unit.highlighted = _selection.has(unit)
 	var target := _unit_at(unit.center(), unit, MERGE_RADIUS)
-	if target == null:
-		return
 	# Ohne passendes Rezept einfach abstellen, damit verschiedene Einheiten nebeneinander stehen können.
-	if Registry.find_recipe(unit.unit_data, target.unit_data) == null:
-		return
-	if not try_merge(unit, target):
-		unit.position = _drag_origin
+	if target != null and Registry.find_recipe(unit.unit_data, target.unit_data) != null:
+		if not try_merge(unit, target):
+			unit.position = _drag_origin
+	_refresh_hints()
 
 
-## Kampfphase: Einheit antippen wählt sie aus, ein Tipp aufs Feld schickt sie dorthin.
-## Erneutes Antippen der gewählten Einheit hebt den Befehl auf (wieder automatisch).
-func _command(point: Vector2, additive := false) -> void:
-	var unit := _unit_at(point)
+## Kurzer Klick oder Tipp (ohne Ziehen). Einheit: wählen (Umschalt: hinzu/heraus, Strg oder Doppelklick:
+## alle gleichen). Freier Boden: mit der Maus abwählen, per Touch im Kampf der Befehl an die Auswahl.
+func _tap(point: Vector2) -> void:
+	var unit: Combatant = _press_unit if is_instance_valid(_press_unit) and _press_unit._alive else null
+	var additive := _press_shift or _multi_mode
 	var now := Time.get_ticks_msec()
-	if unit != null and unit == _last_tap_unit and now - _last_tap_msec <= DOUBLE_TAP_MSEC and not _picking_guard:
+	if unit != null and not _picking_guard \
+			and (_press_ctrl or (unit == _last_tap_unit and now - _last_tap_msec <= DOUBLE_TAP_MSEC)):
 		_last_tap_unit = null
-		_select_same_kind(unit, additive or _multi_mode)
+		_select_same_kind(unit, additive)
 		return
 	_last_tap_unit = unit
 	_last_tap_msec = now
 	if unit != null:
 		if _picking_guard and is_instance_valid(_selected):
-			var guards := 0
-			for other in _selection:
-				if other != unit:
-					other.guard(unit)
-					guards += 1
-			_picking_guard = false
-			if guards == 1:
-				_hud.toast(tr("%s schützt %s") % [_selected.display_name, unit.display_name])
-			elif guards > 1:
-				_hud.toast(tr("%d Einheiten schützen %s") % [guards, unit.display_name])
-		elif additive or _multi_mode:
+			_guard_with_selection(unit)
+		elif additive:
 			_toggle_selected(unit)
+		elif _press_selected:
+			pass  # schon beim Drücken gewählt
+		elif unit in _selection and _selection.size() > 1:
+			_select(unit)
 		elif unit in _selection:
-			if _selection.size() == 1:
+			# Touch: zweiter Tipp wählt ab und gibt die Einheit frei. Die Maus wählt mit Esc oder auf freiem Boden ab.
+			if _press_touch:
 				unit.clear_order()
 				_select(null)
-			else:
-				_select(unit)
 		else:
 			_select(unit)
 		# Ein Tipp, der die Einheit abgewählt hat, zählt nicht als erster Tipp eines Doppeltipps:
 		# sonst wählt schnelles Ab- und wieder Antippen gleich alle Einheiten dieser Sorte.
 		if not _selection.has(unit):
 			_last_tap_unit = null
-	elif not _selection.is_empty() and World.contains(point):
-		_order_group(point)
+		return
+	if _picking_guard and not _press_touch:
+		_picking_guard = false  # Zielmodus: Klick daneben bricht ab
+		return
+	_picking_guard = false
+	if _press_touch and Game.phase == Game.Phase.BATTLE and not _selection.is_empty():
+		_command_at(point)
+	elif not additive:
+		_select(null)
+
+
+## Rechtsklick (Maus) oder langes Drücken (Touch). Im Kampf der Befehl an die Auswahl, sonst abwählen.
+func _secondary(point: Vector2) -> void:
+	if Game.phase == Game.Phase.BATTLE and not _selection.is_empty():
+		var picking := _picking_guard
 		_picking_guard = false
+		var ally := _unit_at(point, null, _pick_radius())
+		if picking and (ally == null or _selection.has(ally)):
+			return  # Zielmodus abbrechen wie in Strategiespielen
+		_command_at(point)
+	else:
+		clear_selection()
 
 
-## Auswahlrahmen: Ziehen auf freiem Boden. Ohne Ziehen ist es ein normaler Tipp.
-func _handle_box_input(event: InputEvent) -> void:
-	if event is InputEventMouseMotion and event.button_mask & MOUSE_BUTTON_MASK_LEFT:
-		if not _box_active and _unit_at(_box_start) == null and _pointer.distance_to(_box_start) > BOX_MIN_DRAG:
-			_box_active = true
-	elif event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_LEFT and not event.pressed:
-		var additive: bool = event.shift_pressed or event.ctrl_pressed
-		var was_box := _box_active
-		_box_pending = false
-		_box_active = false
-		queue_redraw()
-		if Game.phase != Game.Phase.BATTLE:
-			return
-		if was_box:
-			_select_in_rect(Rect2(_box_start, _pointer - _box_start).abs(), additive or _multi_mode)
+## Befehl an die Auswahl je nach Ziel: Gegner angreifen, andere eigene Einheit schützen,
+## eigene gewählte Einheit freigeben, sonst hinlaufen.
+func _command_at(point: Vector2) -> void:
+	var radius := _pick_radius()
+	var ally := _unit_at(point, null, radius)
+	var enemy := _enemy_at(point, radius)
+	if enemy != null and (ally == null or enemy.center().distance_squared_to(point) < ally.center().distance_squared_to(point)):
+		for unit in _selection:
+			unit.attack_unit(enemy)
+		_mark(enemy.position, MARK_ATTACK)
+	elif ally != null and not _selection.has(ally):
+		_guard_with_selection(ally)
+	elif ally != null:
+		_clear_orders()
+		_hud.toast(tr("Frei: kämpft selbstständig"))
+	elif World.contains(point):
+		_order_group(point)
+
+
+## Gewählte Einheiten schützen `unit` (die Einheit selbst nicht).
+func _guard_with_selection(unit: Combatant) -> void:
+	_picking_guard = false
+	var guards := 0
+	for other in _selection:
+		if other != unit:
+			other.guard(unit)
+			guards += 1
+	if guards == 1:
+		var guard: Combatant = _selection[0] if _selection[0] != unit else _selection[1]
+		_hud.toast(tr("%s schützt %s") % [guard.display_name, unit.display_name])
+	elif guards > 1:
+		_hud.toast(tr("%d Einheiten schützen %s") % [guards, unit.display_name])
+	if guards > 0:
+		_mark(unit.position, MARK_GUARD)
+
+
+## Kurze Marke am Befehlsziel, damit Klick und Tipp sichtbar ankommen.
+func _mark(point: Vector2, color: Color) -> void:
+	var mark := Effect.new()
+	mark.setup(&"ring", point, 9.0, color)
+	add_child(mark)
+
+
+## Gegner unter dem Punkt (wie _unit_at).
+func _enemy_at(point: Vector2, radius := PICK_RADIUS) -> Combatant:
+	var best: Combatant = null
+	var best_dist := INF
+	for node in get_tree().get_nodes_in_group(Combatant.GROUP_ENEMY):
+		var enemy := node as Combatant
+		if not enemy._alive:
+			continue
+		var dist := enemy.center().distance_squared_to(point)
+		if (dist <= radius * radius or enemy.hit_rect().has_point(point)) and dist < best_dist:
+			best_dist = dist
+			best = enemy
+	return best
+
+
+## Tastenkürzel für Auswahl und Befehle (Knopf-Kürzel und Pause stehen im Hud). true = verbraucht.
+func _handle_key(event: InputEventKey) -> bool:
+	if _hud.panel_open() or event.alt_pressed:
+		return false
+	var ctrl := event.ctrl_pressed or event.meta_pressed
+	var group := PlayerInput.group_for(event)
+	if group > 0:
+		if ctrl:
+			_store_group(group)
 		else:
-			_command(_box_start, additive)
+			_recall_group(group)
+		return true
+	if ctrl:
+		if event.keycode == KEY_A:
+			select_all(true)
+			return true
+		return false
+	match PlayerInput.action_for(event):
+		&"next":
+			if _selection.size() > 1:
+				var units: Array[Combatant] = _selection.duplicate()
+				units.push_back(units.pop_front())
+				_apply_selection(units)
+			return true
+		&"hold":
+			if Game.phase == Game.Phase.BATTLE and not _selection.is_empty():
+				for unit in _selection:
+					unit.hold_position()
+			return true
+		&"stop":
+			if Game.phase == Game.Phase.BATTLE:
+				_picking_guard = false
+				_clear_orders()
+			return true
+		&"guard":
+			if Game.phase == Game.Phase.BATTLE and not _selection.is_empty():
+				_start_guard_pick()
+			return true
+	return false
+
+
+func _store_group(number: int) -> void:
+	if _selection.is_empty():
+		_groups.erase(number)
+		return
+	_groups[number] = _selection.duplicate()
+	_hud.toast(tr("Gruppe %d: %d Einheiten") % [number, _selection.size()])
+
+
+func _recall_group(number: int) -> void:
+	var members: Array[Combatant] = []
+	for unit in _groups.get(number, []):
+		if is_instance_valid(unit) and unit._alive and unit.is_inside_tree():
+			members.append(unit)
+	if not members.is_empty():
+		_apply_selection(members)
 
 
 func _select_in_rect(rect: Rect2, additive: bool) -> void:
@@ -655,10 +929,11 @@ func _select_same_kind(unit: Combatant, additive: bool) -> void:
 
 
 ## Knopf "Alle"/"Keine": ohne Auswahl alle eigenen Einheiten wählen, sonst die Auswahl aufheben.
-func select_all() -> void:
-	if Game.phase != Game.Phase.BATTLE:
+## Strg+A (`only_select`) wählt immer alle.
+func select_all(only_select := false) -> void:
+	if Game.phase != Game.Phase.BATTLE and Game.phase != Game.Phase.BUILD:
 		return
-	if clear_selection():
+	if not only_select and clear_selection():
 		return
 	var all: Array[Combatant] = []
 	all.append_array(get_player_units())
@@ -676,12 +951,16 @@ func _order_group(point: Vector2) -> void:
 	for unit in _selection:
 		var offset := (unit.position - center).limit_length(45.0) if _selection.size() > 1 else Vector2.ZERO
 		unit.give_order(World.clamp_point(point + offset))
+	_mark(point, MARK_MOVE)
 
 
-## Kampfphase: Auswahl aufheben (Knopf "Keine", Zurück/Esc, Rechtsklick). Gibt false zurück,
-## wenn nichts gewählt war.
+## Auswahl aufheben (Knopf "Keine", Zurück/Esc, Rechtsklick in der Bauphase). Wartet der Befehl
+## Schützen noch auf sein Ziel, bricht erst das ab. Gibt false zurück, wenn nichts gewählt war.
 func clear_selection() -> bool:
-	if Game.phase != Game.Phase.BATTLE or (_selection.is_empty() and not _picking_guard):
+	if _picking_guard:
+		_picking_guard = false
+		return true
+	if Game.phase not in [Game.Phase.BUILD, Game.Phase.BATTLE] or _selection.is_empty():
 		return false
 	_apply_selection([] as Array[Combatant])
 	return true
@@ -709,6 +988,7 @@ func _apply_selection(units: Array[Combatant]) -> void:
 	for unit in _selection:
 		unit.highlighted = true
 	_selected = _selection[0] if not _selection.is_empty() else null
+	_refresh_hints()
 
 
 ## Rückzahlung beim Zurückschicken: die Hälfte des Kaufpreises der Grundeinheiten (Verbinden kostet extra).
@@ -804,15 +1084,22 @@ func cycle_order() -> void:
 			for unit in _selection:
 				unit.hold_position()
 		&"hold":
-			if get_player_units().size() <= _selection.size():
-				_hud.toast(tr("Zum Schützen braucht es eine weitere Einheit"))
-				Sound.play(&"error")
+			if not _start_guard_pick():
 				_clear_orders()
-				return
-			_picking_guard = true
-			_hud.toast(tr("Tippe die Einheit, die geschützt werden soll"))
 		_:
 			_clear_orders()
+
+
+## Befehl Schützen: wartet auf Klick oder Tipp auf den Schützling (Rechtsklick oder Esc bricht ab).
+func _start_guard_pick() -> bool:
+	if get_player_units().size() <= _selection.size():
+		_hud.toast(tr("Zum Schützen braucht es eine weitere Einheit"))
+		Sound.play(&"error")
+		return false
+	_picking_guard = true
+	_hud.toast(tr("Tippe die Einheit, die geschützt werden soll") if PlayerInput.touch \
+			else tr("Klicke die Einheit, die geschützt werden soll"))
+	return true
 
 
 func _clear_orders() -> void:

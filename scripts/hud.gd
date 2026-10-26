@@ -65,7 +65,9 @@ var _hint_title: Label
 var _hint_rows: Array[Dictionary] = []
 var _hint_more: Label
 const HINT_ROWS := 4
-var _last_back_msec := -10000
+var _hint_count := 0
+var _hint_total := 0
+var _hint_shown := -1
 var _game_over: GameOverPanel
 var _time_left := 0.0
 var _shown_seconds := -1
@@ -89,7 +91,7 @@ func _ready() -> void:
 	root.add_child(coin)
 	_gold_label = _add_label(root, Rect2(102, 3, 60, 18), HORIZONTAL_ALIGNMENT_LEFT)
 	_gold_label.add_theme_color_override("font_color", UiTheme.GOLD_LIGHT)
-	_phase_label = _add_label(root, Rect2(166, 3, 200, 18), HORIZONTAL_ALIGNMENT_LEFT)
+	_phase_label = _add_label(root, Rect2(166, 3, 68, 18), HORIZONTAL_ALIGNMENT_LEFT)
 	# Info zur Einheit unter dem Finger: zweizeilig in der unteren Leiste zwischen den Knöpfen.
 	_info = _add_label(root, Rect2(178, 322, 336, 36), HORIZONTAL_ALIGNMENT_CENTER)
 	_info.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
@@ -103,6 +105,7 @@ func _ready() -> void:
 
 	_shop_button = Button.new()
 	_shop_button.text = tr("Dorf")
+	_shop_button.tooltip_text = tr("Dorf: Einheiten kaufen (D)")
 	_shop_button.position = Vector2(6, 326)
 	_shop_button.size = Vector2(80, 28)
 	_shop_button.pressed.connect(func() -> void:
@@ -113,12 +116,14 @@ func _ready() -> void:
 
 	_book_button = Button.new()
 	_book_button.text = tr("Rezepte")
+	_book_button.tooltip_text = tr("Rezeptbuch (R)")
 	_book_button.position = Vector2(92, 326)
 	_book_button.size = Vector2(80, 28)
 	_book_button.pressed.connect(func() -> void: _book.open_book())
 	root.add_child(_book_button)
 
 	_speed_button = Button.new()
+	_speed_button.tooltip_text = tr("Kampftempo (+/-)")
 	_speed_button.position = Vector2(6, 326)
 	_speed_button.size = Vector2(80, 28)
 	_speed_button.pressed.connect(func() -> void: Game.cycle_battle_speed())
@@ -127,6 +132,7 @@ func _ready() -> void:
 	# Befehl der gewählten Einheit (nur im Kampf): Frei -> Halten -> Schützen.
 	_order_button = Button.new()
 	_order_button.text = tr("Befehl")
+	_order_button.tooltip_text = tr("Frei, Halten, Schützen (S, H, G). Ziele gibt der Rechtsklick")
 	_order_button.disabled = true
 	_order_button.position = Vector2(92, 326)
 	_order_button.size = Vector2(80, 28)
@@ -136,6 +142,7 @@ func _ready() -> void:
 	# Fähigkeit der gewählten Einheit (nur im Kampf, an der Stelle des Start-Knopfs).
 	_ability_button = Button.new()
 	_ability_button.text = tr("Fähigkeit")
+	_ability_button.tooltip_text = tr("Fähigkeit der Auswahl auslösen (Q)")
 	_ability_button.disabled = true
 	_ability_button.position = Vector2(520, 326)
 	_ability_button.size = Vector2(114, 28)
@@ -145,6 +152,7 @@ func _ready() -> void:
 
 	_start_button = Button.new()
 	_start_button.text = tr("Kampf starten")
+	_start_button.tooltip_text = tr("Kampf starten (Eingabe)")
 	_start_button.position = Vector2(520, 326)
 	_start_button.size = Vector2(114, 28)
 	_start_button.pressed.connect(func() -> void: start_pressed.emit())
@@ -152,10 +160,11 @@ func _ready() -> void:
 
 	_pause_button = Button.new()
 	_pause_button.text = tr("Pause")
+	_pause_button.tooltip_text = tr("Menü, Pause und Steuerung (Esc, Leertaste)")
 	_pause_button.position = Vector2(236, 2)
 	_pause_button.size = Vector2(52, 20)
 	_pause_button.add_theme_font_size_override("font_size", 10)
-	_pause_button.pressed.connect(func() -> void: set_paused(true))
+	_pause_button.pressed.connect(open_menu)
 	root.add_child(_pause_button)
 
 	if Fullscreen.available():
@@ -218,7 +227,7 @@ func _ready() -> void:
 	_merge_all_button.size = Vector2(114, 26)
 	_merge_all_button.visible = false
 	_merge_all_button.add_theme_font_size_override("font_size", 10)
-	_merge_all_button.tooltip_text = tr("Verbindet je zwei gleiche Einheiten zur nächsten Stufe, niedrigste Stufe zuerst")
+	_merge_all_button.tooltip_text = tr("Verbindet je zwei gleiche Einheiten zur nächsten Stufe, niedrigste Stufe zuerst (V)")
 	_merge_all_button.pressed.connect(func() -> void: merge_all_pressed.emit())
 	root.add_child(_merge_all_button)
 	_book = RecipeBook.new()
@@ -238,7 +247,9 @@ func _ready() -> void:
 	_game_over.menu_pressed.connect(func() -> void: menu_pressed.emit())
 	root.add_child(_game_over)
 	_pause = PausePanel.new()
+	_pause.menu_pressed.connect(func() -> void: menu_pressed.emit())
 	root.add_child(_pause)
+	get_viewport().gui_focus_changed.connect(_on_focus_changed)
 	_book.visibility_changed.connect(_refresh)
 	Game.gold_changed.connect(func(_gold: int) -> void: _refresh())
 	Game.round_changed.connect(func(_round: int) -> void: _refresh())
@@ -277,6 +288,7 @@ func set_order_unit(unit: Combatant, picking_guard: bool) -> void:
 			match unit.order_mode():
 				&"free": text = tr("Frei")
 				&"hold": text = tr("Halten")
+				&"attack": text = tr("Angriff")
 				_: text = tr("Schützt")
 	_order_button.disabled = unit == null
 	if _order_button.text != text:
@@ -427,6 +439,7 @@ func hide_merge_preview() -> void:
 ## `unit` null blendet die Karte aus. Wird jeden Frame aufgerufen, die Karte setzt nur Änderungen.
 func show_unit_card(unit: Combatant, extra := 0) -> void:
 	_card.show_unit(unit, extra)
+	_fit_hints()
 
 
 ## Mögliche Rezepte der gehaltenen Einheit, links unter der Karte.
@@ -440,12 +453,14 @@ func _build_group_buttons(root: Control) -> void:
 	root.add_child(_group_box)
 	_all_button = Button.new()
 	_all_button.text = tr("Alle")
+	_all_button.tooltip_text = tr("Alle wählen oder Auswahl aufheben (Strg+A, Esc)")
 	_all_button.custom_minimum_size = Vector2(40, 28)
 	_all_button.add_theme_font_size_override("font_size", 10)
 	_all_button.pressed.connect(func() -> void: select_all_pressed.emit())
 	_group_box.add_child(_all_button)
 	_multi_button = Button.new()
 	_multi_button.text = tr("Mehrfach")
+	_multi_button.tooltip_text = tr("Antippen fügt hinzu oder nimmt heraus (wie Umschalt+Klick)")
 	_multi_button.toggle_mode = true
 	_multi_button.custom_minimum_size = Vector2(72, 28)
 	_multi_button.add_theme_font_size_override("font_size", 10)
@@ -456,6 +471,7 @@ func _build_group_buttons(root: Control) -> void:
 	# Bauphase: gewählte Einheiten zurückschicken (halber Kaufpreis).
 	_return_button = Button.new()
 	_return_button.text = tr("Zurückschicken")
+	_return_button.tooltip_text = tr("Gewählte Einheiten zurückschicken, die Hälfte des Preises kommt zurück (Entf)")
 	_return_button.position = Vector2(176, 326)
 	_return_button.size = Vector2(116, 28)
 	_return_button.disabled = true
@@ -567,10 +583,31 @@ func show_recipe_hints(unit_name: String, hints: Array, total: int) -> void:
 			&"gold": slot["info"].text = tr("%dg, zu wenig Gold") % hint["cost"]
 			&"locked": slot["info"].text = tr("ab Runde %d") % hint["round"]
 			_: slot["info"].text = tr("%dg, Partner fehlt") % hint["cost"]
-	_hint_more.visible = total > hints.size()
-	_hint_more.text = tr("+ %d weitere im Rezeptbuch") % (total - hints.size())
-	_hint_panel.size = Vector2(150, 10)
+	_hint_count = hints.size()
+	_hint_total = total
+	_hint_shown = -1
 	_hint_panel.visible = true
+	_fit_hints()
+
+
+## Rezeptliste unter die Karte setzen (die wird mit Merkmalen hoch) und nur so viele Zeilen zeigen,
+## wie bis zur unteren Leiste passen. Der Rest steht im Rezeptbuch.
+func _fit_hints() -> void:
+	if not _hint_panel.visible:
+		return
+	var top := 184.0
+	if _card.visible:
+		top = maxf(top, _card.position.y + _card.size.y + 3.0)
+	var shown := mini(_hint_count, clampi(int((318.0 - top - 26.0) / 23.0), 1, HINT_ROWS))
+	if is_equal_approx(_hint_panel.position.y, top) and shown == _hint_shown:
+		return
+	_hint_shown = shown
+	_hint_panel.position.y = top
+	for index in HINT_ROWS:
+		_hint_rows[index]["row"].visible = index < shown
+	_hint_more.visible = _hint_total > shown
+	_hint_more.text = tr("+ %d weitere im Rezeptbuch") % (_hint_total - shown)
+	_hint_panel.size = Vector2(150, 10)
 
 
 func hide_recipe_hints() -> void:
@@ -624,8 +661,9 @@ func _refresh() -> void:
 		_refresh_modifier_sign()
 	match Game.phase:
 		Game.Phase.BUILD:
-			_phase_label.text = tr("Bauphase") + (tr(" – Bossrunde!") if kind == Game.RoundKind.BOSS \
-					else (tr(" – Bonusrunde!") if kind == Game.RoundKind.BONUS else ""))
+			# Kurz halten: rechts daneben sitzt der Menü-Knopf.
+			_phase_label.text = tr("Bossrunde!") if kind == Game.RoundKind.BOSS \
+					else (tr("Bonusrunde!") if kind == Game.RoundKind.BONUS else tr("Bauphase"))
 			_phase_label.add_theme_color_override("font_color", Color("#9be66e"))
 		Game.Phase.BATTLE:
 			match kind:
@@ -643,9 +681,11 @@ func _refresh() -> void:
 			or (is_instance_valid(_events) and _events.visible)
 	_start_button.visible = building
 	_ability_button.visible = Game.phase == Game.Phase.BATTLE
-	_pause_button.visible = Game.phase == Game.Phase.BATTLE
-	if Game.phase != Game.Phase.BATTLE and _pause != null and _pause.is_paused():
-		set_paused(false)
+	_pause_button.visible = building or Game.phase == Game.Phase.BATTLE
+	_pause_button.text = tr("Pause") if Game.phase == Game.Phase.BATTLE else tr("Menü")
+	if _pause != null and _pause.is_open() and (Game.phase == Game.Phase.GAME_OVER \
+			or (_pause.is_paused() and Game.phase != Game.Phase.BATTLE)):
+		_pause.close()
 	_auto_button.text = tr("Auto-Fähigk.: an") if Game.auto_abilities else tr("Auto-Fähigk.: aus")
 	if _fullscreen_button != null:
 		_fullscreen_button.text = Fullscreen.label()
@@ -670,28 +710,51 @@ func _refresh() -> void:
 	_shop.refresh()
 
 
-## Ist nichts mehr offen, führt Zurück ins Hauptmenü: erst warnen, beim zweiten Druck gehen.
-func _back_to_menu() -> void:
-	var now := Time.get_ticks_msec()
-	if now - _last_back_msec < 2500:
-		menu_pressed.emit()
-		return
-	_last_back_msec = now
-	if Game.phase == Game.Phase.BATTLE:
-		toast(tr("Nochmal zurück: Hauptmenü (später geht es vor diesem Kampf weiter)"))
-	else:
-		toast(tr("Nochmal zurück: Hauptmenü (der Lauf wird gespeichert)"))
-
-
-## Zurück-Taste (Android) bzw. Esc: erst offene Fenster schließen, dann die App beenden.
+## Zurück-Taste (Android): erst offene Fenster schließen und die Auswahl aufheben, dann das Menü.
 func _notification(what: int) -> void:
 	if what == NOTIFICATION_WM_GO_BACK_REQUEST and not handle_back():
-		_back_to_menu()
+		open_menu()
 
 
+## Esc wie die Zurück-Taste. Dazu die Tastenkürzel der Knöpfe und die Pause (siehe PlayerInput);
+## Auswahl und Befehle per Taste behandelt die Arena.
 func _unhandled_input(event: InputEvent) -> void:
-	if event.is_action_pressed("ui_cancel") and handle_back():
+	if event.is_action_pressed("ui_cancel"):
+		if not handle_back():
+			open_menu()
 		get_viewport().set_input_as_handled()
+		return
+	if not (event is InputEventKey and event.pressed and not event.echo) \
+			or event.ctrl_pressed or event.alt_pressed or event.meta_pressed:
+		return
+	var action := PlayerInput.action_for(event)
+	if action == &"pause":
+		if _pause.is_open():
+			_pause.close()
+		elif Game.phase == Game.Phase.BATTLE and not panel_open():
+			set_paused(true)
+		get_viewport().set_input_as_handled()
+		return
+	if panel_open():
+		return
+	if action == &"faster" or action == &"slower":
+		if Game.phase == Game.Phase.BATTLE:
+			Game.step_battle_speed(1 if action == &"faster" else -1)
+			get_viewport().set_input_as_handled()
+		return
+	var buttons := {&"start": _start_button, &"village": _shop_button, &"book": _book_button,
+			&"merge_all": _merge_all_button, &"return": _return_button, &"ability": _ability_button}
+	var button: Button = buttons.get(action)
+	if button != null and button.is_visible_in_tree() and not button.disabled:
+		button.pressed.emit()
+		get_viewport().set_input_as_handled()
+
+
+## Knöpfe behalten keinen Tastaturfokus, sonst löst die Leertaste den zuletzt geklickten Knopf aus
+## statt der Pause. Bedient wird mit Maus, Finger und Tastenkürzeln.
+func _on_focus_changed(control: Control) -> void:
+	if control is BaseButton:
+		control.release_focus.call_deferred()
 
 
 ## Schließt das oberste offene Fenster. Gibt false zurück, wenn keins offen war.
@@ -705,17 +768,24 @@ func event_open() -> bool:
 	return _events.visible
 
 
-## Ein Fenster über der Arena ist offen (Kaufliste, Rezeptbuch, Ereignis, Erfolge, Verloren).
+## Ein Fenster über der Arena ist offen (Kaufliste, Rezeptbuch, Ereignis, Erfolge, Verloren, Menü).
 func panel_open() -> bool:
 	return _shop.visible or _book.visible or _events.visible or _achievements.visible or _game_over.visible \
-			or _pause.is_paused()
+			or _pause.is_open()
 
 
-## Kampf anhalten oder fortsetzen (Knopf, Zurück-Taste, App im Hintergrund).
+## Kampf anhalten oder fortsetzen (Leertaste, App im Hintergrund). In der Bauphase gibt es keine Pause.
 func set_paused(on: bool) -> void:
-	if on and Game.phase != Game.Phase.BATTLE:
-		return
-	_pause.set_paused(on)
+	if not on:
+		_pause.close()
+	elif Game.phase == Game.Phase.BATTLE:
+		_pause.open(true)
+
+
+## Menü mit Steuerung (Knopf, Esc, Zurück-Taste): im Kampf mit Pause.
+func open_menu() -> void:
+	if Game.phase == Game.Phase.BATTLE or Game.phase == Game.Phase.BUILD:
+		_pause.open(Game.phase == Game.Phase.BATTLE)
 
 
 func is_paused() -> bool:
@@ -728,8 +798,8 @@ func event_offers() -> Array[Dictionary]:
 
 
 func handle_back() -> bool:
-	if _pause.is_paused():
-		set_paused(false)
+	if _pause.is_open():
+		_pause.close()
 		return true
 	if _events.visible:
 		_events.close_panel()

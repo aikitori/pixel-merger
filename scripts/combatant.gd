@@ -115,6 +115,8 @@ var has_order := false
 var order_position := Vector2.ZERO
 ## Schützling: Die Einheit weicht ihm nicht von der Seite und greift an, was ihn bedroht.
 var guard_target: Combatant
+## Angriffsziel (Rechtsklick oder Tipp auf einen Gegner): verfolgt ihn, bis er fällt, dann wieder frei.
+var attack_target: Combatant
 ## Fähigkeit (siehe Abilities) und ihre Stärke; aktive lösen von selbst aus.
 var ability: StringName = &""
 var ability_power := 1.0
@@ -140,6 +142,12 @@ var highlighted := false:
 	set(value):
 		highlighted = value
 		queue_redraw()
+## Maus darüber (nur mit Maus, Touch hat kein Schweben).
+var hovered := false:
+	set(value):
+		if hovered != value:
+			hovered = value
+			queue_redraw()
 
 var _target: Combatant
 var _retarget_left := 0.0
@@ -386,6 +394,7 @@ func give_order(point: Vector2) -> void:
 	has_order = true
 	order_position = point
 	guard_target = null
+	attack_target = null
 
 
 ## Position halten: an Ort und Stelle bleiben, nur angreifen, was in Reichweite kommt.
@@ -396,21 +405,36 @@ func hold_position() -> void:
 func guard(other: Combatant) -> void:
 	has_order = false
 	guard_target = other
+	attack_target = null
+
+
+## Gegner gezielt angreifen. Heiler greifen nicht an, sie kämpfen frei weiter (heilen).
+func attack_unit(enemy: Combatant) -> void:
+	clear_order()
+	if attack_style != &"heal":
+		attack_target = enemy
 
 
 func clear_order() -> void:
 	has_order = false
 	guard_target = null
+	attack_target = null
+
+
+func is_attacking() -> bool:
+	return attack_target != null and is_instance_valid(attack_target) and attack_target._alive
 
 
 func is_guarding() -> bool:
 	return guard_target != null and is_instance_valid(guard_target) and guard_target._alive
 
 
-## &"free" (Freikampf), &"hold" (Position halten) oder &"guard" (Schützen).
+## &"free" (Freikampf), &"hold" (Position halten), &"guard" (Schützen) oder &"attack" (Angriffsziel).
 func order_mode() -> StringName:
 	if is_guarding():
 		return &"guard"
+	if is_attacking():
+		return &"attack"
 	return &"hold" if has_order else &"free"
 
 
@@ -420,6 +444,8 @@ func order_text() -> String:
 			return tr("  [Halten]")
 		&"guard":
 			return tr("  [Schützt %s]") % guard_target.display_name
+		&"attack":
+			return tr("  [Greift %s an]") % attack_target.display_name
 	return ""
 
 
@@ -655,6 +681,8 @@ func _physics_process(frame_delta: float) -> void:
 
 	if guard_target != null and not is_guarding():
 		guard_target = null  # Schützling ist gefallen: zurück in den Freikampf
+	if attack_target != null and not is_attacking():
+		attack_target = null  # Ziel ist gefallen: zurück in den Freikampf
 	if has_order and position.distance_to(order_position) > ARRIVE_DISTANCE:
 		_move_towards(order_position, delta)
 	elif is_guarding():
@@ -672,6 +700,9 @@ func _fight(delta: float) -> void:
 	if attack_style == &"heal":
 		_heal_allies(delta)
 		return
+	if attack_target != null:
+		_target = attack_target
+		_retarget_left = RETARGET_INTERVAL
 	_retarget_left -= delta
 	if not is_instance_valid(_target) or not _target._alive or _retarget_left <= 0.0:
 		var picked := Behaviors.pick_target(self) if _steers or behavior == &"assassin" else null
@@ -1315,6 +1346,8 @@ func _draw() -> void:
 		_draw_swing(swing_t)
 	if highlighted:
 		draw_rect(rect.grow(2.0), Color.WHITE, false, 1.0)
+	elif hovered:
+		draw_rect(rect.grow(2.0), Color(1, 1, 1, 0.4), false, 1.0)
 	if team == Team.PLAYER:
 		for i in level:
 			draw_rect(Rect2(-half + i * 3, -body_size - 4, 2, 2), Color.GOLD)

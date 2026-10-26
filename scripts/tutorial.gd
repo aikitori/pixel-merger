@@ -4,18 +4,23 @@ extends PanelContainer
 ## verschwindet, sobald der Spieler den Schritt gemacht hat. Danach (oder mit "Ausblenden") merkt
 ## sich Progress, dass er gezeigt wurde.
 
-## Schritte: Text und Bedingung, die ihn erledigt (siehe _step_done).
+## Schritte: Bedingung, die ihn erledigt (siehe _step_done), Text für Touch und für die Maus.
 const STEPS := [
-	["buy", "Willkommen! Tippe unten auf Dorf und kaufe in den Häusern ein paar Einheiten."],
-	["merge", "Zieh eine Einheit auf eine gleiche: Die beiden verbinden sich zu einer stärkeren."],
-	["start", "Bereit? Tippe auf Kampf starten. Der Kampf läuft von selbst."],
-	["battle", "Halte durch, bis die Zeit abläuft. Antippen wählt Einheiten, Befehl gibt ihnen Anweisungen."],
+	["buy", "Willkommen! Tippe unten auf Dorf und kaufe in den Häusern ein paar Einheiten.",
+		"Willkommen! Klicke unten auf Dorf (oder drücke D) und kaufe in den Häusern ein paar Einheiten."],
+	["merge", "Zieh eine Einheit auf eine gleiche: Die beiden verbinden sich zu einer stärkeren.",
+		"Zieh eine Einheit auf eine gleiche: Die beiden verbinden sich zu einer stärkeren."],
+	["start", "Bereit? Tippe auf Kampf starten. Der Kampf läuft von selbst.",
+		"Bereit? Klicke auf Kampf starten (Eingabe). Der Kampf läuft von selbst."],
+	["battle", "Halte durch, bis die Zeit abläuft. Antippen wählt Einheiten, ein Tipp aufs Feld schickt sie los. Das Menü zeigt die Steuerung.",
+		"Halte durch, bis die Zeit abläuft. Linksklick wählt Einheiten, Rechtsklick schickt sie los oder greift an. Esc zeigt alle Tasten."],
 ]
 
 var step := 0
 var _arena: Node
 var _hud: Hud
 var _text: Label
+var _shown_touch := false
 
 
 func setup(arena: Node, hud: Hud) -> void:
@@ -63,6 +68,8 @@ func _process(_delta: float) -> void:
 			finish()
 			return
 		_show_step()
+	if _shown_touch != PlayerInput.touch:
+		_show_step()  # erst Maus, dann Finger (oder umgekehrt): passenden Text zeigen
 	# Offene Fenster (Kaufliste, Rezeptbuch, Ereignis) nicht verdecken.
 	visible = not _hud.panel_open()
 
@@ -81,7 +88,8 @@ func _step_done(id: String) -> bool:
 
 
 func _show_step() -> void:
-	_text.text = tr(STEPS[step][1])
+	_shown_touch = PlayerInput.touch
+	_text.text = tr(STEPS[step][1 if _shown_touch else 2])
 	size = Vector2(158, 0)  # an die neue Textlänge anpassen
 
 

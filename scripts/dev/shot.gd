@@ -1,7 +1,8 @@
 extends Node
 ## Entwickler-Werkzeug: speichert Screenshots der Oberfläche (braucht ein Fenster, z.B. Xvfb).
 ## Start: godot res://scenes/dev/shot.tscn -- <Ordner> [ansicht ...]
-## Ansichten: bau, dorf, haus, buch, buch2, linien, kampf, verloren, einstieg, pause, menue (mit gespeichertem Lauf),
+## Ansichten: bau, dorf, haus, buch, buch2, linien, kampf, verloren, einstieg, pause, menu_bau (SHOT_TOUCH: Touch-Hilfe),
+## menue (mit gespeichertem Lauf),
 ## arena (Runde aus SHOT_ROUND, Datei arena_<runde>.png)
 
 func _ready() -> void:
@@ -50,14 +51,16 @@ func _ready() -> void:
 				arena._build_obstacles()
 			"rezepte":
 				var picks: Array = arena.find_children("*", "Combatant", true, false)
-				arena._begin_drag(picks[0].position - Vector2(0, 8))
+				arena._pointer = picks[0].position - Vector2(0, 8)
+				arena._press_start = arena._pointer
+				arena._begin_drag(picks[0])
 			"gruppe":
 				Game.set_phase(Game.Phase.BATTLE)
 				arena._spawn_timer = 99999.0
 				arena._battle_time_left = 99999.0
 				arena._select_in_rect(Rect2(250, 100, 140, 120), false)
 				arena._box_active = true
-				arena._box_start = Vector2(230, 90)
+				arena._press_start = Vector2(230, 90)
 				arena._pointer = Vector2(420, 230)
 			"wetter":
 				Game.set_modifier(StringName(OS.get_environment("SHOT_MOD") if OS.get_environment("SHOT_MOD") != "" else "snow"))
@@ -128,6 +131,11 @@ func _ready() -> void:
 				arena.start_battle()
 				await _frames(60)
 				hud.set_paused(true)
+			"menu_bau":
+				PlayerInput.touch = OS.get_environment("SHOT_TOUCH") != ""
+				hud._village.visible = false
+				hud._refresh()
+				hud.open_menu()
 			"verloren":
 				hud.show_game_over(14, {"kills": 312, "gold": 1874, "merges": 41, "best_unit": "crusader"}, 17, false)
 			"menue":

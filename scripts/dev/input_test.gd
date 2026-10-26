@@ -23,6 +23,7 @@ func _ready() -> void:
 	await _test_merge_without_gold()
 	await _test_place_next_to_other()
 	await _test_back_button()
+	await _test_build_selection()
 	await _test_battle_order()
 	await _test_multi_select()
 	await _test_manual_ability()
@@ -41,6 +42,10 @@ func _check(ok: bool, text: String) -> void:
 	print(("ok:   " if ok else "FAIL: ") + text)
 	if not ok:
 		_failed = true
+
+
+func hud_paused() -> bool:
+	return (_arena.get("_hud") as Hud)._pause.is_open()
 
 
 func _peasant() -> UnitData:
@@ -85,6 +90,40 @@ func _tap(pos: Vector2) -> void:
 	await get_tree().process_frame
 	_event_button(pos, false)
 	await get_tree().process_frame
+
+
+## Rechtsklick (Maus): Befehl an die Auswahl.
+func _right_click(pos: Vector2) -> void:
+	_event_motion(pos)
+	await get_tree().process_frame
+	for pressed in [true, false]:
+		var event := InputEventMouseButton.new()
+		event.button_index = MOUSE_BUTTON_RIGHT
+		event.pressed = pressed
+		event.position = pos
+		event.global_position = pos
+		get_viewport().push_input(event, true)
+		await get_tree().process_frame
+
+
+## Kurzer Tipp mit dem Finger (Godot macht daraus Mausereignisse vom Gerät DEVICE_ID_EMULATION).
+func _touch_tap(pos: Vector2) -> void:
+	_touch(pos, true)
+	await get_tree().process_frame
+	_touch(pos, false)
+	await get_tree().process_frame
+	await get_tree().process_frame  # Touch kommt gepuffert erst im nächsten Bild an, dann läuft _process
+
+
+func _key(keycode: Key, ctrl := false) -> void:
+	for pressed in [true, false]:
+		var event := InputEventKey.new()
+		event.keycode = keycode
+		event.physical_keycode = keycode
+		event.ctrl_pressed = ctrl
+		event.pressed = pressed
+		get_viewport().push_input(event, true)
+		await get_tree().process_frame
 
 
 func _units() -> Array[Combatant]:
@@ -242,13 +281,79 @@ func _test_merge_without_gold() -> void:
 
 func _test_battle_order() -> void:
 	var unit := _units()[0]
-	_check(_arena.start_battle(), "Kampf starten")
+	await _key(KEY_ENTER)
+	_check(Game.phase == Game.Phase.BATTLE, "Eingabe startet den Kampf")
+	_arena._spawn_timer = 99999.0
+	_arena._select(null)
 	await _tap(unit.center())
-	await _tap(Vector2(300, 200))
-	_check(unit.has_order, "Einheit antippen, dann Ziel antippen gibt einen Positionsbefehl")
+	_check(_arena._selected == unit, "Linksklick wählt die Einheit")
+	await _right_click(Vector2(300, 200))
+	_check(unit.has_order, "Rechtsklick aufs Feld gibt einen Positionsbefehl")
 	_check(unit.order_position.distance_to(Vector2(300, 200)) < 1.0, "Befehlsziel stimmt")
+	await _tap(Vector2(300, 250))
+	_check(_arena._selection.is_empty() and unit.has_order, "Linksklick auf freien Boden wählt ab, der Befehl bleibt")
+	await _touch_tap(unit.center())
+	await _touch_tap(Vector2(260, 200))
+	_check(unit.has_order and unit.order_position.distance_to(Vector2(260, 200)) < 1.0, "Touch: Antippen, dann Tipp aufs Feld gibt den Befehl")
+	await get_tree().create_timer(0.45).timeout  # kein Doppeltipp
+	await _touch_tap(unit.center())
+	_check(not unit.has_order and _arena._selection.is_empty(), "Touch: Erneutes Antippen hebt Befehl und Auswahl auf")
+	# Gegner: Rechtsklick (Maus) oder Tipp (Touch) greift ihn gezielt an
+	var foe := Combatant.new()
+	foe.setup_enemy(Registry.pick_enemy(1))
+	foe.position = Vector2(420, 150)
+	foe.attack = 0.0
+	foe.move_speed = 0.0
+	_arena.add_child(foe)
+	await get_tree().process_frame
 	await _tap(unit.center())
-	_check(not unit.has_order, "Erneutes Antippen hebt den Befehl auf")
+	await _right_click(foe.center())
+	_check(unit.order_mode() == &"attack" and unit.attack_target == foe, "Rechtsklick auf einen Gegner: gezielter Angriff (%s)" % unit.order_mode())
+	await _key(KEY_S)
+	_check(unit.order_mode() == &"free", "Taste S: wieder frei")
+	await _touch_tap(foe.center())
+	_check(unit.order_mode() == &"attack", "Touch: Tipp auf einen Gegner greift ihn an")
+	foe.discard()
+	await get_tree().process_frame
+	await get_tree().process_frame
+	_check(unit.order_mode() == &"free", "Fällt das Ziel, kämpft die Einheit wieder frei")
+	await _key(KEY_H)
+	_check(unit.order_mode() == &"hold", "Taste H: Position halten")
+	# Rechtsklick auf eine andere eigene Einheit: schützen; langes Drücken (Touch) ebenso
+	var buddy := _units()[1]
+	await _right_click(buddy.center())
+	_check(unit.order_mode() == &"guard" and unit.guard_target == buddy, "Rechtsklick auf Verbündeten: schützen")
+	_arena._clear_orders()
+	_touch(buddy.center(), true)
+	await get_tree().create_timer(0.6).timeout
+	_check(unit.order_mode() == &"guard" and unit.guard_target == buddy, "Touch: Langes Drücken auf Verbündeten schützt ihn")
+	_touch(buddy.center(), false)
+	await get_tree().process_frame
+	_check(_arena._selected == unit, "Langes Drücken ändert die Auswahl nicht")
+	_arena._clear_orders()
+	await _key(KEY_G)
+	_check(_arena._picking_guard, "Taste G wartet auf den Schützling")
+	await _right_click(Vector2(300, 250))
+	_check(not _arena._picking_guard and not unit.has_order, "Rechtsklick daneben bricht das Schützen ab")
+	# Steuergruppen und Strg+A
+	await _key(KEY_1, true)
+	_arena._select(null)
+	await _key(KEY_1)
+	_check(_arena._selection.size() == 1 and _arena._selected == unit, "Strg+1 speichert die Gruppe, 1 wählt sie wieder")
+	await _key(KEY_A, true)
+	_check(_arena._selection.size() == _units().size(), "Strg+A wählt alle Einheiten")
+	await _key(KEY_ESCAPE)
+	_check(_arena._selection.is_empty() and not hud_paused(), "Esc hebt zuerst die Auswahl auf")
+	await _key(KEY_SPACE)
+	_check(get_tree().paused, "Leertaste hält den Kampf an")
+	await _key(KEY_SPACE)
+	_check(not get_tree().paused, "Leertaste setzt ihn fort")
+	await _key(KEY_PLUS)
+	_check(Game.battle_speed == 2.0, "Taste + erhöht das Kampftempo")
+	await _key(KEY_MINUS)
+	await _key(KEY_MINUS)
+	_check(Game.battle_speed == 1.0, "Taste - senkt es (nicht unter 1x)")
+	_arena._select(unit)
 	# Befehlsknopf: Frei -> Halten -> Schützen (Schützling antippen) -> Frei
 	var other := _units()[1]
 	await _tap(unit.center())
@@ -260,7 +365,7 @@ func _test_battle_order() -> void:
 	_check(unit.order_mode() == &"guard" and unit.guard_target == other, "Tipp auf andere Einheit setzt den Schützling")
 	_arena.cycle_order()
 	_check(unit.order_mode() == &"free", "Befehlsknopf: Schützen -> Frei")
-	await _tap(unit.center())
+	_arena._select(null)
 
 
 ## Echte Touch-Ereignisse: Godot wandelt sie selbst in Mausereignisse um (Android).
@@ -369,7 +474,44 @@ func _test_back_button() -> void:
 	_check(hud.handle_back() and not hud._shop.visible and hud._village.visible, "Dann die Kaufliste, das Dorf bleibt")
 	get_tree().root.propagate_notification(NOTIFICATION_WM_GO_BACK_REQUEST)
 	_check(not hud._village.visible, "Zurück-Taste (Android) schließt danach das Dorf statt die App")
-	_check(not hud.handle_back(), "Ist nichts offen, meldet handle_back() false (dann beendet Android die App)")
+	_arena._select(_units()[0])
+	_check(hud.handle_back() and _arena._selection.is_empty(), "Zurück hebt auch in der Bauphase die Auswahl auf")
+	_check(not hud.handle_back(), "Ist nichts offen, meldet handle_back() false (dann öffnet sich das Menü)")
+	get_tree().root.propagate_notification(NOTIFICATION_WM_GO_BACK_REQUEST)
+	_check(hud._pause.is_open() and not get_tree().paused, "Zurück ohne offenes Fenster öffnet das Menü (Bauphase: ohne Pause)")
+	_check(hud.handle_back() and not hud._pause.is_open(), "Zurück schließt das Menü wieder")
+
+
+## Bauphase: Klick wählt (Karte, Rezepte), Rahmen wählt mehrere, Entf schickt zurück, D öffnet das Dorf.
+func _test_build_selection() -> void:
+	var hud: Hud = _arena.get("_hud")
+	var gold_before := Game.gold
+	Game.gold = 500
+	_arena.buy_unit(_peasant())
+	_arena.buy_unit(_peasant())
+	var units := _units()
+	for unit in units:
+		unit.position = Vector2(60, 200)
+	var a := units[units.size() - 1]
+	var b := units[units.size() - 2]
+	a.position = Vector2(300, 150)
+	b.position = Vector2(340, 150)
+	await _tap(a.center())
+	_check(_arena._selected == a and hud._card.visible, "Bauphase: Klick wählt die Einheit und zeigt die Karte")
+	_check(hud._hint_panel.visible, "Bauphase: Die gewählte Einheit zeigt ihre Rezepte")
+	_check(_units().size() == units.size(), "Bauphase: Klick verbindet nichts")
+	await _drag(Vector2(270, 100), Vector2(370, 165))
+	_check(_arena._selection.size() == 2 and _arena._selection.has(b), "Bauphase: Auswahlrahmen wählt mehrere Einheiten (%d)" % _arena._selection.size())
+	_check(not hud._return_button.disabled, "Zurückschicken ist mit Auswahl bereit")
+	var gold := Game.gold
+	await _key(KEY_DELETE)
+	await get_tree().process_frame
+	_check(_units().size() == units.size() - 2 and Game.gold > gold, "Entf schickt die Auswahl zurück und gibt Gold")
+	await _key(KEY_D)
+	_check(hud._village.visible, "Taste D öffnet das Dorf")
+	await _key(KEY_D)
+	_check(not hud._village.visible, "Taste D schließt es wieder")
+	Game.gold = gold_before
 
 
 func _test_multi_select() -> void:
@@ -403,8 +545,8 @@ func _test_multi_select() -> void:
 	_check(hud._ability_button.text.begins_with("Fähigkeiten") or hud._ability_button.disabled, "Fähigkeitsknopf zählt die Gruppe")
 	_check(hud._card.title.text.contains("+2"), "Einheitenkarte nennt die weiteren gewählten Einheiten (%s)" % hud._card.title.text)
 	# Gruppenbefehl: alle laufen los, Abstände bleiben ungefähr erhalten
-	await _tap(Vector2(480, 150))
-	_check(cluster.all(func(u: Combatant) -> bool: return u.has_order), "Tipp aufs Feld schickt die ganze Gruppe los")
+	await _right_click(Vector2(480, 150))
+	_check(cluster.all(func(u: Combatant) -> bool: return u.has_order), "Rechtsklick aufs Feld schickt die ganze Gruppe los")
 	_check(cluster[0].order_position.distance_to(cluster[2].order_position) > 20.0, "Die Gruppe behält Abstände im Ziel")
 	# Befehlsknopf wirkt auf alle
 	for unit in cluster:
@@ -424,8 +566,11 @@ func _test_multi_select() -> void:
 	# Abwählen: erneuter Tipp (nach der Doppeltipp-Zeit), danach ist ein schneller Tipp kein Doppeltipp
 	await get_tree().create_timer(0.45).timeout
 	await _tap(cluster[1].center())
-	_check(_arena._selection.is_empty(), "Tipp auf die gewählte Einheit hebt die Auswahl auf")
-	await _tap(cluster[1].center())
+	_check(_arena._selection.size() == 1, "Maus: Klick auf die gewählte Einheit lässt sie gewählt")
+	await get_tree().create_timer(0.45).timeout
+	await _touch_tap(cluster[1].center())
+	_check(_arena._selection.is_empty(), "Touch: Tipp auf die gewählte Einheit hebt die Auswahl auf")
+	await _touch_tap(cluster[1].center())
 	_check(_arena._selection.size() == 1 and _arena._selected == cluster[1], "Schneller Tipp nach dem Abwählen wählt nur diese Einheit wieder")
 	# Mit Auswahl heißt der Knopf "Keine" und hebt sie auf, danach wählt er alle
 	var all_button: Button = hud._group_box.get_child(0)
@@ -439,12 +584,8 @@ func _test_multi_select() -> void:
 	_check(hud.handle_back() and _arena._selection.is_empty(), "Zurück/Esc hebt die Auswahl auf")
 	_check(not hud.handle_back(), "Zurück ohne Auswahl bleibt für das Hauptmenü")
 	_arena._select(cluster[0])
-	var right := InputEventMouseButton.new()
-	right.button_index = MOUSE_BUTTON_RIGHT
-	right.pressed = true
-	right.position = cluster[0].center()
-	_arena._unhandled_input(right)
-	_check(_arena._selection.is_empty(), "Rechtsklick hebt die Auswahl auf")
+	await _right_click(cluster[0].center())
+	_check(_arena._selection.size() == 1 and not cluster[0].has_order, "Rechtsklick auf die gewählte Einheit gibt sie frei")
 	# Mehrfach-Modus: Antippen fügt hinzu und nimmt heraus
 	_arena._select(null)
 	hud._multi_button.button_pressed = true
@@ -521,9 +662,11 @@ func _test_manual_ability() -> void:
 	await get_tree().process_frame
 	_check(hud._ability_button.disabled and hud._ability_button.text.begins_with("Schild hoch ") , "Danach lädt sie (%s)" % hud._ability_button.text)
 	_check(not _arena.cast_selected() and unit.ability_casts == 1, "Beim Laden löst der Knopf nichts aus")
+	await _key(KEY_Q)
+	_check(unit.ability_casts == 1, "Taste Q löst nichts aus, solange die Fähigkeit lädt")
 	foe.discard()
 	Game.auto_abilities = true
-	await _tap(unit.center())  # Auswahl wieder aufheben
+	_arena._select(null)
 
 
 func _test_selected_unit_dies() -> void:
@@ -629,7 +772,7 @@ func _test_real_round_then_village() -> void:
 	hud._speed_button.visible = true
 	_check(_arena.start_battle(), "Kampf starten (Dorf-nach-Kampf-Test)")
 	await _tap(veterans[0].center())
-	await _tap(World.CENTER + Vector2(-50, 0))
+	await _right_click(World.CENTER + Vector2(-50, 0))
 	Engine.time_scale = 8.0
 	var frames := 0
 	while Game.phase == Game.Phase.BATTLE and frames < 6000:
@@ -662,7 +805,7 @@ func _test_real_round_then_village() -> void:
 	var head := old.position + Vector2(0, -old.sprite.get_height() + 2)
 	_check(_arena._unit_at(head) == old, "Antippen am Kopf trifft die Figur")
 	var before := old.position
-	await _touch_drag(old.center(), old.center() + Vector2(0, 40))
+	await _touch_drag(old.center(), old.center() + Vector2(0, 60))
 	_check(old.position.distance_to(before) > 20.0, "Touch: Veteran lässt sich nach Kampf und Dorf verschieben (%s -> %s)" % [before, old.position])
 	var newest := _units()[_units().size() - 1]
 	before = newest.position

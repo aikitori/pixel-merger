@@ -42,12 +42,35 @@ Mehrere Runden, jede Runde besteht aus zwei Phasen:
   jede Form, jeden Baustein und die Verhaltensweisen. Karte, Kaufliste und Rezeptbuch zeigen alles an.
 - **Steuerung:** Einheiten kaufen und platzieren sich frei in der Arena (Bauphase: ziehen,
   auf eine andere Einheit ziehen = verbinden). Im Kampf handeln sie automatisch, können aber
-  taktisch befehligt werden: Einheit antippen, dann Befehl wählen (Knopf "Befehl" unten):
-  **Frei** (Freikampf, Standard: Gegner suchen und verfolgen), **Halten** (bleibt stehen, greift nur
-  an, was in Reichweite kommt; ein Tipp aufs Feld schickt sie dorthin und sie hält dort) und
-  **Schützen** (danach die andere Einheit antippen: bleibt an ihrer Seite und bekämpft Gegner in
-  ihrer Nähe, ohne sich weit locken zu lassen; Heiler heilen den Schützling zuerst). Fällt der
-  Schützling, wird die Einheit wieder frei. Erneutes Antippen der Einheit hebt den Befehl auf.
+  taktisch befehligt werden. Befehle: **Frei** (Freikampf, Standard: Gegner suchen und verfolgen),
+  **Halten** (bleibt stehen, greift nur an, was in Reichweite kommt; nach einem Laufbefehl hält sie am Ziel),
+  **Schützen** (bleibt an der Seite einer anderen Einheit und bekämpft Gegner in ihrer Nähe, ohne sich weit
+  locken zu lassen; Heiler heilen den Schützling zuerst) und **Angriff** (verfolgt einen bestimmten Gegner, bis er
+  fällt; Heiler kämpfen stattdessen frei). Fällt Schützling oder Ziel, wird die Einheit wieder frei.
+  Der Knopf "Befehl" unten schaltet Frei, Halten, Schützen reihum.
+- **Steuerung nach Strategiespiel-Art** (`scripts/player_input.gd`, Eingabe in `main.gd`): Ein Druck wird erst ab einer
+  kleinen Strecke zum Ziehen (Maus 4, Finger 8 Pixel), sonst ist es ein Klick. Aus Touch erzeugte Mausereignisse
+  (Gerät `DEVICE_ID_EMULATION`) schalten auf Touch-Regeln, echte Maus und Tastatur zurück.
+  - **Maus:** Linksklick wählt (Bauphase schon beim Drücken, damit Karte und Rezepte gleich erscheinen), auf freiem
+    Boden wählt er ab, auf eine gewählte Einheit bleibt sie gewählt. Ziehen auf freiem Boden zieht in beiden Phasen
+    einen Auswahlrahmen auf. **Rechtsklick** gibt den Befehl je nach Ziel: Gegner angreifen, andere eigene Einheit
+    schützen, eigene gewählte Einheit freigeben, freier Boden: hinlaufen. In der Bauphase hebt er die Auswahl auf, im
+    Zielmodus von "Schützen" bricht er ab. Umschalt+Klick nimmt hinzu oder heraus, Strg+Klick und Doppelklick wählen
+    alle gleichen Einheiten. Der Mauszeiger zeigt die Wirkung (Hand über Einheiten, Ablegen/Verboten beim Ziehen,
+    Fadenkreuz über Gegnern), eigene Einheiten unter dem Zeiger bekommen einen hellen Rahmen. Knöpfe nennen ihr
+    Tastenkürzel im Tooltip.
+  - **Tastatur:** Strg+1-9 speichert die Auswahl als Gruppe, 1-9 wählt sie, Strg+A alle. H Halten, S Frei, G Schützen
+    (wartet auf den Klick auf den Schützling), Q Fähigkeit, Tab macht die nächste gewählte Einheit zur Hauptauswahl.
+    Leertaste (auch P) Pause, +/- Kampftempo. Eingabe startet den Kampf, D Dorf, R Rezepte, V alles verbinden,
+    Entf schickt die Auswahl zurück. Esc schließt Fenster, hebt die Auswahl auf, sonst öffnet es das Menü. Knöpfe
+    behalten keinen Tastaturfokus, damit die Leertaste nicht den zuletzt geklickten Knopf auslöst.
+  - **Touch:** Tippen wählt, ein zweiter Tipp auf die einzige gewählte Einheit wählt ab und gibt sie frei. Im Kampf
+    schickt ein Tipp aufs Feld die Auswahl dorthin, ein Tipp auf einen Gegner greift ihn an. **Langes Drücken**
+    (0,45 s, mit kurzem Rütteln und einem sich füllenden Ring um den Finger) ersetzt den Rechtsklick, etwa zum Schützen
+    eines Verbündeten. Größerer Trefferradius (18 statt 14 Pixel); die gezogene Figur steht mit den Füßen knapp über
+    dem Finger, damit er sie nicht verdeckt.
+  - **Rückmeldung:** Befehle setzen eine kurze Marke (grün hinlaufen, rot angreifen, blau schützen). Gewählte
+    Einheiten zeigen gestrichelt ihren Weg oder ihr Ziel, angegriffene Gegner einen roten Ring.
 - **Fähigkeiten:** Jede Einheit hat genau eine Fähigkeit (`ability`, Namen/Wirkung in
   `scripts/abilities.gd`, Zuordnung in `tools/content.py`: pro Linie, Kombinationen erben die der
   Zutat, die nicht fürs Aussehen steht, z.B. Feuergolem = Golem + Feuer: Feuersturm). Die Stärke
@@ -66,7 +89,7 @@ Mehrere Runden, jede Runde besteht aus zwei Phasen:
   Hydromant: stößt zurück), Göttlicher Schutz (Paladin, Achilles: unverwundbar), Berserkerwut (Wolfsritter,
   Feuerriese). Passiv: Dornen (Dryade, Zwergenritter), Kritischer Treffer (Zwergenschütze, Arkanschütze),
   Richtspruch (Anubis: fast besiegte Gegner fallen sofort). Betäubungen wirken bei Bossen nur 40 % so lang.
-  **Manuell auslösen:** Einheit im Kampf antippen, dann den Fähigkeitsknopf rechts unten (zeigt
+  **Manuell auslösen:** Einheit im Kampf antippen, dann den Fähigkeitsknopf rechts unten oder Q (zeigt
   "Name!" wenn bereit, sonst die Restzeit). Der Knopf prüft dieselbe Bedingung wie die Automatik.
   Oben schaltet "Auto-Fähigk." die Automatik aus: Dann löst nur noch der Spieler aus.
 - **Spezialrunden:** Jede fünfte Runde ist besonders. **Bossrunden** (5, 15, 25, ...): Ein Boss mit
@@ -156,9 +179,10 @@ Mehrere Runden, jede Runde besteht aus zwei Phasen:
   Richtungen (reihum, jede Richtung gleich oft) und laufen zur Mitte. Figuren können das Kreuz
   nie verlassen (`scripts/world.gd`: Form, Spawnpunkte, Begrenzung).
 - **Kampftempo:** Im Kampf ersetzt ein Tempo-Knopf (1x/2x/3x) Shop und Rezeptbuch.
-- **Pause:** Im Kampf hält der Knopf "Pause" oben das Spiel an (`PausePanel`, der Szenenbaum pausiert, die Oberfläche
-  läuft weiter), "Weiter" oder die Zurück-Taste setzt fort. Geht die App im Kampf in den Hintergrund, pausiert sie
-  von selbst.
+- **Menü und Pause:** Der Knopf oben ("Pause" im Kampf, "Menü" in der Bauphase), Esc und die Zurück-Taste öffnen das
+  Spielmenü (`PausePanel`) mit der Steuerung für Maus und Tastatur oder Touch, "Weiter" und "Hauptmenü". Im Kampf
+  pausiert es (der Szenenbaum hält an, die Oberfläche läuft weiter), die Leertaste hält an und setzt fort. Geht die App
+  im Kampf in den Hintergrund, pausiert sie von selbst.
 - **Ton:** Der Ton-Knopf (Menü und Spiel) schaltet reihum: alles an, nur Effekte (Musik auf eigenem Bus stumm),
   alles aus. Die Wahl steht in `user://settings.cfg`.
 - **Einstieg:** Beim ersten Lauf zeigt `Tutorial` oben rechts kurze Hinweise: im Dorf kaufen, zwei gleiche Einheiten
@@ -167,7 +191,8 @@ Mehrere Runden, jede Runde besteht aus zwei Phasen:
 - **Leistung:** Figuren holen die Mitglieder ihrer Gruppe aus einer gemeinsamen Liste, die nur bei Änderungen neu
   gebaut wird, das Abstandhalten prüft nur nahe Figuren (Raster), und `World` hält die Hindernisse kompakt für das
   Herausschieben. Mit 20 eigenen Einheiten und 80 Gegnern rund ein Drittel weniger Rechenzeit je Schritt.
-- **Zurück-Taste (Android) / Esc:** schließt zuerst Rezeptbuch, dann die Kaufliste, dann das Dorf, erst danach die App.
+- **Zurück-Taste (Android) / Esc:** schließt zuerst das Menü, Rezeptbuch, dann die Kaufliste, dann das Dorf, hebt dann
+  die Auswahl auf (im Zielmodus erst diesen) und öffnet zuletzt das Menü. Ins Hauptmenü geht es über dessen Knopf.
 - **Abstellen:** Eine Einheit, die neben eine nicht verbindbare gezogen wird, bleibt einfach dort
   stehen. Zurückspringen gibt es nur, wenn ein Rezept existiert, aber gesperrt ist oder Gold fehlt.
 - **Format:** Querformat, 640x360.
@@ -293,4 +318,4 @@ Offen:
   Knopf klickt automatisch. Oben rechts schaltet "Ton an/aus" alles stumm (wird gespeichert).
   Im Hintergrund (Android/iOS) ist die App still.
 
-- **Mehrfachauswahl (Kampfphase):** Auswahlrahmen (auf freiem Boden ziehen), Umschalt-/Strg-Klick, Knopf "Mehrfach" (Antippen fügt hinzu oder nimmt heraus), Knopf "Alle" und Doppeltipp auf eine Einheit (wählt alle gleichen). **Abwählen:** Mit Auswahl heißt der Knopf "Keine" und hebt sie auf; ebenso Zurück/Esc, Rechtsklick und ein Tipp auf die einzige gewählte Einheit (ein Tipp auf ein Gruppenmitglied wählt nur dieses). Ein Tipp, der abwählt, zählt nicht als Beginn eines Doppeltipps. Ziel-Tipp, Befehlsknopf (Halten, Schützen, Frei) und Fähigkeitsknopf gelten für alle gewählten Einheiten; beim Losschicken bleiben die Abstände der Gruppe erhalten. Die Karte links zeigt die Hauptauswahl und "+N".
+- **Mehrfachauswahl:** Auswahlrahmen (auf freiem Boden ziehen, auch in der Bauphase zum Zurückschicken), Umschalt-Klick, Strg-Klick, Steuergruppen, Knopf "Mehrfach" (Antippen fügt hinzu oder nimmt heraus), Knopf "Alle" und Doppeltipp auf eine Einheit (wählt alle gleichen). **Abwählen:** Mit Auswahl heißt der Knopf "Keine" und hebt sie auf; ebenso Zurück/Esc, Linksklick auf freien Boden, in der Bauphase Rechtsklick und per Touch ein Tipp auf die einzige gewählte Einheit (ein Tipp auf ein Gruppenmitglied wählt nur dieses). Ein Tipp, der abwählt, zählt nicht als Beginn eines Doppeltipps. Befehle (Rechtsklick, Tipp, Tasten), Befehlsknopf und Fähigkeitsknopf gelten für alle gewählten Einheiten; beim Losschicken bleiben die Abstände der Gruppe erhalten. Die Karte links zeigt die Hauptauswahl und "+N". In der Bauphase zeigt eine allein gewählte Einheit ihre Rezepte.

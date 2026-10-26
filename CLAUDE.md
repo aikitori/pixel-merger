@@ -34,7 +34,8 @@ Nach Änderungen: `python3 tools/generate_data.py` und/oder `python3 tools/gener
 - Kampf: `scripts/combatant.gd`. Fähigkeiten: `scripts/abilities.gd` (Daten) plus `scripts/ability_casts.gd` (Wirkung, `AbilityCasts.cast`).
 - Eigenart der Einheiten: `scripts/behaviors.gd` (Verhalten), `scripts/attack_kinds.gd` (Angriffsformen), `scripts/traits.gd` (Merkmale und Signaturen aus Bausteinen, `Traits.KEYS`). `tools/generate_data.py` bricht ab, wenn zwei Linien gleich sind, eine Signatur doppelt ist oder eine Id im Skript fehlt.
 - Spielstand: `scripts/run_save.gd` speichert den laufenden Lauf (`user://run.cfg`), `Progress` Geheimrezepte und Rekord.
-- Oberfläche: `scripts/hud.gd`, `recipe_book.gd`, `shop.gd`, `village.gd`, `unit_card.gd`, `game_over_panel.gd`, `pause_panel.gd`, `tutorial.gd`, `ui_theme.gd` (im Code gezeichnet, Farben aus `art_style.gd`).
+- Steuerung: `scripts/player_input.gd` (Tastenkürzel, Maus oder Touch, Hilfe im Menü), Eingabe in `main.gd` (Maus: links wählen, rechts befehlen; Touch: Tippen, langes Drücken), Knopf-Kürzel und Esc in `hud.gd`.
+- Oberfläche: `scripts/hud.gd`, `recipe_book.gd`, `shop.gd`, `village.gd`, `unit_card.gd`, `game_over_panel.gd`, `pause_panel.gd` (Menü mit Steuerung), `tutorial.gd`, `ui_theme.gd` (im Code gezeichnet, Farben aus `art_style.gd`).
 - Bildstil: `scripts/art_style.gd` (Oberflächenfarben und -bilder, Logo, Auswahl) plus `shaders/art_style.gdshader` (Nachbearbeitung über das ganze Bild, von `Game` eingehängt). Standard ist `ArtStyle.DEFAULT` (`dungeon`), er muss zu den erzeugten Sprites passen.
 - Spielfeld: `scripts/world.gd` (Grundriss der Runde, Hindernisse, Kollision). Normale Runden: Kreuz, Bossrunden: eigene Arena. Begehbare Rechtecke und Tore stehen im erzeugten `scripts/arena_layouts.gd`, Boden und Mauern sind die Bilder `assets/sprites/tiles/arena*.png` (`arena.png` ist auch der Menü-Hintergrund).
 - Animation: `Combatant` zeichnet aus dem Streifen `assets/sprites/anim/<ordner>/<id>.png` (4 Bilder Stehen, 4 Laufen, 4 Angriff, 4 Tod; `DeathAnim` spielt den Tod ab); `Combatant.frames_texture` liefert Stehen/Laufen für Oberflächen.
@@ -53,7 +54,7 @@ Nach Änderungen: `python3 tools/generate_data.py` und/oder `python3 tools/gener
 
 ```bash
 godot --headless res://scenes/dev/smoke.tscn        # Runden durchspielen, Spiellogik
-godot --headless res://scenes/dev/input_test.tscn   # Eingabe: Kaufen, Ziehen, Merge, Befehle, Karten
+godot --headless res://scenes/dev/input_test.tscn   # Eingabe: Maus, Touch, Tasten, Ziehen, Merge, Befehle
 godot --headless res://scenes/dev/anim_test.tscn    # Angriffe, alle Fähigkeiten (dauert 2-3 Minuten)
 godot --headless res://scenes/dev/units_test.tscn   # Eigenart: Verhalten, Angriffsformen, Merkmale, Streifen
 godot --headless res://scenes/dev/events_test.tscn  # Boss-/Bonusrunden, Erfolge, Gelände, Version

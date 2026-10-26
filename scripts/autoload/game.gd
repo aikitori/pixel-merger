@@ -139,6 +139,14 @@ func cycle_battle_speed() -> void:
 	speed_changed.emit(battle_speed)
 
 
+## Tastenkürzel +/-: eine Stufe schneller oder langsamer (ohne Umlauf).
+func step_battle_speed(step: int) -> void:
+	var index := clampi(BATTLE_SPEEDS.find(battle_speed) + step, 0, BATTLE_SPEEDS.size() - 1)
+	if BATTLE_SPEEDS[index] != battle_speed:
+		battle_speed = BATTLE_SPEEDS[index]
+		speed_changed.emit(battle_speed)
+
+
 ## Für die Auswertung: merkt sich die wertvollste Einheit des Laufs.
 func note_unit(data: UnitData) -> void:
 	var value := Registry.bundle_price(Registry.base_units(data))
