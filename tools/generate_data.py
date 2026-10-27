@@ -2,8 +2,7 @@
 """Schreibt die Einheiten- und Rezept-.tres aus tools/content.py nach data/.
 
 Aufruf (aus dem Projektordner):  python3 tools/generate_data.py
-Löscht dabei data/units und data/recipes und legt sie neu an. Gegner (data/enemies)
-bleiben unberührt.
+Löscht dabei data/units, data/recipes und data/enemies und legt sie neu an.
 """
 from pathlib import Path
 
@@ -75,28 +74,113 @@ def write_recipe(a, b, result, cost, unlock, secret=False):
     (ROOT / 'data/recipes' / f'{a}_{b}.tres').write_text('\n'.join(lines) + '\n')
 
 
-# Bossgegner (Runde 5, 15, 25 ... reihum). Werte der Runde 1, sie werden mit der Runde skaliert.
+# Gegner. Werte der Runde 1, sie werden mit der Runde skaliert (Game.health_scale, damage_scale, gold_scale).
+# Fähigkeit, Verhalten und Merkmale (fx) stammen aus denselben Bausteinen wie bei den Einheiten
+# (scripts/abilities.gd, behaviors.gd, traits.gd); bei Gegnern wirken Verteidigung, Auren und Tod, die
+# Wirkung von Treffern nicht. `minion`: Gegner, den die Fähigkeit "Beschwörung" ruft.
+# Felder: Id, Name, Farbe, Körpergröße, LP, Angriff, Reichweite, Stil, Abklingzeit, Tempo, Gold, ab Runde, Gewicht, Zusatz
+ENEMIES = [
+    ('slime', 'Schleim', '#6fd36f', 10.0, 12, 2, 10, 'melee', 1.0, 25, 2, 1, 5.0, {'intelligence': 0.0}),
+    ('goblin', 'Goblin', '#3f8f3f', 12.0, 18, 3.5, 10, 'melee', 1.0, 40, 3, 2, 4.0, {'intelligence': 15.0}),
+    ('jackal', 'Schakal', '#b89a64', 12.0, 11, 3, 10, 'melee', 0.8, 58, 3, 3, 2.5,
+     {'behavior': 'flanker', 'intelligence': 15.0}),
+    ('bone_archer', 'Skelett-Bogenschütze', '#d8d8c8', 12.0, 14, 4, 80, 'arrow', 1.4, 30, 4, 3, 2.0,
+     {'intelligence': 30.0}),
+    ('spiny_frog', 'Stachelfrosch', '#b8a030', 12.0, 34, 3.5, 10, 'melee', 1.2, 26, 5, 5, 1.5,
+     {'behavior': 'hopper', 'ability': 'thorns', 'power': 2.0, 'intelligence': 5.0}),
+    ('orc', 'Ork', '#6b8f2a', 16.0, 55, 9, 12, 'melee', 1.2, 32, 8, 5, 2.0, {'intelligence': 10.0}),
+    ('mushroom', 'Sprengpilz', '#e0702a', 14.0, 26, 5, 10, 'melee', 1.4, 22, 5, 6, 1.0,
+     {'fx': {'death_blast': [1.5, 34.0]}, 'intelligence': 0.0}),
+    ('gnoll_shaman', 'Gnoll-Schamane', '#a08850', 14.0, 30, 3.5, 70, 'magic', 1.8, 28, 9, 7, 1.0,
+     {'behavior': 'skirmisher', 'ability': 'mass_heal', 'power': 1.0, 'intelligence': 30.0}),
+    ('ghost', 'Geist', '#c8d0e0', 14.0, 30, 6, 10, 'melee', 1.1, 33, 7, 8, 1.2,
+     {'behavior': 'floater', 'fx': {'dodge': 0.35}, 'intelligence': 15.0}),
+    ('gnoll_sergeant', 'Gnoll-Hauptmann', '#8a6a30', 16.0, 62, 7, 12, 'melee', 1.1, 30, 11, 9, 1.0,
+     {'ability': 'war_cry', 'power': 1.0, 'intelligence': 20.0}),
+    ('warg', 'Warg', '#707078', 14.0, 70, 8.5, 12, 'melee', 1.0, 38, 11, 9, 1.2,
+     {'ability': 'charge', 'power': 1.0, 'intelligence': 10.0}),
+    ('ogre', 'Oger', '#8f5a2a', 22.0, 160, 20, 14, 'melee', 1.8, 22, 18, 8, 1.0, {'intelligence': 5.0}),
+    ('gargoyle', 'Wasserspeier', '#9aa0b0', 20.0, 100, 9, 12, 'melee', 1.3, 21, 13, 10, 1.2,
+     {'behavior': 'floater', 'fx': {'reduce': 0.3, 'block': 0.25}, 'intelligence': 10.0}),
+    ('troll', 'Troll', '#4a8a3a', 22.0, 210, 15, 14, 'melee', 1.6, 24, 20, 11, 1.0,
+     {'ability': 'regen', 'power': 2.0, 'intelligence': 5.0}),
+    ('dark_mage', 'Dunkelmagier', '#3a8a5a', 16.0, 42, 7, 85, 'magic', 1.8, 26, 14, 12, 1.0,
+     {'behavior': 'artillery', 'ability': 'meteor', 'power': 1.0, 'intelligence': 30.0}),
+    ('vampire', 'Vampir', '#5a2a6a', 16.0, 115, 12, 12, 'melee', 0.9, 36, 17, 13, 1.0,
+     {'behavior': 'assassin', 'ability': 'lifesteal', 'power': 2.0, 'intelligence': 25.0}),
+    ('necromancer', 'Totenbeschwörer', '#4a4a50', 16.0, 60, 6, 80, 'magic', 2.0, 24, 18, 15, 0.8,
+     {'behavior': 'skirmisher', 'ability': 'summon', 'power': 1.0, 'minion': 'skeleton', 'intelligence': 30.0}),
+    # Helfer des Totenbeschwörers und des Knochenkönigs: erscheinen nie von selbst (Gewicht 0, keine Beute)
+    ('skeleton', 'Skelett', '#d8d8c8', 12.0, 20, 4, 10, 'melee', 1.0, 32, 0, 99, 0.0, {'intelligence': 5.0}),
+]
+
+# Bossgegner (Runde 5, 15, 25 ... reihum), Stufe `ab Runde` ist die Reihenfolge.
 BOSSES = [
-    # id, Name, Farbe, Körpergröße, LP, Angriff, Reichweite, Stil, Abklingzeit, Tempo, Gold
-    ('boss_ogre', 'Ogerkönig', '#8f5a2a', 36.0, 220, 9, 18, 'melee', 1.6, 20, 80),
-    ('boss_dragon', 'Feuerdrache', '#d63c34', 36.0, 180, 11, 85, 'magic', 2.0, 18, 90),
-    ('boss_bones', 'Knochenkönig', '#c8ccd8', 40.0, 190, 7, 100, 'arrow', 1.0, 22, 85),
-    ('boss_golem', 'Steingigant', '#8795ad', 40.0, 300, 8, 18, 'melee', 2.0, 14, 95),
+    ('boss_ogre', 'Ogerkönig', '#8f5a2a', 36.0, 220, 9, 18, 'melee', 1.6, 20, 80, 0, 0.0,
+     {'ability': 'war_cry', 'power': 1.0, 'intelligence': 20.0, 'is_boss': True}),
+    ('boss_dragon', 'Feuerdrache', '#d63c34', 36.0, 180, 11, 85, 'magic', 2.0, 18, 90, 1, 0.0,
+     {'ability': 'fire_breath', 'power': 1.0, 'intelligence': 20.0, 'is_boss': True}),
+    ('boss_bones', 'Knochenkönig', '#c8ccd8', 40.0, 190, 7, 100, 'arrow', 1.0, 22, 85, 2, 0.0,
+     {'ability': 'summon', 'power': 2.0, 'minion': 'skeleton', 'intelligence': 20.0, 'is_boss': True}),
+    ('boss_golem', 'Steingigant', '#8795ad', 40.0, 300, 8, 18, 'melee', 2.0, 14, 95, 3, 0.0,
+     {'ability': 'earthquake', 'power': 1.0, 'intelligence': 20.0, 'is_boss': True}),
 ]
 
 
-def write_bosses():
-    for order, (uid, name, hex_color, body, hp, atk, rng, style, cd, spd, gold) in enumerate(BOSSES):
-        lines = ['[gd_resource type="Resource" script_class="EnemyData" load_steps=3 format=3]', '',
-                 '[ext_resource type="Script" path="res://scripts/data/enemy_data.gd" id="1"]',
-                 f'[ext_resource type="Texture2D" path="res://assets/sprites/enemies/{uid}.png" id="2"]', '',
-                 '[resource]', 'script = ExtResource("1")', 'sprite = ExtResource("2")',
-                 f'id = &"{uid}"', f'display_name = "{name}"', f'color = {color(hex_color)}',
-                 f'body_size = {body}', f'max_health = {float(hp)}', f'attack = {float(atk)}',
-                 f'attack_range = {float(rng)}', f'attack_style = &"{style}"', f'attack_cooldown = {cd}',
-                 f'move_speed = {float(spd)}', f'gold_reward = {gold}', f'min_round = {order}',
-                 'weight = 0.0', 'intelligence = 20.0', 'is_boss = true']
-        (ROOT / 'data/enemies' / f'{uid}.tres').write_text('\n'.join(lines) + '\n')
+def fx_literal(fx):
+    """Dictionary im .tres-Format: {"dodge": 0.35, "death_blast": [3.0, 38.0]}"""
+    def value(v):
+        return '[' + ', '.join(value(x) for x in v) + ']' if isinstance(v, list) else str(float(v))
+    return '{' + ', '.join(f'"{k}": {value(v)}' for k, v in fx.items()) + '}'
+
+
+def write_enemy(uid, name, hex_color, body, hp, atk, rng, style, cd, spd, gold, min_round, weight, extra):
+    lines = ['[gd_resource type="Resource" script_class="EnemyData" load_steps=3 format=3]', '',
+             '[ext_resource type="Script" path="res://scripts/data/enemy_data.gd" id="1"]',
+             f'[ext_resource type="Texture2D" path="res://assets/sprites/enemies/{uid}.png" id="2"]', '',
+             '[resource]', 'script = ExtResource("1")', 'sprite = ExtResource("2")',
+             f'id = &"{uid}"', f'display_name = "{name}"', f'color = {color(hex_color)}',
+             f'body_size = {body}', f'max_health = {float(hp)}', f'attack = {float(atk)}',
+             f'attack_range = {float(rng)}', f'attack_style = &"{style}"', f'attack_cooldown = {cd}',
+             f'move_speed = {float(spd)}', f'gold_reward = {gold}', f'min_round = {min_round}',
+             f'weight = {float(weight)}', f'intelligence = {float(extra.get("intelligence", 10.0))}']
+    if extra.get('is_boss'):
+        lines.append('is_boss = true')
+    if extra.get('ability'):
+        lines += [f'ability = &"{extra["ability"]}"', f'ability_power = {float(extra.get("power", 1.0))}']
+    if extra.get('behavior'):
+        lines.append(f'behavior = &"{extra["behavior"]}"')
+    if extra.get('fx'):
+        lines.append(f'fx = {fx_literal(extra["fx"])}')
+    if extra.get('minion'):
+        lines.append(f'minion = &"{extra["minion"]}"')
+    (ROOT / 'data/enemies' / f'{uid}.tres').write_text('\n'.join(lines) + '\n')
+
+
+def check_enemies():
+    """Fähigkeit, Verhalten und Merkmale der Gegner müssen in den Skripten stehen, Helfer müssen existieren."""
+    import re
+    keys = re.search(r'const KEYS := \[(.*?)\]', (ROOT / 'scripts/traits.gd').read_text(encoding='utf-8'), re.S)
+    trait_keys = set(re.findall(r'"(\w+)"', keys.group(1)))
+    ids = {e[0] for e in ENEMIES + BOSSES}
+    abilities, behaviors = gd_keys('scripts/abilities.gd'), gd_keys('scripts/behaviors.gd')
+    for uid, *_rest, extra in ENEMIES + BOSSES:
+        assert extra.get('ability', '') in abilities | {''}, f'{uid}: unbekannte Fähigkeit'
+        assert extra.get('behavior', 'frontline') in behaviors, f'{uid}: unbekanntes Verhalten'
+        assert set(extra.get('fx', {})) <= trait_keys, f'{uid}: unbekannter Baustein in fx'
+        assert extra.get('minion', uid) in ids, f'{uid}: Helfer fehlt'
+        assert (extra.get('ability') == 'summon') == bool(extra.get('minion')), f'{uid}: Helfer nur mit Beschwörung'
+        assert extra.get('ability') not in ('revive',), f'{uid}: Wiederbeleben gilt nur für eigene Einheiten'
+
+
+def write_enemies():
+    check_enemies()
+    path = ROOT / 'data/enemies'
+    path.mkdir(parents=True, exist_ok=True)
+    for old in path.glob('*.tres'):
+        old.unlink()
+    for entry in ENEMIES + BOSSES:
+        write_enemy(*entry)
 
 
 def write_english_names():
@@ -163,9 +247,9 @@ def main():
                 upgrade_cost=0 if last else round(combo['cost'] * content.COMBO_UPGRADE_MULT[level]))
         write_recipe(combo['a'], combo['b'], base, combo['cost'], combo['unlock'], base in content.SECRET_COMBOS)
 
-    write_bosses()
+    write_enemies()
     write_english_names()
-    print('Einheiten, Rezepte und Bosse geschrieben.')
+    print('Einheiten, Rezepte und Gegner geschrieben.')
 
 
 if __name__ == '__main__':

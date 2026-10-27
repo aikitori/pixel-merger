@@ -1,0 +1,24 @@
+[gd_resource type="Resource" script_class="EnemyData" load_steps=3 format=3]
+
+[ext_resource type="Script" path="res://scripts/data/enemy_data.gd" id="1"]
+[ext_resource type="Texture2D" path="res://assets/sprites/enemies/warg.png" id="2"]
+
+[resource]
+script = ExtResource("1")
+sprite = ExtResource("2")
+id = &"warg"
+display_name = "Warg"
+color = Color(0.439, 0.439, 0.471, 1)
+body_size = 14.0
+max_health = 70.0
+attack = 8.5
+attack_range = 12.0
+attack_style = &"melee"
+attack_cooldown = 1.0
+move_speed = 38.0
+gold_reward = 11
+min_round = 9
+weight = 1.2
+intelligence = 10.0
+ability = &"charge"
+ability_power = 1.0

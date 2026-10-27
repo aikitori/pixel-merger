@@ -1,0 +1,25 @@
+[gd_resource type="Resource" script_class="EnemyData" load_steps=3 format=3]
+
+[ext_resource type="Script" path="res://scripts/data/enemy_data.gd" id="1"]
+[ext_resource type="Texture2D" path="res://assets/sprites/enemies/spiny_frog.png" id="2"]
+
+[resource]
+script = ExtResource("1")
+sprite = ExtResource("2")
+id = &"spiny_frog"
+display_name = "Stachelfrosch"
+color = Color(0.722, 0.627, 0.188, 1)
+body_size = 12.0
+max_health = 34.0
+attack = 3.5
+attack_range = 10.0
+attack_style = &"melee"
+attack_cooldown = 1.2
+move_speed = 26.0
+gold_reward = 5
+min_round = 5
+weight = 1.5
+intelligence = 5.0
+ability = &"thorns"
+ability_power = 2.0
+behavior = &"hopper"

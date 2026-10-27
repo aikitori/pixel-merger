@@ -21,3 +21,6 @@ min_round = 2
 weight = 0.0
 intelligence = 20.0
 is_boss = true
+ability = &"summon"
+ability_power = 2.0
+minion = &"skeleton"

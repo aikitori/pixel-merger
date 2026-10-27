@@ -271,6 +271,12 @@ func show_info(unit: Combatant) -> void:
 	if unit == null or not is_instance_valid(unit):
 		_set_info("", false)
 		return
+	if unit.team == Combatant.Team.ENEMY:  # Gegner: Name mit Fähigkeit und Verhalten, ohne Stufe
+		var role := Behaviors.display_name(unit.behavior) if unit.behavior != &"frontline" else ""
+		_set_info(tr("%s%s%s\nLP %d/%d  Stä %s  Bew %s") % [unit.display_name,
+				"  [%s]" % role if role != "" else "", _ability_suffix(unit.ability), ceili(unit.health),
+				ceili(unit.max_health), UnitData.format_number(unit.attack), UnitData.format_number(unit.move_speed)], false)
+		return
 	var text := tr("%s (Stufe %d)%s\nLP %d/%d  Stä %s  Bew %s  Int %s") % [
 		unit.display_name, unit.level, unit.order_text() + _ability_suffix(unit.ability),
 		ceili(unit.health), ceili(unit.max_health), UnitData.format_number(unit.attack),

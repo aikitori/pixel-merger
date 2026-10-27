@@ -150,11 +150,19 @@ func find_recipe(a: UnitData, b: UnitData) -> RecipeData:
 	return null
 
 
+## Gegnertyp (auch Boss) mit dieser Id, null wenn es ihn nicht gibt.
+func enemy_by_id(id: StringName) -> EnemyData:
+	for enemy in enemies + bosses:
+		if enemy.id == id:
+			return enemy
+	return null
+
+
 func pick_enemy(round_number: int) -> EnemyData:
 	var pool: Array[EnemyData] = []
 	var total := 0.0
 	for enemy in enemies:
-		if enemy.min_round <= round_number:
+		if enemy.min_round <= round_number and enemy.weight > 0.0:
 			pool.append(enemy)
 			total += enemy.weight
 	var roll := randf() * total

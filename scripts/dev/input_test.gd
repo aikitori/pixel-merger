@@ -310,10 +310,16 @@ func _test_battle_order() -> void:
 	await _tap(unit.center())
 	await _right_click(foe.center())
 	_check(unit.order_mode() == &"attack" and unit.attack_target == foe, "Rechtsklick auf einen Gegner: gezielter Angriff (%s)" % unit.order_mode())
+	_arena._pointer = foe.center()
+	await get_tree().process_frame
+	await get_tree().process_frame
+	var info: String = (_arena.get("_hud") as Hud)._info.text
+	_check(info.contains(foe.display_name) and info.contains("LP"), "Maus über einem Gegner zeigt seine Werte (%s)" % info.replace("\n", " | "))
 	await _key(KEY_S)
 	_check(unit.order_mode() == &"free", "Taste S: wieder frei")
 	await _touch_tap(foe.center())
 	_check(unit.order_mode() == &"attack", "Touch: Tipp auf einen Gegner greift ihn an")
+	_check(_arena._inspected == foe, "Touch: Tipp auf einen Gegner zeigt seine Werte")
 	foe.discard()
 	await get_tree().process_frame
 	await get_tree().process_frame

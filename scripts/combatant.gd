@@ -76,6 +76,11 @@ const VETERAN_ABILITIES := {
 const SUMMON_UNITS := {"necromancer": "skeleton"}
 const SUMMON_DEFAULT := "wolf_pup"
 const SUMMON_SECONDS := 10.0
+## Elite-Gegner: Faktoren auf Leben, Schaden, Beute und Größe.
+const ELITE_HEALTH := 2.2
+const ELITE_DAMAGE := 1.25
+const ELITE_GOLD := 3
+const ELITE_SCALE := 1.15
 const BOSS_STUN_FACTOR := 0.4
 ## Rasterweite für das Abstandhalten. Große Figuren (Abstand body_size / 2 ab dieser Weite)
 ## prüfen weiter die ganze Gruppe.
@@ -130,6 +135,8 @@ var veteran_ability: StringName = &""
 var _veteran_cd := 0.0
 ## Beschworener Helfer: zählt nicht als eigene Einheit und verschwindet nach Ablauf (oder Rundenende).
 var summoned := false
+var minion_id: StringName = &""  # Gegner: wen "Beschwörung" ruft
+var elite := false  # Gegner: stärker, größer, goldener Ring, bringt mehr Gold
 var summoner: Combatant
 var _summon_left := 0.0
 var _poison_source: Combatant
@@ -204,10 +211,7 @@ func setup_player(data: UnitData) -> void:
 	attack_cooldown = data.attack_cooldown
 	move_speed = data.move_speed
 	ability = data.ability
-	behavior = data.behavior
-	_steers = behavior in [&"guardian", &"skirmisher", &"flanker", &"charger", &"artillery"]
-	_hops = behavior == &"hopper"
-	_floats = behavior == &"floater"
+	_set_behavior(data.behavior)
 	attack_kind = data.attack_kind if AttackKinds.INFO.has(data.attack_kind) else AttackKinds.for_style(attack_style)
 	fx = Traits.combine(data.traits)
 	attack_range = _base_range()
@@ -220,6 +224,13 @@ func setup_player(data: UnitData) -> void:
 	health = max_health
 	add_to_group(GROUP_PLAYER)
 	_groups_changed()
+
+
+func _set_behavior(id: StringName) -> void:
+	behavior = id
+	_steers = behavior in [&"guardian", &"skirmisher", &"flanker", &"charger", &"artillery"]
+	_hops = behavior == &"hopper"
+	_floats = behavior == &"floater"
 
 
 ## Gruppe für Segen: Nahkämpfer, Fernkämpfer (Pfeil oder Magie) oder Heiler.
@@ -328,6 +339,12 @@ func setup_enemy(data: EnemyData) -> void:
 	move_speed = data.move_speed
 	gold_reward = roundi(data.gold_reward * Game.gold_scale() * Game.round_gold_mult())
 	is_boss = data.is_boss
+	ability = data.ability
+	ability_power = data.ability_power
+	_set_behavior(data.behavior)
+	fx = data.fx.duplicate(true)
+	minion_id = data.minion
+	_ability_cd = randf_range(2.0, 5.0)
 	if not is_boss:  # Sonderregel der Runde (Bosse bleiben, wie sie sind)
 		max_health *= Modifiers.value("enemy_hp")
 		attack *= Modifiers.value("enemy_damage")
@@ -341,6 +358,21 @@ func setup_enemy(data: EnemyData) -> void:
 	_flip = -1.0
 	add_to_group(GROUP_ENEMY)
 	_groups_changed()
+
+
+## Elite-Gegner (nach dem Setup aufrufen): mehr Leben und Schaden, etwas größer, dreifache Beute.
+func make_elite() -> void:
+	if team != Team.ENEMY or is_boss or elite:
+		return
+	elite = true
+	display_name = tr("Elite %s") % display_name
+	max_health *= ELITE_HEALTH
+	health = max_health
+	attack *= ELITE_DAMAGE
+	ability_power *= ELITE_DAMAGE
+	gold_reward *= ELITE_GOLD
+	scale *= ELITE_SCALE
+	queue_redraw()
 
 
 static func _load_anim(texture: Texture2D) -> Texture2D:
@@ -1153,7 +1185,7 @@ func _update_effects(delta: float) -> void:
 		heal(max_health * 0.012 * ability_power * delta)
 	if team == Team.PLAYER and health < max_health and Modifiers.value("regen") > 0.0:
 		heal(max_health * Modifiers.value("regen") * delta)
-	var tint := Color(1.0, 0.6, 0.55) if is_boss and Game.boss_enraged else Color.WHITE
+	var tint := Color(1.0, 0.6, 0.55) if is_boss and Game.boss_enraged else (Color(1.0, 0.9, 0.62) if elite else Color.WHITE)
 	if has_effect(&"stun"):
 		tint = Color(0.7, 0.7, 0.7) if effect_value(&"stun") < 2.0 else Color(1.0, 0.7, 0.95)
 	elif has_effect(&"weak"):
@@ -1344,6 +1376,10 @@ func _draw() -> void:
 			draw_line(Vector2(-body_size * 0.5 * _flip - _flip * 2, -body_size * (0.3 + 0.2 * i)), Vector2(-body_size * 0.8 * _flip - _flip * 4, -body_size * (0.3 + 0.2 * i)), Color(1, 1, 1, 0.6), 1.0)
 	if _swing_left > 0.0:
 		_draw_swing(swing_t)
+	if elite:  # goldener Ring am Boden
+		draw_set_transform(Vector2(0, -1.0), 0.0, Vector2(1.0, 0.4))
+		draw_arc(Vector2.ZERO, body_size * 0.65, 0.0, TAU, 20, Color(1.0, 0.85, 0.25, 0.95), 1.5)
+		draw_set_transform(Vector2.ZERO)
 	if highlighted:
 		draw_rect(rect.grow(2.0), Color.WHITE, false, 1.0)
 	elif hovered:

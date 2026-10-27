@@ -21,3 +21,5 @@ min_round = 3
 weight = 0.0
 intelligence = 20.0
 is_boss = true
+ability = &"earthquake"
+ability_power = 1.0

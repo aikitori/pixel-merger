@@ -1,0 +1,25 @@
+[gd_resource type="Resource" script_class="EnemyData" load_steps=3 format=3]
+
+[ext_resource type="Script" path="res://scripts/data/enemy_data.gd" id="1"]
+[ext_resource type="Texture2D" path="res://assets/sprites/enemies/gnoll_shaman.png" id="2"]
+
+[resource]
+script = ExtResource("1")
+sprite = ExtResource("2")
+id = &"gnoll_shaman"
+display_name = "Gnoll-Schamane"
+color = Color(0.627, 0.533, 0.314, 1)
+body_size = 14.0
+max_health = 30.0
+attack = 3.5
+attack_range = 70.0
+attack_style = &"magic"
+attack_cooldown = 1.8
+move_speed = 28.0
+gold_reward = 9
+min_round = 7
+weight = 1.0
+intelligence = 30.0
+ability = &"mass_heal"
+ability_power = 1.0
+behavior = &"skirmisher"

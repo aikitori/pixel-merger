@@ -1,0 +1,24 @@
+[gd_resource type="Resource" script_class="EnemyData" load_steps=3 format=3]
+
+[ext_resource type="Script" path="res://scripts/data/enemy_data.gd" id="1"]
+[ext_resource type="Texture2D" path="res://assets/sprites/enemies/ghost.png" id="2"]
+
+[resource]
+script = ExtResource("1")
+sprite = ExtResource("2")
+id = &"ghost"
+display_name = "Geist"
+color = Color(0.784, 0.816, 0.878, 1)
+body_size = 14.0
+max_health = 30.0
+attack = 6.0
+attack_range = 10.0
+attack_style = &"melee"
+attack_cooldown = 1.1
+move_speed = 33.0
+gold_reward = 7
+min_round = 8
+weight = 1.2
+intelligence = 15.0
+behavior = &"floater"
+fx = {"dodge": 0.35}

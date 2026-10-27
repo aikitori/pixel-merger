@@ -660,6 +660,19 @@ ENEMIES = {
     'bone_archer': lambda: with_parts(M('undead/skeletons/skeleton_humanoid_small'), 'hand_right/bow'),
     'orc': lambda: M('orc_warrior_new'),
     'ogre': lambda: M('ogre_new'),
+    'jackal': lambda: M('animals/jackal_new', flip=True),
+    'spiny_frog': lambda: M('animals/spiny_frog', flip=True),
+    'mushroom': lambda: M('fungi_plants/wandering_mushroom'),
+    'gnoll_shaman': lambda: M('gnoll_shaman'),
+    'ghost': lambda: M('undead/ghost_new'),
+    'gnoll_sergeant': lambda: M('gnoll_sergeant'),
+    'warg': lambda: M('animals/warg', flip=True),
+    'gargoyle': lambda: M('nonliving/gargoyle'),
+    'troll': lambda: M('troll'),
+    'dark_mage': lambda: M('deep_elf_conjurer'),
+    'vampire': lambda: M('undead/vampire_new'),
+    'necromancer': lambda: M('necromancer_new'),
+    'skeleton': lambda: M('undead/skeletal_warrior_new'),
     'boss_ogre': lambda: big(crown(M('two_headed_ogre_new'))),
     'boss_dragon': lambda: big(M('unique/xtahua_new')),
     'boss_bones': lambda: big(M('undead/eidolon')),
@@ -883,5 +896,9 @@ def animate(img, body='biped', ranged=False):
 
 # Körperbau der Gegner (Einheiten: content.UNIT_PROFILE).
 ENEMY_BODY = {'slime': 'blob', 'goblin': 'biped', 'bone_archer': 'biped', 'orc': 'biped', 'ogre': 'colossus',
+              'jackal': 'quadruped', 'spiny_frog': 'hopper', 'mushroom': 'biped', 'gnoll_shaman': 'biped',
+              'ghost': 'floater', 'gnoll_sergeant': 'biped', 'warg': 'quadruped', 'gargoyle': 'flyer',
+              'troll': 'colossus', 'dark_mage': 'biped', 'vampire': 'biped', 'necromancer': 'biped',
+              'skeleton': 'biped',
               'boss_ogre': 'colossus', 'boss_dragon': 'flyer', 'boss_bones': 'floater', 'boss_golem': 'colossus'}
-ENEMY_RANGED = {'bone_archer', 'boss_dragon', 'boss_bones'}
+ENEMY_RANGED = {'bone_archer', 'gnoll_shaman', 'dark_mage', 'necromancer', 'boss_dragon', 'boss_bones'}

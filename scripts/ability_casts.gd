@@ -245,6 +245,8 @@ static func cast(caster: Combatant, id: StringName) -> bool:
 
 ## Beschworener Helfer neben der Einheit, verschwindet nach SUMMON_SECONDS.
 static func summon(caster: Combatant) -> Combatant:
+	if caster.team == Combatant.Team.ENEMY:
+		return summon_enemy(caster)
 	var unit_id := Combatant.SUMMON_DEFAULT
 	for prefix: String in Combatant.SUMMON_UNITS:
 		if caster.unit_data != null and String(caster.unit_data.id).begins_with(prefix):
@@ -261,4 +263,27 @@ static func summon(caster: Combatant) -> Combatant:
 	minion.position = World.clamp_point(caster.position + Vector2(randf_range(-16, 16), randf_range(6, 14)))
 	minion.home_position = minion.position
 	caster.get_parent().add_child(minion)
+	return minion
+
+
+## Helfer eines Gegners (Totenbeschwörer, Knochenkönig): schwächer als der gewöhnliche Gegner, ohne Beute,
+## verschwindet nach SUMMON_SECONDS. Zählt nicht als Gegner in der Auswertung.
+static func summon_enemy(caster: Combatant) -> Combatant:
+	var data := Registry.enemy_by_id(caster.minion_id)
+	if data == null or caster.get_parent() == null:
+		return null
+	var minion := Combatant.new()
+	minion.setup_enemy(data)
+	minion.summoned = true
+	minion.summoner = caster
+	minion._summon_left = Combatant.SUMMON_SECONDS + caster.ability_power
+	minion.max_health *= 0.7
+	minion.health = minion.max_health
+	minion.attack *= 0.7
+	minion.gold_reward = 0
+	minion.position = World.clamp_point(caster.position + Vector2(randf_range(-16, 16), randf_range(6, 14)))
+	var arena := caster.get_parent()
+	if arena.has_method("_on_died"):
+		minion.died.connect(arena._on_died)
+	arena.add_child(minion)
 	return minion

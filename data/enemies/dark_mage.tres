@@ -1,0 +1,25 @@
+[gd_resource type="Resource" script_class="EnemyData" load_steps=3 format=3]
+
+[ext_resource type="Script" path="res://scripts/data/enemy_data.gd" id="1"]
+[ext_resource type="Texture2D" path="res://assets/sprites/enemies/dark_mage.png" id="2"]
+
+[resource]
+script = ExtResource("1")
+sprite = ExtResource("2")
+id = &"dark_mage"
+display_name = "Dunkelmagier"
+color = Color(0.227, 0.541, 0.353, 1)
+body_size = 16.0
+max_health = 42.0
+attack = 7.0
+attack_range = 85.0
+attack_style = &"magic"
+attack_cooldown = 1.8
+move_speed = 26.0
+gold_reward = 14
+min_round = 12
+weight = 1.0
+intelligence = 30.0
+ability = &"meteor"
+ability_power = 1.0
+behavior = &"artillery"

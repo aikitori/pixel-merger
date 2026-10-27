@@ -13,6 +13,7 @@ body_size = 22.0
 max_health = 160.0
 attack = 20.0
 attack_range = 14.0
+attack_style = &"melee"
 attack_cooldown = 1.8
 move_speed = 22.0
 gold_reward = 18

@@ -556,6 +556,13 @@ func _test_veterans() -> void:
 	_arena._end_round()
 	_check(survivor.xp == Combatant.XP_SURVIVE, "Überlebte Runde: +%d Erfahrung" % Combatant.XP_SURVIVE)
 	hud._events.close_panel()
+	# Nach einer Bossrunde wartet sicher ein Ereignis (sonst nur mit Wahrscheinlichkeit)
+	Game.round_number = 5
+	Game.set_phase(Game.Phase.BATTLE)
+	_arena._rounds_without_event = 0
+	_arena._end_round()
+	_check(not hud.event_offers().is_empty(), "Nach der Bossrunde wartet ein Ereignis")
+	hud._events.close_panel()
 	Achievements.reset()
 	Game.round_number = 1
 	for unit: Combatant in _arena.get_player_units():

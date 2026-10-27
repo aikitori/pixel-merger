@@ -57,6 +57,10 @@ var _last_tap_unit: Combatant
 var _last_tap_msec := -10000
 ## Der Befehl "Schützen" wartet auf den Tipp auf den Schützling.
 var _picking_guard := false
+## Touch: zuletzt angetippter Gegner, seine Werte stehen eine Weile in der Info (die Maus zeigt sie beim Darüberfahren).
+const INSPECT_MSEC := 4000
+var _inspected: Combatant
+var _inspected_msec := 0
 ## Die Verbindungs-Vorschau beim Ziehen warnt (Runde noch nicht erreicht oder zu wenig Gold).
 var _preview_warning := false
 ## Im Kampf gefallene eigene Einheiten (Einheit, Ort, Heimatposition) für die Fähigkeit Wiederbeleben.
@@ -578,7 +582,10 @@ func _process(_delta: float) -> void:
 	# Touch kennt kein Schweben: dort zeigt die Info die zuletzt angetippte Einheit.
 	var hovered := _unit_at(_pointer)
 	_set_hovered(null if PlayerInput.touch else hovered)
-	_hud.show_info(hovered if hovered != null else _selected)
+	var foe := _enemy_at(_pointer) if not PlayerInput.touch else null
+	if foe == null and is_instance_valid(_inspected) and _inspected._alive and Time.get_ticks_msec() - _inspected_msec < INSPECT_MSEC:
+		foe = _inspected
+	_hud.show_info(hovered if hovered != null else (foe if foe != null else _selected))
 	_update_cursor()
 
 
@@ -766,6 +773,11 @@ func _tap(point: Vector2) -> void:
 		_picking_guard = false  # Zielmodus: Klick daneben bricht ab
 		return
 	_picking_guard = false
+	if _press_touch:
+		var foe := _enemy_at(point, _pick_radius())
+		if foe != null:
+			_inspected = foe
+			_inspected_msec = now
 	if _press_touch and Game.phase == Game.Phase.BATTLE and not _selection.is_empty():
 		_command_at(point)
 	elif not additive:
@@ -1206,6 +1218,8 @@ func _spawn_enemy() -> void:
 		var enemy := Combatant.new()
 		enemy.position = World.clamp_point(World.spawn_point(arm) + Vector2(randf_range(-1, 1), randf_range(-1, 1)) * PACK_SPREAD * i)
 		enemy.setup_enemy(kind if randf() < 0.7 else Registry.pick_enemy(Game.round_number))
+		if randf() < Game.elite_chance():
+			enemy.make_elite()
 		enemy.died.connect(_on_died)
 		add_child(enemy)
 		enemy_spawned.emit(enemy, arm)
@@ -1213,6 +1227,8 @@ func _spawn_enemy() -> void:
 
 func _on_died(combatant: Combatant) -> void:
 	if combatant.team == Combatant.Team.ENEMY:
+		if combatant.summoned:  # Helfer eines Gegners: keine Beute, zählt nicht
+			return
 		Game.add_gold(combatant.gold_reward)
 		Game.count_stat("kills")
 		Game.count_stat("gold", combatant.gold_reward)
@@ -1228,7 +1244,7 @@ func _on_died(combatant: Combatant) -> void:
 			Sound.play(&"round_win", 0.0)
 	elif Game.phase == Game.Phase.BATTLE:
 		_losses += 1
-		_fallen.append({"data": combatant.unit_data, "position": combatant.position, "home": combatant.home_position})
+		_fallen.append({"data": combatant.unit_data, "position": combatant.position, "home": combatant.home_position, "xp": combatant.xp})
 		if get_player_units().is_empty():
 			_game_over()
 
@@ -1241,6 +1257,7 @@ func revive_fallen(reviver: Combatant) -> bool:
 	var entry: Dictionary = _fallen.pop_back()
 	var unit := _spawn_player(entry["data"], World.clamp_point(reviver.position + Vector2(randf_range(-14, 14), 10)))
 	unit.home_position = entry["home"]
+	unit.set_xp(int(entry.get("xp", 0)))
 	unit.health = unit.max_health * 0.5
 	Achievements.report(&"revive")
 	return true
@@ -1284,14 +1301,15 @@ func _end_round() -> void:
 	Progress.record_round(Game.round_number)
 	_hud.toast(message)
 	Sound.play(&"round_win", 0.0)
-	_maybe_offer_event()
+	_maybe_offer_event(kind == Game.RoundKind.BOSS)
 	save_run()
 
 
-func _maybe_offer_event() -> void:
+## `sure`: nach einem Boss wartet immer ein Ereignis (Beute und Belohnung für den Sieg).
+func _maybe_offer_event(sure := false) -> void:
 	if not events_enabled:
 		return
-	if not RoundEvents.should_offer(Game.round_number, _rounds_without_event):
+	if not sure and not RoundEvents.should_offer(Game.round_number, _rounds_without_event):
 		_rounds_without_event += 1
 		return
 	var offers := RoundEvents.offers(self)

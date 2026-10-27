@@ -1,0 +1,26 @@
+[gd_resource type="Resource" script_class="EnemyData" load_steps=3 format=3]
+
+[ext_resource type="Script" path="res://scripts/data/enemy_data.gd" id="1"]
+[ext_resource type="Texture2D" path="res://assets/sprites/enemies/necromancer.png" id="2"]
+
+[resource]
+script = ExtResource("1")
+sprite = ExtResource("2")
+id = &"necromancer"
+display_name = "Totenbeschwörer"
+color = Color(0.290, 0.290, 0.314, 1)
+body_size = 16.0
+max_health = 60.0
+attack = 6.0
+attack_range = 80.0
+attack_style = &"magic"
+attack_cooldown = 2.0
+move_speed = 24.0
+gold_reward = 18
+min_round = 15
+weight = 0.8
+intelligence = 30.0
+ability = &"summon"
+ability_power = 1.0
+behavior = &"skirmisher"
+minion = &"skeleton"

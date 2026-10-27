@@ -48,6 +48,11 @@ const BONUS_GOLD_MULT := 3.0
 const BONUS_SPAWN_FACTOR := 0.6
 const BONUS_FLAT_GOLD := 15
 const BONUS_FLAT_GOLD_PER_ROUND := 3
+## Ab dieser Runde sind manche Gegner Elite (Combatant.make_elite): Anteil wächst mit der Runde bis ELITE_MAX_CHANCE.
+const ELITE_ROUND := 8
+const ELITE_BASE_CHANCE := 0.04
+const ELITE_CHANCE_PER_ROUND := 0.006
+const ELITE_MAX_CHANCE := 0.12
 const BATTLE_SPEEDS: Array[float] = [1.0, 2.0, 3.0]
 
 var phase: Phase = Phase.BUILD
@@ -263,6 +268,12 @@ func damage_scale() -> float:
 
 func _late_rounds() -> int:
 	return maxi(round_number - LATE_ROUND, 0)
+
+
+func elite_chance() -> float:
+	if round_number < ELITE_ROUND:
+		return 0.0
+	return minf(ELITE_BASE_CHANCE + ELITE_CHANCE_PER_ROUND * (round_number - ELITE_ROUND), ELITE_MAX_CHANCE)
 
 
 func gold_scale() -> float:

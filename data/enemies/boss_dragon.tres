@@ -21,3 +21,5 @@ min_round = 1
 weight = 0.0
 intelligence = 20.0
 is_boss = true
+ability = &"fire_breath"
+ability_power = 1.0

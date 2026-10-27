@@ -22,6 +22,8 @@ func _ready() -> void:
 	await _check_attack_kinds()
 	await _check_traits()
 	await _check_behaviors()
+	_check_enemy_data()
+	await _check_enemies()
 	Game.phase = Game.Phase.BUILD
 	print("UNITS-TEST ", "FEHLER" if _failed else "OK")
 	get_tree().quit(1 if _failed else 0)
@@ -310,5 +312,174 @@ func _check_behaviors() -> void:
 	var rock: Vector2 = World.obstacles[0]["pos"] if not World.obstacles.is_empty() else CENTER
 	_check(spark._clamp(rock) == World.clamp_to_floor(rock) and World.clamp_point(rock) != rock,
 			"Schweber ignoriert Hindernisse, andere werden herausgeschoben")
+	await _clear()
+	Game.phase = Game.Phase.BUILD
+
+
+# --- Gegner ----------------------------------------------------------------------
+
+func _enemy(id: String, at: Vector2) -> Combatant:
+	var enemy := Combatant.new()
+	enemy.setup_enemy(Registry.enemy_by_id(StringName(id)))
+	enemy.position = at
+	_arena.add_child(enemy)
+	return enemy
+
+
+func _check_enemy_data() -> void:
+	var bad: Array[String] = []
+	for enemy: EnemyData in Registry.enemies + Registry.bosses:
+		var strip := Combatant._load_anim(enemy.sprite)
+		if strip == null or strip.get_width() % Combatant.ANIM_FRAMES != 0:
+			bad.append("%s ohne Streifen" % enemy.id)
+		if enemy.ability != &"" and not Abilities.INFO.has(enemy.ability) or enemy.ability == &"revive":
+			bad.append("%s Fähigkeit %s" % [enemy.id, enemy.ability])
+		if not Behaviors.INFO.has(enemy.behavior):
+			bad.append("%s Verhalten" % enemy.id)
+		for key: String in enemy.fx:
+			if not key in Traits.KEYS:
+				bad.append("%s.%s" % [enemy.id, key])
+		if (enemy.ability == &"summon") != (enemy.minion != &""):
+			bad.append("%s Helfer" % enemy.id)
+		elif enemy.minion != &"" and Registry.enemy_by_id(enemy.minion) == null:
+			bad.append("%s: Helfer %s fehlt" % [enemy.id, enemy.minion])
+	_check(bad.is_empty(), "Alle Gegner haben Streifen, gültige Fähigkeit, Verhalten und Bausteine %s" % [bad])
+	var early_ok := true
+	var minion_seen := false
+	for i in 400:
+		early_ok = early_ok and Registry.pick_enemy(1).min_round <= 1
+		minion_seen = minion_seen or Registry.pick_enemy(99).id == &"skeleton"
+	_check(early_ok and not minion_seen, "Spawn: Runde 1 nur frühe Gegner, Helfer erscheinen nie von selbst")
+	var kinds := {}
+	for i in 600:
+		kinds[Registry.pick_enemy(20).id] = true
+	var plain := Registry.enemies.filter(func(e: EnemyData) -> bool: return e.weight > 0.0 and e.min_round <= 20)
+	_check(kinds.size() == plain.size(), "Runde 20: alle %d Gegnertypen kommen vor (%d)" % [plain.size(), kinds.size()])
+
+
+func _check_enemies() -> void:
+	Game.phase = Game.Phase.BATTLE
+	var knight := func(at: Vector2) -> Combatant:
+		var unit := _player("knight", at)
+		unit.fx = {}
+		return unit
+	# Stachelfrosch: Dornen
+	var frog := _enemy("spiny_frog", CENTER)
+	var hitter: Combatant = knight.call(CENTER + Vector2(-12, 0))
+	frog.take_damage(10.0, hitter)
+	_check(hitter.health < hitter.max_health, "Stachelfrosch verletzt Nahkämpfer mit Dornen")
+	await _clear()
+	# Gnoll-Schamane heilt Verbündete
+	var shaman := _enemy("gnoll_shaman", CENTER)
+	var hurt := _enemy("goblin", CENTER + Vector2(30, 0))
+	hurt.health = hurt.max_health * 0.3
+	var before := hurt.health
+	shaman._ability_cd = 0.0
+	_check(shaman.cast_now() and hurt.health > before, "Gnoll-Schamane heilt verletzte Gegner")
+	await _clear()
+	# Gnoll-Hauptmann: Kriegsruf stärkt Verbündete
+	var sergeant := _enemy("gnoll_sergeant", CENTER)
+	var ally := _enemy("goblin", CENTER + Vector2(25, 0))
+	knight.call(CENTER + Vector2(70, 0))
+	sergeant._ability_cd = 0.0
+	_check(sergeant.cast_now() and ally.has_effect(&"buff"), "Gnoll-Hauptmann stärkt Gegner im Umkreis")
+	await _clear()
+	# Warg: Sturmangriff aus der Ferne
+	var warg := _enemy("warg", CENTER)
+	warg._target = knight.call(CENTER + Vector2(100, 0))
+	warg._ability_cd = 0.0
+	_check(warg.cast_now() and warg.has_effect(&"charge"), "Warg stürmt auf ein fernes Ziel los")
+	await _clear()
+	# Totenbeschwörer ruft Skelette ohne Beute
+	var necromancer := _enemy("necromancer", CENTER)
+	knight.call(CENTER + Vector2(100, 0))
+	necromancer._ability_cd = 0.0
+	var count := get_tree().get_nodes_in_group(Combatant.GROUP_ENEMY).size()
+	var cast_ok := necromancer.cast_now()
+	var minions := get_tree().get_nodes_in_group(Combatant.GROUP_ENEMY).filter(func(c: Combatant) -> bool: return c.summoned)
+	_check(cast_ok and get_tree().get_nodes_in_group(Combatant.GROUP_ENEMY).size() > count and not minions.is_empty()
+			and minions[0].gold_reward == 0, "Totenbeschwörer beschwört Helfer ohne Beute")
+	await _clear()
+	# Sprengpilz explodiert beim Tod
+	var mushroom := _enemy("mushroom", CENTER)
+	var victim: Combatant = knight.call(CENTER + Vector2(20, 0))
+	mushroom.take_damage(1.0e9, null)
+	_check(victim.health < victim.max_health, "Sprengpilz verletzt Nachbarn beim Tod")
+	await _clear()
+	# Dunkelmagier: Feuersturm auf das Ziel
+	var mage := _enemy("dark_mage", CENTER)
+	var target: Combatant = knight.call(CENTER + Vector2(60, 0))
+	mage._target = target
+	mage._ability_cd = 0.0
+	_check(mage.cast_now() and target.health < target.max_health, "Dunkelmagier schlägt einen Feuersturm ein")
+	await _clear()
+	# Vampir: Lebensraub
+	var vampire := _enemy("vampire", CENTER)
+	vampire.health = vampire.max_health * 0.5
+	before = vampire.health
+	var prey: Combatant = knight.call(CENTER + Vector2(12, 0))
+	prey.take_damage(20.0, vampire)
+	_check(vampire.health > before, "Vampir heilt sich mit Lebensraub")
+	await _clear()
+	# Troll regeneriert
+	var troll := _enemy("troll", CENTER)
+	troll.health = troll.max_health * 0.5
+	before = troll.health
+	await _frames(40)
+	_check(troll.health > before, "Troll regeneriert Leben")
+	await _clear()
+	# Geist und Wasserspeier: Verteidigung aus den Bausteinen
+	var ghost := _enemy("ghost", CENTER)
+	var gargoyle := _enemy("gargoyle", CENTER)
+	_check(ghost.fx.get("dodge", 0.0) > 0.0 and gargoyle.fx.get("reduce", 0.0) > 0.0 and ghost._floats, "Geist weicht aus, Wasserspeier mindert Schaden, beide schweben")
+	await _clear()
+	# Schakal (Flankierer) jagt den Fernkämpfer, Vampir (Meuchler) den schwächsten
+	var jackal := _enemy("jackal", CENTER)
+	knight.call(CENTER + Vector2(25, 0))
+	var archer := _player("archer", CENTER + Vector2(-70, 0))
+	await _frames(3)
+	_check(jackal._target == archer, "Schakal jagt den Fernkämpfer")
+	await _clear()
+	var stalker := _enemy("vampire", CENTER)
+	knight.call(CENTER + Vector2(20, 0))
+	var weak: Combatant = knight.call(CENTER + Vector2(-60, 0))
+	weak.health = 10.0
+	await _frames(3)
+	_check(stalker._target == weak, "Vampir jagt den schwächsten Gegner")
+	await _clear()
+	# Elite-Gegner: stärker, größer, mehr Beute; Bosse und Helfer nie
+	var plain := _enemy("orc", CENTER)
+	var elite := _enemy("orc", CENTER + Vector2(40, 0))
+	elite.make_elite()
+	_check(elite.elite and is_equal_approx(elite.max_health, plain.max_health * Combatant.ELITE_HEALTH)
+			and elite.gold_reward == plain.gold_reward * Combatant.ELITE_GOLD and elite.scale.x > plain.scale.x
+			and elite.display_name.begins_with("Elite"), "Elite-Gegner haben mehr Leben, Beute und Größe")
+	var boss := _enemy("boss_ogre", CENTER + Vector2(80, 0))
+	boss.make_elite()
+	_check(not boss.elite, "Bosse werden nie Elite")
+	var chance_round := Game.round_number
+	Game.round_number = Game.ELITE_ROUND - 1
+	var early := Game.elite_chance()
+	Game.round_number = 100
+	var late := Game.elite_chance()
+	Game.round_number = chance_round
+	_check(early == 0.0 and late == Game.ELITE_MAX_CHANCE, "Elite erst ab Runde %d, Anteil gedeckelt" % Game.ELITE_ROUND)
+	await _clear()
+	# Bosse wirken ihre Fähigkeit
+	var dragon := _enemy("boss_dragon", CENTER)
+	var burned: Combatant = knight.call(CENTER + Vector2(50, 0))
+	dragon._target = burned
+	dragon._ability_cd = 0.0
+	_check(dragon.cast_now() and burned.health < burned.max_health, "Feuerdrache speit Feuer")
+	await _clear()
+	var golem := _enemy("boss_golem", CENTER)
+	var stomped: Combatant = knight.call(CENTER + Vector2(30, 0))
+	golem._ability_cd = 0.0
+	_check(golem.cast_now() and stomped.has_effect(&"stun"), "Steingigant löst ein Erdbeben aus")
+	await _clear()
+	var king := _enemy("boss_bones", CENTER)
+	knight.call(CENTER + Vector2(90, 0))
+	king._ability_cd = 0.0
+	_check(king.cast_now() and get_tree().get_nodes_in_group(Combatant.GROUP_ENEMY).size() >= 3, "Knochenkönig beschwört Skelette")
 	await _clear()
 	Game.phase = Game.Phase.BUILD

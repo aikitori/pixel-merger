@@ -11,7 +11,7 @@ Einheiten, Sprites, Sounds und Namen kommen aus Python-Skripten (nur Standardbib
 | Quelle | Erzeugt |
 |---|---|
 | `tools/content.py` | Linien, Kombinationen, Fähigkeiten, Eigenart (`LINE_PROFILE`, `COMBO_SIGNATURE`, die inhaltliche Wahrheit) |
-| `tools/generate_data.py` | `data/*.tres`, `scripts/i18n/names_en.gd` |
+| `tools/generate_data.py` | `data/*.tres` (Einheiten, Rezepte, Gegner und Bosse aus den Tabellen `ENEMIES`/`BOSSES`), `scripts/i18n/names_en.gd` |
 | `tools/generate_sprites.py` | Schreibt Sprites, Animationsstreifen (`assets/sprites/anim/`), Arena, Dorf und Oberflächenbilder (`assets/sprites/tiles/`) |
 | `tools/sprite_dcss.py` | Zuordnung Einheit/Gegner zu Dungeon-Crawl-Kachel oder Puppenfigur, eigenes Pferd und Ei, 16 Animationsbilder je nach Körperbau (`BODY_FRAMES`) |
 | `tools/arena_dcss.py` | Arenen (Kreuz in fünf Stilen, Bossarenen) und ihre Grundrisse `LAYOUTS`; schreibt `scripts/arena_layouts.gd` |
@@ -33,6 +33,7 @@ Nach Änderungen: `python3 tools/generate_data.py` und/oder `python3 tools/gener
 - Hauptszene ist das Menü (`scenes/menu.tscn`), das Spiel `scenes/main.tscn` (`scripts/main.gd`, y-sortiert).
 - Kampf: `scripts/combatant.gd`. Fähigkeiten: `scripts/abilities.gd` (Daten) plus `scripts/ability_casts.gd` (Wirkung, `AbilityCasts.cast`).
 - Eigenart der Einheiten: `scripts/behaviors.gd` (Verhalten), `scripts/attack_kinds.gd` (Angriffsformen), `scripts/traits.gd` (Merkmale und Signaturen aus Bausteinen, `Traits.KEYS`). `tools/generate_data.py` bricht ab, wenn zwei Linien gleich sind, eine Signatur doppelt ist oder eine Id im Skript fehlt.
+- Gegner (`data/enemies/`, Tabellen `ENEMIES` und `BOSSES` in `tools/generate_data.py`, nie die .tres von Hand ändern): nutzen dieselben Bausteine wie Einheiten (`ability`, `behavior`, `fx` aus `Traits.KEYS`), bei ihnen wirken Verteidigung, Auren und Tod, nicht die Zusatzwirkung von Treffern (`Combatant.land_hit`). Ab Runde 8 manche als Elite (`Combatant.make_elite`). Neuer Gegner: Eintrag in `ENEMIES`, Kachel in `ENEMIES` und Körperbau in `ENEMY_BODY` (`tools/sprite_dcss.py`), englischer Name in `tools/i18n_names.py`, dann beide Generatoren.
 - Spielstand: `scripts/run_save.gd` speichert den laufenden Lauf (`user://run.cfg`), `Progress` Geheimrezepte und Rekord.
 - Steuerung: `scripts/player_input.gd` (Tastenkürzel, Maus oder Touch, Hilfe im Menü), Eingabe in `main.gd` (Maus: links wählen, rechts befehlen; Touch: Tippen, langes Drücken), Knopf-Kürzel und Esc in `hud.gd`.
 - Oberfläche: `scripts/hud.gd`, `recipe_book.gd`, `shop.gd`, `village.gd`, `unit_card.gd`, `game_over_panel.gd`, `pause_panel.gd` (Menü mit Steuerung), `tutorial.gd`, `ui_theme.gd` (im Code gezeichnet, Farben aus `art_style.gd`).
@@ -58,9 +59,10 @@ godot --headless res://scenes/dev/input_test.tscn   # Eingabe: Maus, Touch, Tast
 godot --headless res://scenes/dev/anim_test.tscn    # Angriffe, alle Fähigkeiten (dauert 2-3 Minuten)
 godot --headless res://scenes/dev/units_test.tscn   # Eigenart: Verhalten, Angriffsformen, Merkmale, Streifen
 godot --headless res://scenes/dev/events_test.tscn  # Boss-/Bonusrunden, Erfolge, Gelände, Version
+godot --headless res://scenes/dev/fuzz_test.tscn    # Zufallseingaben (Maus, Touch, Tasten) über viele Runden, sucht Abstürze
 ```
 
-Ausgabe prüfen auf `... OK` (auch `SMOKE-TEST OK`), keine Zeilen mit `FAIL`, `SCRIPT ERROR` oder `ERROR`. Die CI (`.github/workflows/android.yml`) führt alle fünf aus. Screenshots: `scenes/dev/shot.tscn` (braucht ein Fenster oder Xvfb), z.B. `SHOT_ROUND=15 godot res://scenes/dev/shot.tscn -- <Ordner> arena` für die Arena einer Runde.
+Ausgabe prüfen auf `... OK` (auch `SMOKE-TEST OK`), keine Zeilen mit `FAIL`, `SCRIPT ERROR` oder `ERROR`. Die CI (`.github/workflows/android.yml`) führt alle sechs aus. Screenshots: `scenes/dev/shot.tscn` (braucht ein Fenster oder Xvfb), z.B. `SHOT_ROUND=15 godot res://scenes/dev/shot.tscn -- <Ordner> arena` für die Arena einer Runde.
 
 ## Release
 

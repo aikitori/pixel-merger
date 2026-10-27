@@ -21,6 +21,19 @@ Mehrere Runden, jede Runde besteht aus zwei Phasen:
 - **Gegner:** KI-Wellen, die mit der Runde stärker werden: Leben +15 %, Schaden +8 % je Runde (linear).
   Ab Runde 11 kommt ein aufeinander aufbauender Zuwachs dazu (Leben x1,08, Schaden x1,05 je Runde,
   `Game.LATE_*`), weil Stufen, Veteranen und Hausausbau die eigene Armee schneller als linear stärken.
+- **Gegnervielfalt:** 17 Gegnertypen plus 4 Bosse (`ENEMIES` und `BOSSES` in `tools/generate_data.py`, daraus `data/enemies/`).
+  Sie nutzen dieselben Bausteine wie die Einheiten (Fähigkeit, Verhalten, Merkmale in `fx`), nur wirken bei ihnen
+  Verteidigung, Auren und Tod, nicht die Zusatzwirkung von Treffern. Neue Gegner kommen mit der Runde ins Spiel
+  (`min_round`): Schleim (1), Goblin (2), Schakal (3, Flankierer: jagt Fernkämpfer), Skelett-Bogenschütze (3),
+  Stachelfrosch (5, Dornen), Ork (5), Sprengpilz (6, explodiert beim Tod), Gnoll-Schamane (7, heilt Gegner),
+  Geist (8, weicht aus, schwebt), Gnoll-Hauptmann (9, Kriegsruf), Warg (9, Sturmangriff), Oger (8),
+  Wasserspeier (10, wehrt ab, schwebt), Troll (11, Regeneration), Dunkelmagier (12, Feuersturm auf Gruppen), Vampir
+  (13, Meuchler mit Lebensraub), Totenbeschwörer (15, ruft Skelette). Der Helfer `skeleton` (Gewicht 0) erscheint nur
+  durch Beschwörung, gibt keine Beute und zählt nicht. Bosse haben eine Fähigkeit: Ogerkönig Kriegsruf, Feuerdrache
+  Feueratem, Knochenkönig Beschwörung, Steingigant Erdbeben. Ab Runde 8 ist ein Teil der Gegner **Elite**
+  (`Game.elite_chance`: 4 % steigend bis 12 %): 2,2-faches Leben, 1,25-facher Schaden, dreifache Beute, goldener
+  Ring. Über Gegnern zeigt die Info unten Name, Verhalten, Fähigkeit und Werte (Maus: Darüberfahren, Touch: Antippen).
+- **Bossbelohnung:** Nach jeder Bossrunde wartet sicher ein Ereignis (Kartenwahl), sonst nur mit Wahrscheinlichkeit.
 - **Kampfphase:** Während des Zeitfensters (x Sekunden bis Minuten) spawnen laufend neue Monster.
   Überleben bis zum Ende des Zeitfensters = Runde überstanden. Noch lebende Gegner bleiben
   folgenlos, es gibt keine Strafe.

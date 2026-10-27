@@ -156,6 +156,9 @@ EN = {
     # Gegner und Bosse
     'Goblin': 'Goblin', 'Oger': 'Ogre', 'Ork': 'Orc', 'Schleim': 'Slime', 'Skelett-Bogenschütze': 'Skeleton Archer',
     'Ogerkönig': 'Ogre King', 'Knochenkönig': 'Bone King', 'Steingigant': 'Stone Giant',
+    'Schakal': 'Jackal', 'Stachelfrosch': 'Spiny Frog', 'Sprengpilz': 'Blast Mushroom',
+    'Gnoll-Schamane': 'Gnoll Shaman', 'Gnoll-Hauptmann': 'Gnoll Sergeant', 'Warg': 'Warg',
+    'Wasserspeier': 'Gargoyle', 'Dunkelmagier': 'Dark Mage', 'Totenbeschwörer': 'Necromancer',
     # Geheimrezepte
     'König Artus': 'King Arthur', 'Hochkönig Artus': 'High King Arthur', 'Ewiger König': 'Eternal King',
     'Merlin': 'Merlin the Mage', 'Merlin der Weise': 'Merlin the Wise', 'Merlin der Ewige': 'Merlin the Eternal',

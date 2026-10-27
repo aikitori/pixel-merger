@@ -21,3 +21,5 @@ min_round = 0
 weight = 0.0
 intelligence = 20.0
 is_boss = true
+ability = &"war_cry"
+ability_power = 1.0
