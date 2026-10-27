@@ -39,7 +39,7 @@ Den Keystore selbst nie ins Repo einchecken (`*.keystore` steht in `.gitignore`)
 Release auslösen:
 
 ```bash
-git tag v0.1.34 && git push origin v0.1.34
+git tag v0.1.35 && git push origin v0.1.35
 ```
 
 ## Lokal bauen
@@ -53,6 +53,15 @@ tools/build_android.sh debug           # -> build/pixel-merger-debug.apk
 
 Release lokal: `ANDROID_KEYSTORE_PATH`, `ANDROID_KEYSTORE_USER`, `ANDROID_KEYSTORE_PASSWORD`
 setzen und `tools/build_android.sh release` ausführen. Optional `VERSION_NAME` und `VERSION_CODE`.
+
+**Debug-Schlüssel sichern:** Android aktualisiert eine App nur, wenn die neue APK mit demselben Schlüssel
+signiert ist wie die installierte, sonst hilft nur Deinstallieren (Spielstand, Geheimrezepte und Rekord
+gehen verloren). Der Debug-Keystore liegt unter `~/.local/share/pixel-merger/debug.keystore` (Passwort
+`android`, Alias `androiddebugkey`) und gehört **außerhalb des Rechners gesichert** (nicht ins Repo). Fehlt er, bricht
+`tools/build_android.sh` ab, statt einen neuen anzulegen (`NEW_DEBUG_KEYSTORE=1` erlaubt das bewusst, die CI
+setzt es). Nach dem Bau prüft das Skript den Fingerabdruck der APK gegen `tools/debug_key.sha256`. Seit 0.1.31
+gilt der Schlüssel `f926...`; die Versionen 0.1.0 bis 0.1.30 hatten einen anderen (verloren), wer davon
+kommt, muss einmal deinstallieren.
 
 Aufs Handy: `adb install -r build/pixel-merger-debug.apk` (USB-Debugging am Gerät aktivieren)
 oder die APK direkt aufs Gerät kopieren und öffnen.

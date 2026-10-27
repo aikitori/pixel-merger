@@ -23,6 +23,7 @@ func _ready() -> void:
 	await _test_merge_without_gold()
 	await _test_place_next_to_other()
 	await _test_back_button()
+	await _test_real_button_presses()
 	await _test_build_selection()
 	await _test_battle_order()
 	await _test_multi_select()
@@ -480,6 +481,34 @@ func _test_back_button() -> void:
 	get_tree().root.propagate_notification(NOTIFICATION_WM_GO_BACK_REQUEST)
 	_check(hud._pause.is_open() and not get_tree().paused, "Zurück ohne offenes Fenster öffnet das Menü (Bauphase: ohne Pause)")
 	_check(hud.handle_back() and not hud._pause.is_open(), "Zurück schließt das Menü wieder")
+
+
+## Knöpfe müssen auf echte Klicks und Tipps reagieren (nicht nur auf ein ausgelöstes pressed-Signal):
+## Ein Fokus, der beim Drücken wieder abgegeben wird, bricht den Knopfdruck ab.
+func _test_real_button_presses() -> void:
+	var hud: Hud = _arena.get("_hud")
+	Game.set_phase(Game.Phase.BUILD)
+	hud._refresh()
+	await get_tree().process_frame
+	var button: Button = hud._shop_button
+	var center := button.get_global_rect().get_center()
+	await _tap(center)
+	_check(hud._village.visible, "Mausklick auf den Dorf-Knopf öffnet das Dorf")
+	await _tap(center)
+	_check(not hud._village.visible, "Zweiter Klick schließt es")
+	await _touch_tap(center)
+	_check(hud._village.visible, "Touch: Tipp auf den Dorf-Knopf öffnet das Dorf")
+	await _touch_tap(center)
+	_check(not hud._village.visible, "Touch: Zweiter Tipp schließt es")
+	var menu_center: Vector2 = hud._pause_button.get_global_rect().get_center()
+	await _touch_tap(menu_center)
+	_check(hud._pause.is_open(), "Touch: Tipp auf Menü öffnet das Menü")
+	var resume_center: Vector2 = hud._pause.get_child(-2).get_global_rect().get_center()
+	await _touch_tap(resume_center)
+	_check(not hud._pause.is_open(), "Touch: Tipp auf Weiter schließt es")
+	await _key(KEY_SPACE)
+	_check(not get_tree().paused, "Leertaste löst keinen zuletzt getippten Knopf aus")
+	_check(hud.get_viewport().gui_get_focus_owner() == null, "Kein Knopf behält den Tastaturfokus")
 
 
 ## Bauphase: Klick wählt (Karte, Rezepte), Rahmen wählt mehrere, Entf schickt zurück, D öffnet das Dorf.

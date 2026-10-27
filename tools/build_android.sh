@@ -5,7 +5,11 @@
 # Voraussetzungen: godot im PATH (tools/install_godot.sh), Java (JDK 17+), Android SDK
 # mit platform-tools, build-tools;35.0.1 und platforms;android-35 (ANDROID_HOME).
 #
-# debug:   signiert mit einem automatisch erzeugten Debug-Keystore.
+# debug:   signiert mit dem Debug-Keystore (Standard ~/.local/share/pixel-merger/debug.keystore). Android
+#          installiert Updates nur bei gleichem Schlüssel: Fehlt der Keystore, bricht das Skript ab, statt
+#          still einen neuen zu erzeugen (dann ließe sich die App nicht mehr aktualisieren). Einen neuen
+#          legt NEW_DEBUG_KEYSTORE=1 an (z.B. in der CI, deren APK niemand aktualisiert). Ohne diese
+#          Variable muss der Fingerabdruck der APK zu tools/debug_key.sha256 passen.
 # release: braucht ANDROID_KEYSTORE_PATH, ANDROID_KEYSTORE_USER, ANDROID_KEYSTORE_PASSWORD.
 # Optional: VERSION_NAME und VERSION_CODE überschreiben die Version aus export_presets.cfg.
 set -euo pipefail
@@ -41,6 +45,12 @@ set_setting export/android/java_sdk_path "$JAVA_HOME"
 if [ "$MODE" = "debug" ]; then
   DEBUG_KEYSTORE="${DEBUG_KEYSTORE:-$HOME/.local/share/pixel-merger/debug.keystore}"
   if [ ! -f "$DEBUG_KEYSTORE" ]; then
+    if [ "${NEW_DEBUG_KEYSTORE:-}" != "1" ]; then
+      echo "Debug-Keystore fehlt: $DEBUG_KEYSTORE" >&2
+      echo "Ohne den alten Schlüssel lässt sich die App auf dem Handy nicht aktualisieren (nur nach Deinstallation)." >&2
+      echo "Keystore aus der Sicherung zurückspielen, oder bewusst einen neuen anlegen: NEW_DEBUG_KEYSTORE=1" >&2
+      exit 1
+    fi
     mkdir -p "$(dirname "$DEBUG_KEYSTORE")"
     keytool -genkeypair -keystore "$DEBUG_KEYSTORE" -alias androiddebugkey \
       -storepass android -keypass android -keyalg RSA -keysize 2048 -validity 10000 \
@@ -82,5 +92,16 @@ rm -f "$OUT"
 if [ ! -s "$OUT" ]; then
   echo "Export fehlgeschlagen: $OUT wurde nicht erzeugt" >&2
   exit 1
+fi
+# Debug-APK: derselbe Schlüssel wie bei den bisherigen Versionen, sonst lässt sie sich nicht als Update installieren.
+if [ "$MODE" = "debug" ] && [ "${NEW_DEBUG_KEYSTORE:-}" != "1" ]; then
+  EXPECTED="$(tr -d '[:space:]' < tools/debug_key.sha256)"
+  ACTUAL="$("$ANDROID_HOME"/build-tools/*/apksigner verify --print-certs "$OUT" | sed -n 's/.*certificate SHA-256 digest: //p' | head -1)"
+  if [ "$ACTUAL" != "$EXPECTED" ]; then
+    rm -f "$OUT"
+    echo "Falscher Signaturschlüssel: $ACTUAL (erwartet $EXPECTED)" >&2
+    echo "Diese APK würde sich nicht über die installierte Version legen lassen. Richtigen Keystore verwenden." >&2
+    exit 1
+  fi
 fi
 echo "Fertig: $OUT ($(du -h "$OUT" | cut -f1))"

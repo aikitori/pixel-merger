@@ -75,6 +75,7 @@ var _shown_seconds := -1
 
 func _ready() -> void:
 	process_mode = Node.PROCESS_MODE_ALWAYS  # bleibt bedienbar, während der Kampf pausiert
+	get_tree().node_added.connect(_no_focus)
 	var root := Control.new()
 	root.set_anchors_preset(Control.PRESET_FULL_RECT)
 	root.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -249,7 +250,6 @@ func _ready() -> void:
 	_pause = PausePanel.new()
 	_pause.menu_pressed.connect(func() -> void: menu_pressed.emit())
 	root.add_child(_pause)
-	get_viewport().gui_focus_changed.connect(_on_focus_changed)
 	_book.visibility_changed.connect(_refresh)
 	Game.gold_changed.connect(func(_gold: int) -> void: _refresh())
 	Game.round_changed.connect(func(_round: int) -> void: _refresh())
@@ -750,11 +750,11 @@ func _unhandled_input(event: InputEvent) -> void:
 		get_viewport().set_input_as_handled()
 
 
-## Knöpfe behalten keinen Tastaturfokus, sonst löst die Leertaste den zuletzt geklickten Knopf aus
-## statt der Pause. Bedient wird mit Maus, Finger und Tastenkürzeln.
-func _on_focus_changed(control: Control) -> void:
-	if control is BaseButton:
-		control.release_focus.call_deferred()
+## Knöpfe nehmen keinen Tastaturfokus an, sonst löst die Leertaste den zuletzt geklickten Knopf aus statt
+## der Pause. Den Fokus erst nach dem Drücken abzugeben bricht den Klick ab, daher gar nicht erst annehmen.
+func _no_focus(node: Node) -> void:
+	if node is BaseButton and is_ancestor_of(node):
+		(node as BaseButton).focus_mode = Control.FOCUS_NONE
 
 
 ## Schließt das oberste offene Fenster. Gibt false zurück, wenn keins offen war.

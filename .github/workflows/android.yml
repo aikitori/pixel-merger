@@ -94,6 +94,7 @@ jobs:
       - name: APK bauen
         env:
           VERSION_CODE: ${{ github.run_number }}
+          NEW_DEBUG_KEYSTORE: "1"  # Die CI-APK wird nicht aktualisiert, ihr Schlüssel ist egal
         run: tools/build_android.sh debug
 
       - uses: actions/upload-artifact@v7
