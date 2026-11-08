@@ -6,6 +6,10 @@ scripts/arena_layouts.gd (begehbare Rechtecke, Spawn-Strecken, feste Hindernisse
 
 - Normale Runden: Kreuz, der Stil wechselt mit der Geländestufe (nach jedem Boss): CROSS_THEMES.
 - Bossrunden (5, 15, 25, ...): reihum BOSS_LAYOUTS, keine Kreuzform.
+
+Boden und Mauern kommen aus nahtlosen Stable-Diffusion-Texturen (tools/sd/textures/, SD_TEXTURES), wo es eine
+gibt, sonst aus den Kacheln. Die Bossarenen sind mit ControlNet neu gezeichnete Bilder (tools/sd/arenas/), der
+Zauberkreis kommt darüber. Beides erzeugt tools/import_sd.py, ohne die Dateien gilt der reine Kachel-Stand.
 """
 import math
 from pathlib import Path
@@ -14,6 +18,7 @@ import pixel_image as pi
 from pixel_image import Img
 from sprite_dcss import tile
 
+SD = Path(__file__).resolve().parent / 'sd'
 W, H = 640, 360
 FIELD_TOP, FIELD_BOTTOM = 24, 320
 CENTER = (320, 172)
@@ -95,6 +100,21 @@ STONE = ['limestone_0', 'limestone_1', 'limestone_2', 'limestone_3', 'limestone_
 
 INK = (24, 20, 18, 255)
 
+# Anfang des Kachelnamens -> SD-Textur in tools/sd/textures/ (gilt für die ganze Kachelliste)
+SD_TEXTURES = {
+    'stone_brick': 'gray', 'brick_gray': 'gray', 'brick_brown-vines': 'vines', 'wall_vines': 'vines',
+    'brick_brown_': 'brown', 'marble_wall': 'marble', 'relief': 'relief', 'church': 'church',
+    'grass/grass_flowers': 'flowers', 'grass/grass_0': 'grass', 'limestone': 'limestone',
+}
+_sd_cache = {}
+
+
+def sd_texture(name):
+    if name not in _sd_cache:
+        path = SD / 'textures' / f'{name}.png'
+        _sd_cache[name] = pi.read_png(path) if path.exists() else None
+    return _sd_cache[name]
+
 
 def _hash(*v):
     h = 2166136261
@@ -110,7 +130,12 @@ def _shade(c, f):
 class Tex:
     """Kacheln im 32er-Raster, Variante je Rasterfeld."""
 
-    def __init__(self, names, prefix='dungeon/wall/', adjust=None, salt=0):
+    def __init__(self, names, prefix='dungeon/wall/', adjust=None, salt=0, sd=None):
+        key = sd or next((v for k, v in SD_TEXTURES.items() if names[0].startswith(k)), None)
+        self.sd = sd_texture(key) if key else None
+        if self.sd:
+            self.sd = pi.adjust(self.sd, *adjust) if adjust else self.sd
+            return
         self.tiles = []
         for n in names:
             img = tile(prefix + n)
@@ -120,6 +145,8 @@ class Tex:
         self.salt = salt
 
     def get(self, x, y):
+        if self.sd:
+            return self.sd.get(x % self.sd.w, y % self.sd.h)
         t = self.tiles[_hash(x // 32, y // 32, self.salt) % len(self.tiles)]
         return t.get(x % 32, y % 32)
 
@@ -305,7 +332,8 @@ def _chasm_edges(img, shape, face):
 def _plaza(img, shape, theme):
     x0, y0, x1, y1 = PLAZA
     stone = Tex(STONE if theme['floor'] != 'stone' else [f'marble_wall_{n}' for n in (1, 2, 3, 4)],
-                'dungeon/floor/' if theme['floor'] != 'stone' else 'dungeon/wall/', salt=5)
+                'dungeon/floor/' if theme['floor'] != 'stone' else 'dungeon/wall/', salt=5,
+                sd='plaza' if theme['floor'] != 'stone' else None)
     # Schatten rechts und vor der Stufe
     for y in range(y0 + 3, y1 + PLAZA_STEP + 3):
         for x in range(x0 + 3, x1 + 4):
@@ -468,7 +496,13 @@ def images():
     for i, theme in enumerate(CROSS_THEMES):
         out['arena' if i == 0 else f'arena_cross_{i}'] = arena('cross', theme)
     for name in BOSS_LAYOUTS:
-        out[f'arena_{name}'] = arena(name, BOSS_THEMES[name])
+        painted = SD / 'arenas' / f'arena_{name}.png'
+        if painted.exists():
+            img = pi.read_png(painted)
+            _rune_circle(img)
+        else:
+            img = arena(name, BOSS_THEMES[name])
+        out[f'arena_{name}'] = img
     return out
 
 

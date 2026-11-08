@@ -314,6 +314,10 @@ Offen:
   niedrige Zinnen, damit niemand verdeckt wird. Tore an den Stellen, an denen Gegner erscheinen (Torbogen mit
   Fallgitter, dunkler Gang, Treppe, Portal). Der Steinplatz mit Runenkreis liegt eine Stufe erhöht. Hindernisse
   sind Baum, Eisblock, Säulenstumpf, Säule und Fels. Dorf: Häuser aus Mauerkacheln mit Tür und Schmuck, Wege, Brunnen.
+- Arena-Texturen und Bossarenen aus Stable Diffusion (`tools/import_sd.py`, einmalig über ComfyUI): Boden und
+  Mauern der Kreuz-Arenen sind nahtlose Texturen, farblich an die ersetzten Kacheln angeglichen, der Generator
+  baut daraus die Arena wie vorher. Die Bossarenen sind mit ControlNet aus dem Generatorbild neu gezeichnet
+  (Grundriss bleibt), der Runenkreis liegt darüber. Die Ergebnisse liegen als PNG unter `tools/sd/`.
 - Oberfläche: dunkler Granit mit Stahl- oder Goldrand wie die Reiter in Dungeon Crawl, Goldhaufen als Münze.
   Nachbearbeitung "Kerker": leicht warmes Fackellicht, dunklere Bildränder.
 - Der Clonk-Stil (`generate_sprites.py --figures clonk`) und der Holz-Stil (`--classic`) sind erhalten, aber nicht

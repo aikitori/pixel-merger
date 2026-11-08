@@ -19,3 +19,4 @@ android/
 preview.png
 .DS_Store
 tools/__pycache__/
+tools/sd/candidates/
