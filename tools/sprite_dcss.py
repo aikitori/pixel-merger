@@ -28,6 +28,12 @@ def sd_sprite(name):
     return pi.read_png(path) if path.exists() else None
 
 
+def sd_figure(name):
+    """Mit Stable Diffusion neu gezeichnete Figur (tools/import_sd.py figures), mit Schatten wie die Kacheln."""
+    img = sd_sprite(name)
+    return pi.shadow(img) if img else None
+
+
 def tile(rel):
     """Kachel `rel` (Pfad im Paket ohne .png), z.B. 'monster/troll'."""
     if rel not in _cache:
@@ -696,17 +702,21 @@ def build():
     units = {}
     for key, line in content.LINES.items():
         for uid in line['ids']:
-            units[uid] = finish(LINE[uid]())
+            units[uid] = finish(sd_figure(f'units/{uid}') or LINE[uid]())
     for base, combo in content.COMBOS.items():
         spec = COMBO[base]
         color = combo['color']
+        drawn = sd_figure(f'units/{base}')  # ein Bild für alle Stufen, die Stufe zeigt dann der Rand
         for level, uid in enumerate(content.combo_ids(base), 1):
-            if isinstance(spec, list):
+            if drawn:
+                img = tier(drawn, level, color)
+            elif isinstance(spec, list):
                 img = spec[level - 1]()
             else:
                 img = tier(spec(), level, color)
             units[uid] = finish(img)
-    enemies = {uid: finish(sd_sprite(uid) or fn()) for uid, fn in ENEMIES.items()}
+    enemies = {uid: finish((sd_sprite(uid) if uid.startswith('boss_') else sd_figure(f'enemies/{uid}')) or fn())
+               for uid, fn in ENEMIES.items()}
     return units, enemies
 
 

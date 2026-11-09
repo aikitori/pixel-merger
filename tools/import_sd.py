@@ -8,17 +8,21 @@
 - village: das Dorf genauso neu gezeichnet (tools/sd/village.png), Häuser und Wege bleiben, wo village.gd sie erwartet.
 - sprites: die Bosse als Pixel-Art (Pixel-Art-LoRA, Hintergrund per BiRefNet entfernt), auf die
   Größe der bisherigen Bilder gebracht (tools/sd/sprites/). sprite_dcss.py und tiles_dcss.py nehmen sie statt der
-  Kacheln. Unter etwa 40 Pixeln wird SD matschig, kleine Figuren, Hindernisse und die Münze bleiben deshalb Kacheln.
+  Kacheln. Hindernisse und die Münze bleiben Kacheln, frei gezeichnet wird SD unter etwa 40 Pixeln matschig.
+- figures: Einheiten und Gegner, mit der bisherigen Kachelfigur als Vorlage neu gezeichnet (img2img), so bleiben
+  Pose, Blickrichtung, Farben und Ausrüstung (tools/sd/sprites/units/, enemies/). Übernommen sind die Figuren in
+  FIGURES, bei den übrigen ging Wesentliches verloren (Skelett, Flügel, Reittier), sie bleiben Kacheln.
 
 Nur nötig, wenn sich Texturen, Prompts oder Grundrisse ändern. Braucht Pillow und eine ComfyUI-
 Instanz mit den Checkpoints und ControlNet-Modellen aus den Tabellen unten. Ergebnisse schwanken je nach GPU
 etwas, deshalb liegen die PNGs im Repo. arena_dcss.py liest sie ohne Pillow.
 
-Aufruf:  COMFYUI=http://rechner:8188 python3 tools/import_sd.py textures|bosses|village|sprites [name ...] [--seeds 1,2,3]
+Aufruf:  COMFYUI=http://rechner:8188 python3 tools/import_sd.py textures|bosses|village|sprites|figures [name ...] [--seeds 1,2,3]
 Mit --seeds landen Varianten zum Aussuchen in tools/sd/candidates/ (nicht im Repo). Die passende Seed in die
 Tabelle eintragen und ohne --seeds neu laufen lassen.
 """
 import argparse
+import functools
 import glob
 import io
 import json
@@ -31,7 +35,9 @@ from pathlib import Path
 from PIL import Image, ImageChops, ImageDraw, ImageFilter, ImageStat
 
 import arena_dcss
+import content
 import pixel_image as pi
+import sprite_dcss
 import tiles_dcss
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -117,6 +123,24 @@ def _upload(img):
     return json.loads(_req('/upload/image', body, {'Content-Type': f'multipart/form-data; boundary={boundary}'}))['name']
 
 
+def _retry(make, *args, tries=4):
+    """ComfyUI stürzt bei langen Läufen ab und startet neu: warten und noch einmal versuchen."""
+    for attempt in range(tries):
+        try:
+            return make(*args)
+        except OSError as err:
+            if attempt == tries - 1:
+                raise
+            print(f'ComfyUI nicht erreichbar ({err}), warte auf Neustart')
+            while True:
+                time.sleep(10)
+                try:
+                    _req('/system_stats')
+                    break
+                except OSError:
+                    pass
+
+
 def _run(workflow, extra=None):
     """Workflow abschicken, auf das Ergebnis warten, das Bild des Knotens 'save' zurückgeben (mit extra auch dessen)."""
     pid = json.loads(_req('/prompt', json.dumps({'prompt': workflow}).encode()))['prompt_id']
@@ -168,14 +192,18 @@ def _match_colors(img, pattern):
     ref = Image.new('RGB', (32 * len(tiles), 32))
     for i, t in enumerate(tiles):
         ref.paste(t.resize((32, 32)), (32 * i, 0))
-    src_stat, ref_stat = ImageStat.Stat(img), ImageStat.Stat(ref)
+    return _match_to(img, ref, COLOR_MATCH)
+
+
+def _match_to(img, ref, strength, mask=None, ref_mask=None):
+    src_stat, ref_stat = ImageStat.Stat(img, mask), ImageStat.Stat(ref, ref_mask)
     lut = []
     for c in range(3):
         ms, ss = src_stat.mean[c], src_stat.stddev[c] or 1.0
         mr, sr = ref_stat.mean[c], ref_stat.stddev[c]
         for v in range(256):
             target = (v - ms) / ss * sr + mr
-            lut.append(max(0, min(255, round(v + (target - v) * COLOR_MATCH))))
+            lut.append(max(0, min(255, round(v + (target - v) * strength))))
     return img.point(lut)
 
 
@@ -228,18 +256,29 @@ def _redraw(base, prompt, seed):
 # --- Sprites -----------------------------------------------------------------------------
 
 def sprite(name, seed=None):
-    prompt, (bw, bh), default_seed = SPRITES[name]
+    prompt, size, default_seed = SPRITES[name]
+    return sprite_image(prompt, size, default_seed if seed is None else seed)
+
+
+def sprite_image(prompt, size, seed, negative=SPRITE_NEGATIVE, template=None, original=None, denoise=1.0):
+    """Mit Vorlage (PIL-Bild 1024x1024) img2img: Pose, Farben und Ausrüstung bleiben, SD zeichnet neu.
+    Die Farben werden zum Teil an das Original (klein, RGBA) angeglichen, SD bleicht sie sonst aus."""
+    bw, bh = size
     wf = _base(SPRITE_CKPT, f'pixel art, {prompt}, full body, single object, centered, plain white background, '
-               'game sprite, dark fantasy', SPRITE_NEGATIVE)
+               'game sprite, dark fantasy', negative)
     wf['lo'] = {'class_type': 'LoraLoader', 'inputs': {'model': ['ck', 0], 'clip': ['ck', 1], 'lora_name': PIXEL_LORA,
                                                        'strength_model': 1.0, 'strength_clip': 1.0}}
     for node in ('p', 'n'):
         wf[node]['inputs']['clip'] = ['lo', 1]
-    wf['l'] = {'class_type': 'EmptyLatentImage', 'inputs': {'width': 1024, 'height': 1024, 'batch_size': 1}}
+    if template is None:
+        wf['l'] = {'class_type': 'EmptyLatentImage', 'inputs': {'width': 1024, 'height': 1024, 'batch_size': 1}}
+    else:
+        wf['li'] = {'class_type': 'LoadImage', 'inputs': {'image': _upload(template)}}
+        wf['l'] = {'class_type': 'VAEEncode', 'inputs': {'pixels': ['li', 0], 'vae': ['ck', 2]}}
     wf['ks'] = {'class_type': 'KSampler', 'inputs': {
         'model': ['lo', 0], 'positive': ['p', 0], 'negative': ['n', 0], 'latent_image': ['l', 0],
-        'seed': default_seed if seed is None else seed, 'steps': 6, 'cfg': 2.0, 'sampler_name': 'dpmpp_sde',
-        'scheduler': 'karras', 'denoise': 1.0}}
+        'seed': seed, 'steps': 6, 'cfg': 2.0, 'sampler_name': 'dpmpp_sde',
+        'scheduler': 'karras', 'denoise': denoise}}
     # Maske als zweites Bild: Hintergrund per BiRefNet
     wf['bg'] = {'class_type': 'LoadBackgroundRemovalModel', 'inputs': {'bg_removal_name': BG_MODEL}}
     wf['rb'] = {'class_type': 'RemoveBackground', 'inputs': {'bg_removal_model': ['bg', 0], 'image': ['vd', 0]}}
@@ -253,6 +292,8 @@ def sprite(name, seed=None):
     w, h = max(1, round(rgba.width * scale)), max(1, round(rgba.height * scale))
     alpha = rgba.getchannel('A').resize((w, h), Image.BOX).point(lambda v: 255 if v > 120 else 0)
     small = rgba.convert('RGB').resize((w, h), Image.BOX)
+    if original is not None:
+        small = _match_to(small, original.convert('RGB'), FIGURE_COLOR_MATCH, alpha, original.getchannel('A'))
     small = small.quantize(32, method=Image.Quantize.MAXCOVERAGE, dither=Image.Dither.NONE).convert('RGBA')
     small.putalpha(alpha)
     # Dunkler Umriss wie bei den Kacheln, damit sich die Figur vom Boden abhebt
@@ -262,6 +303,180 @@ def sprite(name, seed=None):
     ring = ImageChops.subtract(shape.filter(ImageFilter.MaxFilter(3)), shape)
     framed.paste(Image.new('RGBA', framed.size, OUTLINE), mask=ring)
     return framed.crop(framed.getbbox())
+
+
+# --- Figuren (Einheiten und Gegner) -------------------------------------------------------
+# Der Prompt kommt aus der bisherigen Kachelfigur: welche Kacheln sie lädt (Körper, Rüstung, Waffe, Umhang),
+# dazu Name, Farbe und Körperbau. Kombinationen bekommen ein Bild für alle Stufen (sprite_dcss setzt den Rand).
+
+FIGURE_SKIP = ('legs', 'boots', 'gloves')  # bei 32 Pixeln nicht zu sehen
+FIGURE_BODY = {'quadruped': 'four-legged animal', 'rider': 'riding a horse', 'serpent': 'serpent', 'flyer': 'flying',
+               'floater': 'floating', 'hopper': 'small creature', 'colossus': 'huge creature', 'blob': 'blob'}
+FIGURE_DENOISE = float(os.environ.get('FIGURE_DENOISE', 0.75))  # wie weit SD von der Vorlage abweicht
+FIGURE_COLOR_MATCH = 0.5
+# Übernommene Figuren: Denoise und Seed. Nicht aufgeführte bleiben Kacheln (SD hat dort Wesentliches verloren).
+FIGURES = {
+    'enemies/dark_mage': (0.75, 1), 'enemies/gargoyle': (0.75, 1), 'enemies/ghost': (0.75, 1),
+    'enemies/gnoll_sergeant': (0.75, 1), 'enemies/gnoll_shaman': (0.75, 1), 'enemies/goblin': (0.75, 1),
+    'enemies/jackal': (0.75, 1), 'enemies/mushroom': (0.75, 1), 'enemies/necromancer': (0.75, 1),
+    'enemies/ogre': (0.75, 1), 'enemies/orc': (0.75, 1), 'enemies/slime': (0.75, 1), 'enemies/spiny_frog': (0.75, 1),
+    'enemies/troll': (0.75, 1), 'enemies/vampire': (0.75, 1), 'enemies/warg': (0.75, 1), 'units/abbot': (0.75, 1),
+    'units/achilles': (0.75, 1), 'units/angel': (0.75, 1), 'units/anubis': (0.75, 1), 'units/apis': (0.75, 1),
+    'units/apprentice': (0.75, 1), 'units/arcane_archer': (0.75, 1), 'units/archer': (0.75, 1),
+    'units/archmage': (0.75, 1), 'units/asclepius': (0.75, 1), 'units/axe_master': (0.75, 1),
+    'units/baba_yaga': (0.75, 1), 'units/basilisk': (0.75, 1), 'units/beast_master': (0.75, 1),
+    'units/bodyguard': (0.75, 1), 'units/bone_dragon': (0.6, 1), 'units/breeze': (0.75, 1),
+    'units/broom_witch': (0.75, 1), 'units/centaur': (0.75, 1), 'units/centaur_lord': (0.75, 1),
+    'units/chimera': (0.75, 1), 'units/crusader': (0.75, 1), 'units/cyclops': (0.6, 1), 'units/dark_elf': (0.75, 1),
+    'units/dark_witch': (0.75, 1), 'units/destrier': (0.6, 1), 'units/djinn': (0.75, 1), 'units/doctor': (0.75, 1),
+    'units/dragon': (0.75, 1), 'units/dragon_mage': (0.75, 1), 'units/dragon_rider': (0.75, 1),
+    'units/droplet': (0.75, 1), 'units/druid': (0.75, 1), 'units/dryad': (0.75, 1), 'units/dwarf_gunner': (0.75, 1),
+    'units/dwarf_knight': (0.75, 1), 'units/dwarf_lord': (0.75, 1), 'units/dwarf_warrior': (0.75, 1),
+    'units/earth_elemental': (0.75, 1), 'units/earth_spirit': (0.75, 1), 'units/elder_dragon': (0.75, 1),
+    'units/elf_king': (0.75, 1), 'units/elf_lord': (0.75, 1), 'units/elf_mage': (0.75, 1),
+    'units/elf_scout': (0.75, 1), 'units/exorcist': (0.75, 1), 'units/fairy': (0.75, 1), 'units/faun': (0.75, 1),
+    'units/fenrir': (0.6, 1), 'units/field_medic': (0.75, 1), 'units/fire_dragon': (0.75, 1),
+    'units/fire_dwarf': (0.75, 1), 'units/fire_elemental': (0.75, 1), 'units/fire_elf': (0.75, 1),
+    'units/fire_giant': (0.75, 1), 'units/fire_golem': (0.75, 1), 'units/fire_knight': (0.75, 1),
+    'units/fire_spirit': (0.75, 1), 'units/fire_wolf': (0.6, 1), 'units/flame': (0.75, 1), 'units/foal': (0.75, 1),
+    'units/frog': (0.75, 1), 'units/frog_king': (0.75, 1), 'units/frog_prince': (0.75, 1),
+    'units/frost_demon': (0.75, 1), 'units/frost_imp': (0.6, 1), 'units/frost_knight': (0.75, 1),
+    'units/frost_lord': (0.75, 1), 'units/frost_spirit': (0.75, 1), 'units/gaia': (0.75, 1), 'units/ghost': (0.75, 1),
+    'units/ghoul': (0.6, 1), 'units/giant': (0.75, 1), 'units/giant_toad': (0.75, 1), 'units/gnome': (0.75, 1),
+    'units/gnome_rider': (0.75, 1), 'units/golem': (0.75, 1), 'units/grand_mage': (0.75, 1),
+    'units/griffin': (0.75, 1), 'units/griffin_rider': (0.75, 1), 'units/guardsman': (0.75, 1),
+    'units/halberdier': (0.75, 1), 'units/hawkeye': (0.6, 1), 'units/healer': (0.75, 1),
+    'units/herb_healer': (0.75, 1), 'units/herbalist': (0.75, 1), 'units/hercules': (0.75, 1),
+    'units/high_elf': (0.75, 1), 'units/hippogriff': (0.75, 1), 'units/holy_rider': (0.75, 1),
+    'units/horse': (0.75, 1), 'units/hunter': (0.75, 1), 'units/hydra': (0.6, 1), 'units/hydromancer': (0.75, 1),
+    'units/ice_dragon': (0.75, 1), 'units/ice_giant': (0.75, 1), 'units/ice_griffin': (0.75, 1),
+    'units/ice_mage': (0.75, 1), 'units/ifrit': (0.75, 1), 'units/kelpie': (0.75, 1), 'units/king_arthur': (0.75, 1),
+    'units/knight': (0.75, 1), 'units/kraken': (0.75, 1), 'units/lamassu': (0.75, 1), 'units/lamia': (0.75, 1),
+    'units/lancer': (0.75, 1), 'units/lava': (0.75, 1), 'units/legend': (0.75, 1), 'units/leviathan': (0.75, 1),
+    'units/lich_king': (0.75, 1), 'units/lightning': (0.6, 1), 'units/loki': (0.75, 1), 'units/mage': (0.75, 1),
+    'units/mage_rider': (0.75, 1), 'units/marshal': (0.75, 1), 'units/medusa': (0.75, 1),
+    'units/mercenary': (0.75, 1), 'units/merlin': (0.75, 1), 'units/miner': (0.75, 1), 'units/minotaur': (0.75, 1),
+    'units/monk': (0.75, 1), 'units/mountain_king': (0.75, 1), 'units/mounted_archer': (0.75, 1),
+    'units/mounted_knight': (0.75, 1), 'units/mummy': (0.75, 1), 'units/naga': (0.75, 1),
+    'units/naga_archer': (0.75, 1), 'units/naga_guard': (0.75, 1), 'units/naga_mage': (0.75, 1),
+    'units/naga_queen': (0.75, 1), 'units/necromancer': (0.75, 1), 'units/newt': (0.75, 1),
+    'units/nightmare': (0.75, 1), 'units/novice': (0.75, 1), 'units/nymph': (0.75, 1), 'units/paladin': (0.75, 1),
+    'units/peasant': (0.75, 1), 'units/pebble': (0.75, 1), 'units/pegasus': (0.75, 1), 'units/phoenix': (0.75, 1),
+    'units/pikeman': (0.75, 1), 'units/plague_doctor': (0.75, 1), 'units/polar_bear': (0.75, 1),
+    'units/priest': (0.75, 1), 'units/prior': (0.75, 1), 'units/pyromancer': (0.75, 1), 'units/red_hood': (0.75, 1),
+    'units/revenant': (0.75, 1), 'units/robin_hood': (0.75, 1), 'units/rune_master': (0.75, 1),
+    'units/saint': (0.75, 1), 'units/sand_golem': (0.75, 1), 'units/sandstorm': (0.75, 1), 'units/satyr': (0.75, 1),
+    'units/shadow_wolf': (0.75, 1), 'units/shaman': (0.75, 1), 'units/sharpshooter': (0.75, 1),
+    'units/shock_serpent': (0.75, 1), 'units/silver_unicorn': (0.75, 1), 'units/siren': (0.75, 1),
+    'units/skeleton': (0.75, 1), 'units/sky_griffin': (0.75, 1), 'units/sleipnir': (0.75, 1),
+    'units/slinger': (0.75, 1), 'units/snow_queen': (0.75, 1), 'units/snowflake': (0.75, 1),
+    'units/sorceress': (0.75, 1), 'units/spark': (0.75, 1), 'units/spearman': (0.75, 1), 'units/sphinx': (0.75, 1),
+    'units/spiny_frog': (0.75, 1), 'units/squire': (0.75, 1), 'units/st_george': (0.75, 1), 'units/steam': (0.75, 1),
+    'units/stone_giant': (0.75, 1), 'units/stone_guard': (0.75, 1), 'units/storm_archer': (0.75, 1),
+    'units/stormsteed': (0.75, 1), 'units/templar': (0.75, 1), 'units/thor': (0.75, 1),
+    'units/thunderbird': (0.75, 1), 'units/titan': (0.75, 1), 'units/treant': (0.75, 1), 'units/tree_frog': (0.75, 1),
+    'units/triton': (0.75, 1), 'units/troll': (0.75, 1), 'units/unicorn': (0.75, 1), 'units/valkyrie': (0.75, 1),
+    'units/vampire': (0.75, 1), 'units/warhorse': (0.6, 1), 'units/water_elemental': (0.75, 1),
+    'units/water_golem': (0.75, 1), 'units/water_spirit': (0.75, 1), 'units/wave': (0.75, 1),
+    'units/werewolf': (0.75, 1), 'units/wild_hunter': (0.75, 1), 'units/wind_spirit': (0.75, 1),
+    'units/witch': (0.75, 1), 'units/witch_doctor': (0.75, 1), 'units/witch_queen': (0.75, 1),
+    'units/wolf': (0.75, 1), 'units/wolf_pup': (0.75, 1), 'units/wood_elf': (0.75, 1),
+    'units/world_weaver': (0.75, 1), 'units/wyrmling': (0.75, 1), 'units/young_dragon': (0.75, 1),
+    'units/zombie_giant': (0.75, 1),
+}
+
+
+def _color_name(hex_color):
+    r, g, b = (int(hex_color[i:i + 2], 16) / 255 for i in (1, 3, 5))
+    hi, lo = max(r, g, b), min(r, g, b)
+    if hi - lo < 0.12:
+        return 'white' if hi > 0.8 else 'black' if hi < 0.25 else 'gray'
+    if hi == r:
+        hue = ((g - b) / (hi - lo)) % 6
+    elif hi == g:
+        hue = (b - r) / (hi - lo) + 2
+    else:
+        hue = (r - g) / (hi - lo) + 4
+    names = ['red', 'orange', 'yellow', 'yellow', 'green', 'green', 'cyan', 'blue', 'blue', 'purple', 'magenta', 'red']
+    name = names[int(hue * 2) % 12]
+    return ('dark ' if hi < 0.45 else '') + ('brown' if name in ('orange', 'yellow') and hi < 0.65 else name)
+
+
+def _tile_words(rel):
+    parts = rel.split('/')
+    word = parts[-1].replace('_new', '').replace('-', ' ').replace('_', ' ').rstrip('0123456789 ')
+    if parts[0] == 'player':
+        slot = parts[1]
+        if slot in FIGURE_SKIP:
+            return None
+        if slot == 'base':
+            return word.replace('male', '').replace('fe', '').strip() or 'human'
+        if slot in ('hair', 'beard'):
+            return f'{word} {slot}'
+        if slot == 'hand_right':
+            return f'holding {word}'
+        if slot == 'hand_left':
+            return f'with {word}'
+        return word if slot != 'cloak' else f'{word} cloak'
+    return word.replace('monster ', '')
+
+
+def _describe(make):
+    """Kacheln und Pferde, die der Erzeuger der bisherigen Figur benutzt, als Stichworte."""
+    words = []
+    tile, horse = sprite_dcss.tile, sprite_dcss.horse
+    def rec_tile(rel):
+        words.append(_tile_words(rel))
+        return tile(rel)
+    def rec_horse(coat='brown', eye='#0a0806'):
+        words.append(f'{coat} horse')
+        return horse(coat, eye)
+    sprite_dcss.tile, sprite_dcss.horse = rec_tile, rec_horse
+    try:
+        img = make()
+    finally:
+        sprite_dcss.tile, sprite_dcss.horse = tile, horse
+    return img, words
+
+
+@functools.cache
+def figures():
+    """units/<Id> und enemies/<Id> -> (Prompt, bisherige Figur). Kombinationen einmal unter ihrer Basis-Id."""
+    from i18n_names import EN
+    table = {}
+    def add(key, make, name, color, body):
+        img, words = _describe(make)
+        img = pi.trim(img)
+        parts = [name.lower(), *words, FIGURE_BODY.get(body), color and f'{_color_name(color)} colors']
+        table[key] = (', '.join(dict.fromkeys(p for p in parts if p)), img)
+    for line in content.LINES.values():
+        for uid, name, color in zip(line['ids'], line['names'], line['colors']):
+            add(f'units/{uid}', sprite_dcss.LINE[uid], EN[name], color, content.UNIT_PROFILE[uid]['body'])
+    for base, combo in content.COMBOS.items():
+        spec = sprite_dcss.COMBO[base]
+        add(f'units/{base}', spec[0] if isinstance(spec, list) else spec, EN[combo['names'][0]], combo['color'],
+            content.UNIT_PROFILE[base]['body'])
+    for uid, make in sprite_dcss.ENEMIES.items():
+        if not uid.startswith('boss_'):
+            add(f'enemies/{uid}', make, uid.replace('_', ' '), None, sprite_dcss.ENEMY_BODY.get(uid, 'biped'))
+    return table
+
+
+def _template(img):
+    """Bisherige Figur groß auf Weiß als Vorlage für img2img (Schatten am Boden weggelassen), dazu klein."""
+    small = Image.frombytes('RGBA', (img.w, img.h), bytes(v for c in img.px for v in (c if c[3] > 200 else (0, 0, 0, 0))))
+    factor = 800 // max(img.w, img.h)
+    big = small.resize((img.w * factor, img.h * factor), Image.NEAREST)
+    canvas = Image.new('RGB', (1024, 1024), 'white')
+    canvas.paste(big, ((1024 - big.width) // 2, (1024 - big.height) // 2), big)
+    return canvas, small
+
+
+def figure(name, seed=None):
+    prompt, img = figures()[name]
+    denoise, picked = FIGURES.get(name, (FIGURE_DENOISE, 1))
+    return sprite_image(prompt, (img.w, img.h), picked if seed is None else seed, SPRITE_NEGATIVE, *_template(img),
+                        denoise=denoise)
 
 
 def _save(img, path):
@@ -276,6 +491,7 @@ KINDS = {
     'bosses': (BOSSES, boss, 'arenas', 'arena_{}.png'),
     'village': ({'village': VILLAGE}, village, '.', '{}.png'),
     'sprites': (SPRITES, sprite, 'sprites', '{}.png'),
+    'figures': (None, figure, 'sprites', '{}.png'),
 }
 
 
@@ -286,15 +502,21 @@ def main():
     ap.add_argument('--seeds', help='Varianten zum Aussuchen, z.B. 1,2,3')
     a = ap.parse_args()
     table, make, folder, filename = KINDS[a.kind]
-    names = a.names or list(table)
+    if table is None:  # figures: ohne Namen nur die übernommenen neu erzeugen
+        table = figures()
+        names = a.names or list(FIGURES)
+    else:
+        names = a.names or list(table)
     for name in names:
         if name not in table:
             raise SystemExit(f'Unbekannt: {name} (bekannt: {", ".join(table)})')
         if a.seeds:
             for seed in (int(s) for s in a.seeds.split(',')):
-                _save(make(name, seed), OUT / 'candidates' / folder / f'{name}_s{seed}.png')
+                path = OUT / 'candidates' / folder / f'{name}_s{seed}.png'
+                if not path.exists():  # nach Abbruch weitermachen; zum Neuerzeugen den Ordner leeren
+                    _save(_retry(make, name, seed), path)
         else:
-            _save(make(name), OUT / folder / filename.format(name))
+            _save(_retry(make, name), OUT / folder / filename.format(name))
 
 
 if __name__ == '__main__':

@@ -319,7 +319,10 @@ Offen:
   baut daraus die Arena wie vorher. Die Bossarenen sind mit ControlNet aus dem Generatorbild neu gezeichnet
   (Grundriss bleibt), der Runenkreis liegt darüber. Das Dorf ist genauso neu gezeichnet (Häuser bleiben an ihrem
   Platz). Die vier Bosse sind Pixel-Art aus SD mit Pixel-Art-LoRA, freigestellt und mit dunklem Umriss wie die
-  Kacheln. Kleine Figuren (um 32 Pixel), Hindernisse und Münze bleiben Kacheln: SD wird bei der Größe matschig.
+  Kacheln. Frei gezeichnet wird SD bei 32 Pixeln matschig, deshalb dienen die bisherigen Kachelfiguren als Vorlage
+  (img2img): Pose, Farben und Ausrüstung bleiben, SD zeichnet sie detaillierter neu (223 von 233 Figuren; wo Skelett,
+  Flügel oder Reittier verloren gingen, bleibt die Kachel). Kombinationen haben ein Bild, die Stufe zeigt der Rand.
+  Hindernisse und Münze bleiben Kacheln.
   Die Ergebnisse liegen als PNG unter `tools/sd/`.
 - Oberfläche: dunkler Granit mit Stahl- oder Goldrand wie die Reiter in Dungeon Crawl, Goldhaufen als Münze.
   Nachbearbeitung "Kerker": leicht warmes Fackellicht, dunklere Bildränder.
