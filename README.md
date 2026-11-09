@@ -72,7 +72,7 @@ Copyright (C) 2026 aikitori. Das gilt für Code, Musik und die selbst erzeugten 
 
 Die Grafiken beruhen auf den Kacheln von [Dungeon Crawl Stone Soup](https://opengameart.org/content/dungeon-crawl-32x32-tiles-supplemental)
 (CC0, gemeinfrei; Dank an die Zeichnerinnen und Zeichner von Crawl, siehe `tools/dcss/README.txt`).
-Boden- und Mauertexturen der Arenen und die Bossarenen sind mit Stable Diffusion erzeugt (`tools/import_sd.py`).
+Boden- und Mauertexturen der Arenen, die Bossarenen, das Dorf und die Bosse sind mit Stable Diffusion erzeugt (`tools/import_sd.py`).
 Die meisten Soundeffekte stammen von [Kenney](https://kenney.nl) und aus der
 [Retro-Sammlung von Juhani Junkala](https://opengameart.org/content/512-sound-effects-8-bit-style)
 (beide CC0, siehe `tools/sfx_cc0/README.txt`).

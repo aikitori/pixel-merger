@@ -317,7 +317,10 @@ Offen:
 - Arena-Texturen und Bossarenen aus Stable Diffusion (`tools/import_sd.py`, einmalig über ComfyUI): Boden und
   Mauern der Kreuz-Arenen sind nahtlose Texturen, farblich an die ersetzten Kacheln angeglichen, der Generator
   baut daraus die Arena wie vorher. Die Bossarenen sind mit ControlNet aus dem Generatorbild neu gezeichnet
-  (Grundriss bleibt), der Runenkreis liegt darüber. Die Ergebnisse liegen als PNG unter `tools/sd/`.
+  (Grundriss bleibt), der Runenkreis liegt darüber. Das Dorf ist genauso neu gezeichnet (Häuser bleiben an ihrem
+  Platz). Die vier Bosse sind Pixel-Art aus SD mit Pixel-Art-LoRA, freigestellt und mit dunklem Umriss wie die
+  Kacheln. Kleine Figuren (um 32 Pixel), Hindernisse und Münze bleiben Kacheln: SD wird bei der Größe matschig.
+  Die Ergebnisse liegen als PNG unter `tools/sd/`.
 - Oberfläche: dunkler Granit mit Stahl- oder Goldrand wie die Reiter in Dungeon Crawl, Goldhaufen als Münze.
   Nachbearbeitung "Kerker": leicht warmes Fackellicht, dunklere Bildränder.
 - Der Clonk-Stil (`generate_sprites.py --figures clonk`) und der Holz-Stil (`--classic`) sind erhalten, aber nicht

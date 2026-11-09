@@ -2,6 +2,8 @@
 
 Erzeugt assets/sprites/tiles/: die Arenen (aus arena_dcss.py), village.png (Dorf 640x296) und
 obstacle_<art>.png. Die Häuser müssen zu scripts/village.gd (HOUSES) passen.
+Das Dorf kommt aus tools/sd/, wenn dort Bilder von tools/import_sd.py liegen (Dorf mit ControlNet
+aus village() neu gezeichnet).
 """
 import pixel_image as pi
 from pixel_image import Img
@@ -212,7 +214,8 @@ def ui():
 
 
 def build():
-    out = {**arena_dcss.images(), 'village': village(), **ui()}
+    painted = arena_dcss.SD / 'village.png'
+    out = {**arena_dcss.images(), 'village': pi.read_png(painted) if painted.exists() else village(), **ui()}
     for kind, fn in OBSTACLES.items():
         out[f'obstacle_{kind}'] = pi.trim(fn())
     return out

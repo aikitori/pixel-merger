@@ -15,10 +15,17 @@ from pixel_image import Img
 
 ROOT = Path(__file__).resolve().parent.parent
 TILES = ROOT / 'tools/dcss'
+SD_SPRITES = ROOT / 'tools/sd/sprites'
 
 # Wird von import_dcss.py ersetzt, um die Kacheln direkt aus dem Paket zu lesen.
 loader = None
 _cache = {}
+
+
+def sd_sprite(name):
+    """Pixel-Art aus Stable Diffusion (tools/import_sd.py sprites) statt der Kachel, falls vorhanden."""
+    path = SD_SPRITES / f'{name}.png'
+    return pi.read_png(path) if path.exists() else None
 
 
 def tile(rel):
@@ -699,7 +706,7 @@ def build():
             else:
                 img = tier(spec(), level, color)
             units[uid] = finish(img)
-    enemies = {uid: finish(fn()) for uid, fn in ENEMIES.items()}
+    enemies = {uid: finish(sd_sprite(uid) or fn()) for uid, fn in ENEMIES.items()}
     return units, enemies
 
 
