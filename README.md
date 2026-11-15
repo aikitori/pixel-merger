@@ -1,90 +1,85 @@
-# Pixel Merger
+<div align="center">
 
-A 2D pixel-art merge and auto-battle game for Android and the browser, built with Godot 4.
-Buy units, merge them into stronger combinations, then watch your army fight wave after wave of monsters.
-Inspired by the Warcraft III custom map "Binders".
+# 🕹️ Pixel Merger
 
-**[Play in the browser](https://aikitori.github.io/pixel-merger/)** (always the current state of `main`) ·
-**[Download the Android alpha](https://github.com/aikitori/pixel-merger/releases)** (debug APK, tags `alpha-X.Y.Z`)
+**A pixel-art merge and auto-battle game. Buy units, merge them into stronger ones, and watch your army fight.**
 
-> Status: alpha. Expect rough edges and balance changes. The interface is German with an English translation.
+[![Build](https://github.com/aikitori/pixel-merger/actions/workflows/android.yml/badge.svg)](https://github.com/aikitori/pixel-merger/actions/workflows/android.yml)
+[![Release](https://img.shields.io/github/v/release/aikitori/pixel-merger?include_prereleases)](https://github.com/aikitori/pixel-merger/releases)
+![Godot 4.7](https://img.shields.io/badge/Godot-4.7-478cbf)
+[![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue)](LICENSE)
 
-## How it works
+[**Play in the browser**](https://aikitori.github.io/pixel-merger/) · [**Download APK**](https://github.com/aikitori/pixel-merger/releases)
+
+<img src="assets/logo/logo_doom.png" width="400" alt="Pixel Merger">
+
+</div>
+
+Inspired by the Warcraft III custom map "Binders". Alpha: expect rough edges and balance changes.
+
+## How to play
 
 Every round has two phases:
 
-1. **Build.** Spend gold on units and place them freely on the battlefield. Drag one unit onto another to merge
-   them. A recipe always takes exactly two ingredients (order does not matter), and the result can itself be an
-   ingredient, so combinations go several tiers deep: Knight + Horse = Mounted Rider, and so on.
-2. **Battle.** The fight runs automatically within a fixed time window while monsters keep spawning. Survive until
+1. **Build:** spend gold on units and place them on the battlefield. Drag one unit onto another to merge them.
+   A recipe takes exactly two ingredients (order does not matter) and results can be merged again, so
+   combinations go several tiers deep.
+2. **Battle:** the fight runs automatically within a fixed time window while monsters keep spawning. Survive until
    the timer ends to clear the round. Every kill earns gold for the next build phase.
 
-You are not just a spectator, though: units can be given orders (hold, guard another unit, attack a target,
-walk somewhere), and you can use their abilities.
+During battle you can give orders: hold position, guard another unit, attack a target, walk somewhere, or use
+abilities.
 
-### Features
+## Features
 
-- **23 unit lines and 100 combinations**, each with its own behavior, attack form, body type, ability and
-  signature trait. The generators refuse to build two identical lines.
-- **17 enemy types and 4 bosses** with their own abilities. Enemies scale with each round, and from round 8 some
-  of them turn into elites.
-- **Boss rounds with their own arenas**, and rewards (events) after them.
-- **Secret recipes**, achievements and a high score that persist between runs; the current run is saved.
-- **Strategy-game controls:** mouse (left select, right command, box select, control groups), keyboard
-  shortcuts, and touch (tap, long press).
-- **Fully animated** units: 16 frames each for idle, walk, attack and death.
-- **Procedural audio** and CC0 sound effects.
+- **23 unit lines, 100 combinations:** each has its own behavior, attack form, body type, ability and signature trait.
+- **17 enemy types and 4 bosses:** with their own abilities, scaling with every round. Elites show up from round 8.
+- **Boss arenas and events:** every boss round has its own arena and is followed by a reward.
+- **Progress:** secret recipes, achievements, a high score, and the current run is saved.
+- **Strategy-game controls:** mouse (select, box select, right-click orders, control groups), keyboard shortcuts
+  and touch (tap, long press).
+- **Animated units:** idle, walk, attack and death animations for every figure.
+- **Languages:** German and English.
 
-The full rules and design notes live in [docs/GAME_DESIGN.md](docs/GAME_DESIGN.md) (German).
+Rules and design notes: [docs/GAME_DESIGN.md](docs/GAME_DESIGN.md) (German).
 
-## Getting started
+## Install
 
-Requirements: [Godot 4.7](https://godotengine.org/download) (standard build, no .NET).
+- **Browser:** https://aikitori.github.io/pixel-merger/ (always the current state of `main`)
+- **Android:** download the debug APK from the [releases](https://github.com/aikitori/pixel-merger/releases)
+  (tags `alpha-X.Y.Z`) and install it. Updates work as long as the debug key stays the same.
+
+## Development
+
+Requires [Godot 4.7](https://godotengine.org/download) (standard build, no .NET).
 
 ```bash
 git clone https://github.com/aikitori/pixel-merger.git
 cd pixel-merger
 godot --path . --import   # first run only
-godot --path .            # or open project.godot in the editor and press F5
+godot --path .            # or open project.godot and press F5
 ```
 
-Base resolution is 640x360 with nearest-neighbor filtering.
-
-### Android
-
-`tools/build_android.sh debug` produces `build/pixel-merger-debug.apk`. CI builds one on every push.
-Setup, signing and release details: [docs/ANDROID.md](docs/ANDROID.md).
-
-## Tests
-
-All tests run headless:
+Android build (see [docs/ANDROID.md](docs/ANDROID.md) for SDK and signing):
 
 ```bash
-godot --headless res://scenes/dev/smoke.tscn        # plays through rounds, game logic
-godot --headless res://scenes/dev/input_test.tscn   # mouse, touch, keys, drag, merge, orders
-godot --headless res://scenes/dev/anim_test.tscn    # attacks and all abilities (2-3 minutes)
-godot --headless res://scenes/dev/units_test.tscn   # behaviors, attack forms, traits, strips
-godot --headless res://scenes/dev/events_test.tscn  # bosses, bonus rounds, achievements, version
-godot --headless res://scenes/dev/fuzz_test.tscn    # random input over many rounds
+tools/build_android.sh debug   # build/pixel-merger-debug.apk
 ```
 
-A passing run prints `... OK` and no `FAIL`, `SCRIPT ERROR` or `ERROR` lines.
+Tests (headless, each should end with `... OK` and no `FAIL` or `ERROR` lines):
 
-## Project layout
-
-```
-assets/     sprites, audio, fonts (generated)
-data/       units, recipes and enemies as .tres (generated)
-docs/       game design, Android build
-scenes/     scenes (.tscn), dev/ holds the tests
-scripts/    GDScript (autoload/ singletons, data/ resource classes)
-shaders/    full-screen post-processing
-tools/      Python generators for all content
+```bash
+godot --headless res://scenes/dev/smoke.tscn
+godot --headless res://scenes/dev/input_test.tscn
+godot --headless res://scenes/dev/anim_test.tscn     # 2-3 minutes
+godot --headless res://scenes/dev/units_test.tscn
+godot --headless res://scenes/dev/events_test.tscn
+godot --headless res://scenes/dev/fuzz_test.tscn
 ```
 
-## Contributing
+### Generated content
 
-Units, sprites, sounds and names are **generated** by Python scripts (standard library only). Do not edit the
+Units, sprites, sounds and names are generated by Python scripts (standard library only). Do not edit the
 generated files by hand; change the source and regenerate:
 
 | Source | Generates |
@@ -100,29 +95,37 @@ python3 tools/generate_sprites.py
 godot --headless --path . --import
 ```
 
-Some art (arena textures, boss arenas, village, bosses, figures) was made with Stable Diffusion and is imported
-once via `tools/import_sd.py`; that step needs ComfyUI and is not exactly reproducible.
+Some art (arena textures, boss arenas, village, bosses, figures) was made with Stable Diffusion and imported once
+with `tools/import_sd.py` (needs ComfyUI, not exactly reproducible).
 
-Notes for contributors:
+### Project layout
 
-- Code comments and in-game text are German. Every new German string needs an English entry in
-  `scripts/i18n/ui_en.gd`.
-- The web build has no system font: use only Latin-1 characters (no emoji or symbols such as arrows or stars).
-- Tests must not depend on randomness.
-- Developer and architecture notes are in [CLAUDE.md](CLAUDE.md).
+```
+assets/     sprites, audio, fonts (generated)
+data/       units, recipes and enemies as .tres (generated)
+docs/       game design, Android build
+scenes/     scenes, dev/ holds the tests
+scripts/    GDScript
+shaders/    post-processing
+tools/      Python generators
+```
 
-Issues and pull requests are welcome.
+### Contributing
+
+Issues and pull requests are welcome. Code comments and in-game text are German; every new German string needs an
+English entry in `scripts/i18n/ui_en.gd`. The web build has no system font, so use only Latin-1 characters (no
+emoji or symbols). Tests must not depend on randomness. More notes in [CLAUDE.md](CLAUDE.md).
 
 ## License
 
-Code, music and the self-made sounds: [GNU General Public License v3.0 or later](LICENSE),
-Copyright (C) 2026 aikitori. Versions up to alpha 0.1.8 were released under the MIT license.
+Code, music and self-made sounds: [GPL-3.0-or-later](LICENSE), Copyright (C) 2026 aikitori
+(versions up to alpha 0.1.8 were MIT).
 
 Third-party assets:
 
-- Graphics are based on the [Dungeon Crawl Stone Soup tiles](https://opengameart.org/content/dungeon-crawl-32x32-tiles-supplemental)
-  (CC0; thanks to the Crawl artists, see `tools/dcss/README.txt`). Arena textures, boss arenas, the village, the
-  bosses and the other figures were drawn with Stable Diffusion, using the Crawl tiles as templates.
-- Most sound effects come from [Kenney](https://kenney.nl) and the
+- Graphics build on the [Dungeon Crawl Stone Soup tiles](https://opengameart.org/content/dungeon-crawl-32x32-tiles-supplemental)
+  (CC0, see `tools/dcss/README.txt`). Arena textures, boss arenas, village, bosses and the other figures were drawn
+  with Stable Diffusion, using the Crawl tiles as templates.
+- Most sound effects are from [Kenney](https://kenney.nl) and the
   [512 Sound Effects (8-bit style)](https://opengameart.org/content/512-sound-effects-8-bit-style) pack by
-  Juhani Junkala (both CC0, see `tools/sfx_cc0/README.txt`).
+  Juhani Junkala (CC0, see `tools/sfx_cc0/README.txt`).
