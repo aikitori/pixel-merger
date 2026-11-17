@@ -172,7 +172,7 @@ func _ready() -> void:
 		_fullscreen_button = Button.new()
 		_fullscreen_button.text = Fullscreen.label()
 		_fullscreen_button.position = Vector2(292, 2)
-		_fullscreen_button.size = Vector2(56, 20)
+		_fullscreen_button.size = Vector2(66, 20)
 		_fullscreen_button.add_theme_font_size_override("font_size", 10)
 		_fullscreen_button.pressed.connect(func() -> void:
 			Fullscreen.toggle()
@@ -184,8 +184,8 @@ func _ready() -> void:
 		root.add_child(_fullscreen_button)
 	_achievements_button = Button.new()
 	_achievements_button.text = tr("Erfolge")
-	_achievements_button.position = Vector2(354, 2)
-	_achievements_button.size = Vector2(98, 20)
+	_achievements_button.position = Vector2(362, 2)
+	_achievements_button.size = Vector2(92, 20)
 	_achievements_button.add_theme_font_size_override("font_size", 10)
 	_achievements_button.pressed.connect(func() -> void:
 		if _achievements.visible:

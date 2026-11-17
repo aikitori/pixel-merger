@@ -43,7 +43,7 @@ func _ready() -> void:
 	background.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	add_child(background)
 
-	var banner := _sign(tr("Dorf – tippe auf ein Haus"), Rect2(200, 4, 240, 18))
+	var banner := _sign(tr("Dorf – tippe auf ein Haus"), Rect2(200, 10, 240, 18))
 	add_child(banner)
 
 	var by_category := _units_by_category()
