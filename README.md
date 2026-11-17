@@ -32,14 +32,45 @@ abilities.
 
 ## Features
 
-- **23 unit lines, 100 combinations:** each has its own behavior, attack form, body type, ability and signature trait.
+**Units and merging**
+
+- **23 unit lines, 100 combinations:** each has its own behavior, attack form, body type, ability and signature
+  trait. Five tiers per line, plus legendary results.
+- **Recipe book:** shows every combination with ingredients, cost, unlock round and stats. Locked recipes are
+  greyed out, and some recipes are secret until you find them.
+- **Merge all:** one button merges every matching pair, lowest tier first. Higher tiers can be bought directly
+  from round 8, and surplus units can be sent back for a partial refund.
+- **Village:** each house sells its own category of units and can be upgraded for permanent bonuses during the
+  run. Upgraded houses unlock extra unit lines.
+
+**Battle**
+
+- **Orders:** hold, guard another unit, attack a target, walk somewhere, or trigger abilities by hand. A toggle
+  switches automatic abilities off if you want full control.
+- **Abilities:** more than 20 active and passive abilities, from arrow rain and chain lightning to resurrection,
+  petrification and earthquakes.
+- **Battle speed:** 1x, 2x or 3x, pause at any time (the game also pauses by itself when the app goes to the
+  background).
+
+**Enemies and variety**
+
 - **17 enemy types and 4 bosses:** with their own abilities, scaling with every round. Elites show up from round 8.
-- **Boss arenas and events:** every boss round has its own arena and is followed by a reward.
-- **Progress:** secret recipes, achievements, a high score, and the current run is saved.
+- **Round modifiers:** most normal rounds roll a special rule such as fog, blood moon, snow or golden rain.
+- **Boss rounds and bonus rounds:** every fifth round is special. Bosses fight in their own arenas and drop a
+  reward, bonus rounds pay triple gold.
+- **Events:** merchants, smiths, recruits, gambles and more offer three cards between rounds.
+- **Terrain:** the field starts full of obstacles that disappear boss by boss, and the wall style changes with it.
+
+**Progress and platform**
+
+- **Saved runs:** the current run is saved and can be continued from the menu, including open events.
+- **Records and achievements:** secret recipes, achievements and a high score persist between runs.
 - **Strategy-game controls:** mouse (select, box select, right-click orders, control groups), keyboard shortcuts
-  and touch (tap, long press).
+  and touch (tap, long press), with a short tutorial on the first run.
 - **Animated units:** idle, walk, attack and death animations for every figure.
-- **Languages:** German and English.
+- **Sound:** CC0 and synthesized effects and music, switchable between all on, effects only and off.
+- **Languages:** German and English (follows the device).
+- **Plays anywhere:** Android and any modern browser, no installation needed.
 
 Rules and design notes: [docs/GAME_DESIGN.md](docs/GAME_DESIGN.md) (German).
 
