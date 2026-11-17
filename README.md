@@ -74,6 +74,22 @@ abilities.
 
 Rules and design notes: [docs/GAME_DESIGN.md](docs/GAME_DESIGN.md) (German).
 
+## Controls
+
+| Action | Mouse and keyboard | Touch |
+|---|---|---|
+| Select | Left click, drag a box, Shift/Ctrl/double click for more | Tap |
+| Command (walk, attack, guard) | Right click | Tap the field or an enemy, long press to guard |
+| Merge | Drag a unit onto a matching one, `V` merges everything | Drag |
+| Hold / free / guard | `H` / `S` / `G` | "Command" button |
+| Ability | `Q` | Ability button |
+| Control groups | `Ctrl+1-9` save, `1-9` select, `Ctrl+A` all | - |
+| Start battle, village, recipes | `Enter`, `D`, `R` | Buttons |
+| Pause, battle speed | `Space`, `+` / `-` | Buttons |
+| Menu | `Esc` | Back key |
+
+The in-game menu lists all of them.
+
 ## Install
 
 - **Browser:** https://aikitori.github.io/pixel-merger/ (always the current state of `main`)
@@ -107,6 +123,13 @@ godot --headless res://scenes/dev/units_test.tscn
 godot --headless res://scenes/dev/events_test.tscn
 godot --headless res://scenes/dev/fuzz_test.tscn
 ```
+
+### Continuous integration
+
+Every push to `main` runs all six tests and builds a debug APK (`.github/workflows/android.yml`) and deploys the
+web version to GitHub Pages (`pages.yml`). Alpha releases are tagged `alpha-X.Y.Z` and published as prereleases
+with the debug APK. Tags starting with `v` run the signed release job and need repository secrets, see
+[docs/ANDROID.md](docs/ANDROID.md).
 
 ### Generated content
 
